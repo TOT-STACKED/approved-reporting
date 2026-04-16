@@ -58,23 +58,30 @@ export default function Dashboard() {
 
   const totalLeads = partners.reduce((s, p) => s + p.leadCount, 0);
 
-  // Funnel metrics from status breakdowns across all partners
+  // Aggregate all statuses dynamically from Airtable
   const allStatuses: Record<string, number> = {};
   partners.forEach(p => {
     Object.entries(p.statusBreakdown).forEach(([status, count]) => {
-      allStatuses[status] = (allStatuses[status] || 0) + count;
+      const key = status.trim();
+      if (key) allStatuses[key] = (allStatuses[key] || 0) + count;
     });
   });
 
-  const activeConversations = (allStatuses['In Conversation'] || 0) + (allStatuses['Opportunity'] || 0) + (allStatuses['SQL'] || 0);
-  const closedWon = (allStatuses['Live Closed'] || 0) + (allStatuses['Live Closed '] || 0);
-  const closedLost = (allStatuses['Lost'] || 0) + (allStatuses['Lost '] || 0);
-  const nurturing = allStatuses['nurture'] || 0;
+  // Sort statuses by count for display
+  const sortedStatuses = Object.entries(allStatuses)
+    .sort(([, a], [, b]) => b - a)
+    .filter(([status]) => status !== 'N/A');
+
+  // Assign colours dynamically to each status
+  const STATUS_COLORS = ['bg-gray-300', 'bg-blue-500', 'bg-amber-400', 'bg-emerald-500', 'bg-purple-500', 'bg-red-400', 'bg-teal-500', 'bg-pink-400', 'bg-indigo-400', 'bg-orange-400'];
 
   // Marketing reach
   const totalReach = activities.reduce((s, a) => s + a.impressions, 0);
   const totalEngagements = activities.reduce((s, a) => s + a.engagements, 0);
   const totalPipeline = activities.reduce((s, a) => s + a.pipelineValue, 0);
+
+  // Top 3 statuses for KPI cards (after N/A)
+  const topStatuses = sortedStatuses.slice(0, 3);
 
   if (loading) {
     return (
@@ -114,19 +121,22 @@ export default function Dashboard() {
           <p className="text-sm opacity-80 mt-1">Total Reach</p>
           <p className="text-xs opacity-60 mt-2">{totalEngagements.toLocaleString()} engagements</p>
         </div>
-        <div className="bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-xl p-5 text-white">
-          <p className="text-3xl font-bold">{activeConversations}</p>
-          <p className="text-sm opacity-80 mt-1">Active Conversations</p>
-          <p className="text-xs opacity-60 mt-2">In Conversation + SQL + Opps</p>
-        </div>
-        <div className="bg-gradient-to-br from-purple-600 to-purple-700 rounded-xl p-5 text-white">
-          <p className="text-3xl font-bold">{closedWon}</p>
-          <p className="text-sm opacity-80 mt-1">Closed Won</p>
-          <p className="text-xs opacity-60 mt-2">{closedLost} lost | {nurturing} nurturing</p>
-        </div>
+        {topStatuses.map(([status, count], i) => {
+          const gradients = [
+            'from-emerald-500 to-emerald-600',
+            'from-purple-600 to-purple-700',
+            'from-teal-500 to-teal-600',
+          ];
+          return (
+            <div key={status} className={`bg-gradient-to-br ${gradients[i]} rounded-xl p-5 text-white`}>
+              <p className="text-3xl font-bold">{count}</p>
+              <p className="text-sm opacity-80 mt-1">{status}</p>
+            </div>
+          );
+        })}
       </div>
 
-      {/* Pipeline breakdown bar */}
+      {/* Pipeline breakdown bar — dynamic from Airtable */}
       <div className="bg-white rounded-xl border border-gray-200 p-5 mb-8">
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-sm font-semibold text-gray-700">Pipeline Breakdown</h2>
@@ -135,37 +145,27 @@ export default function Dashboard() {
           )}
         </div>
         <div className="flex rounded-full overflow-hidden h-4 bg-gray-100">
-          {totalLeads > 0 && (
-            <>
-              {(allStatuses['MAL'] || 0) > 0 && (
-                <div className="bg-gray-300 h-full" style={{ width: `${((allStatuses['MAL'] || 0) / totalLeads) * 100}%` }}
-                  title={`MAL: ${allStatuses['MAL']}`} />
-              )}
-              {nurturing > 0 && (
-                <div className="bg-amber-400 h-full" style={{ width: `${(nurturing / totalLeads) * 100}%` }}
-                  title={`Nurture: ${nurturing}`} />
-              )}
-              {activeConversations > 0 && (
-                <div className="bg-blue-500 h-full" style={{ width: `${(activeConversations / totalLeads) * 100}%` }}
-                  title={`Active: ${activeConversations}`} />
-              )}
-              {closedWon > 0 && (
-                <div className="bg-emerald-500 h-full" style={{ width: `${(closedWon / totalLeads) * 100}%` }}
-                  title={`Won: ${closedWon}`} />
-              )}
-              {closedLost > 0 && (
-                <div className="bg-red-400 h-full" style={{ width: `${(closedLost / totalLeads) * 100}%` }}
-                  title={`Lost: ${closedLost}`} />
-              )}
-            </>
-          )}
+          {totalLeads > 0 && sortedStatuses.map(([status, count], i) => (
+            <div
+              key={status}
+              className={`${STATUS_COLORS[i % STATUS_COLORS.length]} h-full`}
+              style={{ width: `${(count / totalLeads) * 100}%` }}
+              title={`${status}: ${count}`}
+            />
+          ))}
         </div>
-        <div className="flex gap-4 mt-3 text-xs text-gray-500 flex-wrap">
-          <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-gray-300 inline-block"></span> MAL ({allStatuses['MAL'] || 0})</span>
-          <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-amber-400 inline-block"></span> Nurture ({nurturing})</span>
-          <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-blue-500 inline-block"></span> Active ({activeConversations})</span>
-          <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block"></span> Won ({closedWon})</span>
-          <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-red-400 inline-block"></span> Lost ({closedLost})</span>
+        <div className="flex gap-3 mt-3 text-xs text-gray-500 flex-wrap">
+          {sortedStatuses.map(([status, count], i) => (
+            <span key={status} className="flex items-center gap-1">
+              <span className={`w-2.5 h-2.5 rounded-full ${STATUS_COLORS[i % STATUS_COLORS.length]} inline-block`}></span>
+              {status} ({count})
+            </span>
+          ))}
+          {(allStatuses['N/A'] || 0) > 0 && (
+            <span className="flex items-center gap-1 text-gray-400">
+              + {allStatuses['N/A']} unclassified
+            </span>
+          )}
         </div>
       </div>
 
@@ -177,11 +177,11 @@ export default function Dashboard() {
       {/* Partner Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {visiblePartners.map(partner => {
-          const active = (partner.statusBreakdown['In Conversation'] || 0) +
-            (partner.statusBreakdown['Opportunity'] || 0) +
-            (partner.statusBreakdown['SQL'] || 0);
-          const won = (partner.statusBreakdown['Live Closed'] || 0) +
-            (partner.statusBreakdown['Live Closed '] || 0);
+          // Show top 2 non-N/A statuses dynamically
+          const partnerStatuses = Object.entries(partner.statusBreakdown)
+            .map(([s, c]) => [s.trim(), c] as [string, number])
+            .filter(([s]) => s && s !== 'N/A')
+            .sort(([, a], [, b]) => b - a);
 
           return (
             <div key={partner.slug} className="bg-white rounded-xl border border-gray-200 p-5 hover:border-orange-300 hover:shadow-md transition-all group relative">
@@ -206,18 +206,12 @@ export default function Dashboard() {
                     <p className="text-2xl font-bold text-blue-600">{partner.leadCount}</p>
                     <p className="text-xs text-gray-500">leads</p>
                   </div>
-                  {active > 0 && (
-                    <div>
-                      <p className="text-lg font-bold text-emerald-600">{active}</p>
-                      <p className="text-xs text-gray-500">active</p>
+                  {partnerStatuses.slice(0, 2).map(([status, count]) => (
+                    <div key={status}>
+                      <p className="text-lg font-bold text-gray-700">{count}</p>
+                      <p className="text-xs text-gray-500">{status}</p>
                     </div>
-                  )}
-                  {won > 0 && (
-                    <div>
-                      <p className="text-lg font-bold text-purple-600">{won}</p>
-                      <p className="text-xs text-gray-500">won</p>
-                    </div>
-                  )}
+                  ))}
                 </div>
               </a>
             </div>
