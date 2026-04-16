@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import AskBox from '@/components/AskBox';
 
 interface Partner {
   name: string;
@@ -81,6 +82,8 @@ export default function Dashboard() {
         <h1 className="text-2xl font-bold text-gray-900">Partner Dashboard</h1>
         <p className="text-gray-500 mt-1">Performance snapshot across all approved partners</p>
       </div>
+
+      <AskBox />
 
       {/* Hero KPIs - The Story */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
