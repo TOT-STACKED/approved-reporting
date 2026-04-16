@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import OpenAI from 'openai';
 import { getPartnerList, getMarketingActivities, getMetrics } from '@/lib/airtable';
-import { getTechStackEntries } from '@/lib/stackcollect';
+import { getTechStackEntries, getBusinessSubmissions, getToolUsageStats, getPOSMarketShare } from '@/lib/stackcollect';
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
@@ -14,12 +14,15 @@ export async function POST(request: Request) {
     }
 
     // Fetch all portal data in parallel (including individual leads + stack data)
-    const [partners, activities, metrics, leadsRes, stackEntries] = await Promise.all([
+    const [partners, activities, metrics, leadsRes, stackEntries, businesses, toolUsage, posMarketShare] = await Promise.all([
       getPartnerList(),
       getMarketingActivities(),
       getMetrics(),
       fetch(new URL('/api/leads', request.url)).then(r => r.json()),
       getTechStackEntries(),
+      getBusinessSubmissions(),
+      getToolUsageStats(),
+      getPOSMarketShare(),
     ]);
 
     const leads = leadsRes.leads || [];
@@ -103,6 +106,28 @@ export async function POST(request: Request) {
           tools: r.tools.map(t => `${t.tool_name} (${t.category})`),
         })),
       },
+      businessSubmissions: businesses.map((b: any) => ({
+        businessName: b.business_name,
+        industry: b.industry,
+        size: b.size,
+        location: b.location,
+        role: b.role,
+        numberOfLocations: b.number_of_locations,
+        submissionType: b.submission_type,
+        date: b.created_at?.split('T')[0],
+      })),
+      totalBusinessSubmissions: businesses.length,
+      toolUsageAnalytics: toolUsage.slice(0, 30).map((t: any) => ({
+        tool: t.tool_name,
+        category: t.category,
+        usageCount: t.usage_count,
+        uniqueBusinesses: t.unique_businesses,
+      })),
+      posMarketShare: posMarketShare.map((p: any) => ({
+        tool: p.tool_name,
+        usageCount: p.usage_count,
+        marketShare: p.market_share_percentage,
+      })),
     });
 
     const completion = await openai.chat.completions.create({
@@ -120,7 +145,7 @@ Lead statuses in the pipeline: MAL (Marketing Accepted Lead) → MQL → SQL →
 
 "Partners" are the tech companies (e.g. Lightspeed, Sona, Square). "Leads" are the hospitality businesses/restaurants/clients being referred to those partners.
 
-The data also includes StackCollect tech stack review data. Each "review" or "stack" is a submission from a hospitality venue showing which tech tools they use across categories like Point Of Sale, Payments, Reservations, etc. You can answer questions about the most popular tools, categories, review counts over time, and which tools appear together.
+The data also includes StackCollect tech stack review data. Each "review" or "stack" is a submission from a hospitality venue showing which tech tools they use. The businessSubmissions array contains every venue that submitted a review — with their business name, industry, location, size, and number of locations. You can answer questions about specific venues, the most popular tools, POS market share, categories, and review counts. The toolUsageAnalytics and posMarketShare arrays contain pre-aggregated usage statistics.
 
 Here is the current portal data:
 ${dataContext}`,

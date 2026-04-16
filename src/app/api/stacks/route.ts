@@ -1,45 +1,51 @@
 import { NextResponse } from 'next/server';
-import { getTechStackEntries } from '@/lib/stackcollect';
+import { getTechStackEntries, getBusinessSubmissions, getToolUsageStats, getPOSMarketShare } from '@/lib/stackcollect';
 
 export async function GET() {
   try {
-    const entries = await getTechStackEntries();
+    const [entries, businesses, toolUsage, posData] = await Promise.all([
+      getTechStackEntries(),
+      getBusinessSubmissions(),
+      getToolUsageStats(),
+      getPOSMarketShare(),
+    ]);
 
-    // Group by submission to get reviews with timestamps
-    const submissions: Record<string, { id: string; created_at: string; tools: { category: string; tool_name: string }[] }> = {};
+    // Build a lookup of submission_id → business info
+    const businessMap = new Map(businesses.map(b => [b.id, b]));
 
+    // Group entries by submission
+    const submissionTools: Record<string, { category: string; tool_name: string }[]> = {};
     for (const e of entries) {
-      if (!submissions[e.submission_id]) {
-        submissions[e.submission_id] = {
-          id: e.submission_id,
-          created_at: e.created_at,
-          tools: [],
-        };
-      }
-      submissions[e.submission_id].tools.push({
-        category: e.category,
-        tool_name: e.tool_name,
-      });
+      if (!submissionTools[e.submission_id]) submissionTools[e.submission_id] = [];
+      submissionTools[e.submission_id].push({ category: e.category, tool_name: e.tool_name });
     }
 
-    const reviews = Object.values(submissions).sort(
-      (a, b) => b.created_at.localeCompare(a.created_at)
-    );
+    // Merge business info with their tools
+    const reviews = businesses.map(b => ({
+      id: b.id,
+      businessName: b.business_name,
+      industry: b.industry,
+      location: b.location,
+      size: b.size,
+      numberOfLocations: b.number_of_locations,
+      created_at: b.created_at,
+      submissionType: b.submission_type,
+      tools: submissionTools[b.id] || [],
+    })).sort((a, b) => b.created_at.localeCompare(a.created_at));
 
-    // Top tools across all entries
-    const toolCounts: Record<string, number> = {};
+    // Top tools from analytics view
+    const topTools = toolUsage.slice(0, 20).map(t => ({
+      name: t.tool_name,
+      category: t.category,
+      count: t.usage_count,
+      uniqueBusinesses: t.unique_businesses,
+    }));
+
+    // Categories from entries
     const categoryCounts: Record<string, number> = {};
     for (const e of entries) {
-      const key = e.tool_name.toLowerCase().trim();
-      toolCounts[key] = (toolCounts[key] || 0) + 1;
       categoryCounts[e.category] = (categoryCounts[e.category] || 0) + 1;
     }
-
-    const topTools = Object.entries(toolCounts)
-      .sort(([, a], [, b]) => b - a)
-      .slice(0, 20)
-      .map(([name, count]) => ({ name: name.charAt(0).toUpperCase() + name.slice(1), count }));
-
     const categories = Object.entries(categoryCounts)
       .sort(([, a], [, b]) => b - a)
       .map(([category, count]) => ({ category, count }));
@@ -50,6 +56,7 @@ export async function GET() {
       totalEntries: entries.length,
       topTools,
       categories,
+      posMarketShare: posData,
     });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });

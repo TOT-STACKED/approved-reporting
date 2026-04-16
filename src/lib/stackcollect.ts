@@ -14,12 +14,64 @@ async function supabaseFetch(table: string, params: string = '') {
   return res.json();
 }
 
+async function supabaseFetchAll(table: string, params: string = '') {
+  const allRows: any[] = [];
+  let offset = 0;
+  const pageSize = 1000;
+
+  while (true) {
+    const separator = params ? '&' : '';
+    const batch = await supabaseFetch(
+      table,
+      `${params}${separator}limit=${pageSize}&offset=${offset}`
+    );
+    allRows.push(...batch);
+    if (batch.length < pageSize) break;
+    offset += pageSize;
+  }
+
+  return allRows;
+}
+
+// --- Types ---
+
 export interface TechStackEntry {
   id: string;
   submission_id: string;
   category: string;
   tool_name: string;
   created_at: string;
+}
+
+export interface BusinessSubmission {
+  id: string;
+  business_name: string;
+  industry: string;
+  size: string | null;
+  location: string | null;
+  contact_name: string | null;
+  contact_email: string;
+  role: string | null;
+  created_at: string;
+  phone_number: string | null;
+  number_of_locations: string | null;
+  biggest_challenge: string | null;
+  vertical: string | null;
+  submission_type: string;
+}
+
+export interface ToolUsageStat {
+  tool_name: string;
+  category: string;
+  usage_count: number;
+  unique_businesses: number;
+}
+
+export interface POSMarketShare {
+  tool_name: string;
+  usage_count: number;
+  unique_businesses: number;
+  market_share_percentage: number;
 }
 
 export interface StackCollectStats {
@@ -31,24 +83,25 @@ export interface StackCollectStats {
   partnerToolData: { category: string; tool_name: string; count: number }[];
 }
 
+// --- Fetch functions ---
+
 export async function getTechStackEntries(): Promise<TechStackEntry[]> {
-  // Paginate through all entries (Supabase caps at 1000 per request)
-  const allEntries: TechStackEntry[] = [];
-  let offset = 0;
-  const pageSize = 1000;
-
-  while (true) {
-    const batch = await supabaseFetch(
-      'tech_stack_entries',
-      `select=*&limit=${pageSize}&offset=${offset}&order=created_at.desc`
-    );
-    allEntries.push(...batch);
-    if (batch.length < pageSize) break;
-    offset += pageSize;
-  }
-
-  return allEntries;
+  return supabaseFetchAll('tech_stack_entries', 'select=*&order=created_at.desc');
 }
+
+export async function getBusinessSubmissions(): Promise<BusinessSubmission[]> {
+  return supabaseFetchAll('business_submissions', 'select=*&order=created_at.desc');
+}
+
+export async function getToolUsageStats(): Promise<ToolUsageStat[]> {
+  return supabaseFetchAll('analytics_tool_usage', 'select=*&order=usage_count.desc');
+}
+
+export async function getPOSMarketShare(): Promise<POSMarketShare[]> {
+  return supabaseFetchAll('analytics_pos_systems', 'select=*&order=market_share_percentage.desc');
+}
+
+// --- Aggregation functions ---
 
 export async function getStackCollectStats(): Promise<StackCollectStats> {
   const entries: TechStackEntry[] = await getTechStackEntries();
@@ -87,10 +140,8 @@ export async function getPartnerStackCollectData(partnerName: string): Promise<{
 }> {
   const entries: TechStackEntry[] = await getTechStackEntries();
 
-  // Normalize partner name for matching
   const partnerLower = partnerName.toLowerCase().trim();
 
-  // Map partner names to possible tool names in StackCollect
   const aliases: Record<string, string[]> = {
     'sky': ['sky'],
     'workforce': ['workforce'],
@@ -122,12 +173,10 @@ export async function getPartnerStackCollectData(partnerName: string): Promise<{
 
   const matchTerms = aliases[partnerLower] || [partnerLower];
 
-  // Find matching entries
   const matched = entries.filter(e =>
     matchTerms.some(term => e.tool_name.toLowerCase().trim().includes(term))
   );
 
-  // Group by category
   const catCounts: Record<string, number> = {};
   for (const e of matched) {
     catCounts[e.category] = (catCounts[e.category] || 0) + 1;

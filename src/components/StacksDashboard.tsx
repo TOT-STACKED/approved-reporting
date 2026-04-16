@@ -6,7 +6,13 @@ type Period = 'week' | 'month' | 'quarter' | 'year' | 'all';
 
 interface Review {
   id: string;
+  businessName: string;
+  industry: string;
+  location: string | null;
+  size: string | null;
+  numberOfLocations: string | null;
   created_at: string;
+  submissionType: string;
   tools: { category: string; tool_name: string }[];
 }
 
@@ -14,7 +20,7 @@ interface StacksData {
   reviews: Review[];
   totalReviews: number;
   totalEntries: number;
-  topTools: { name: string; count: number }[];
+  topTools: { name: string; category: string; count: number; uniqueBusinesses: number }[];
   categories: { category: string; count: number }[];
 }
 
@@ -212,30 +218,38 @@ export default function StacksDashboard() {
             <span className="text-xs font-normal text-gray-400 ml-2">({filtered.length} total)</span>
           </h3>
           <div className="overflow-x-auto -mx-4 sm:-mx-5">
-            <table className="w-full text-xs">
+            <table className="w-full text-xs min-w-[600px]">
               <thead>
                 <tr className="border-b border-gray-100">
-                  <th className="text-left py-2 px-4 sm:px-5 text-gray-500 font-medium">Date</th>
+                  <th className="text-left py-2 px-4 sm:px-5 text-gray-500 font-medium">Venue</th>
+                  <th className="text-left py-2 px-2 text-gray-500 font-medium">Location</th>
+                  <th className="text-left py-2 px-2 text-gray-500 font-medium">Date</th>
                   <th className="text-center py-2 px-2 text-gray-500 font-medium">Tools</th>
                   <th className="text-left py-2 px-4 sm:px-5 text-gray-500 font-medium">Top Picks</th>
                 </tr>
               </thead>
               <tbody>
-                {filtered.slice(0, 15).map(review => (
+                {filtered.slice(0, 20).map(review => (
                   <tr key={review.id} className="border-b border-gray-50 hover:bg-gray-50">
-                    <td className="py-2 px-4 sm:px-5 text-gray-600 whitespace-nowrap">
-                      {new Date(review.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                    <td className="py-2 px-4 sm:px-5 text-gray-800 font-medium whitespace-nowrap">
+                      {review.businessName}
+                    </td>
+                    <td className="py-2 px-2 text-gray-500 whitespace-nowrap">
+                      {review.location || '—'}
+                    </td>
+                    <td className="py-2 px-2 text-gray-500 whitespace-nowrap">
+                      {new Date(review.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
                     </td>
                     <td className="py-2 px-2 text-center text-gray-800 font-medium">{review.tools.length}</td>
                     <td className="py-2 px-4 sm:px-5">
                       <div className="flex flex-wrap gap-1">
-                        {review.tools.slice(0, 5).map((t, i) => (
+                        {review.tools.slice(0, 4).map((t, i) => (
                           <span key={i} className="inline-block bg-gray-100 text-gray-600 px-2 py-0.5 rounded text-[10px]">
                             {t.tool_name}
                           </span>
                         ))}
-                        {review.tools.length > 5 && (
-                          <span className="text-gray-400 text-[10px]">+{review.tools.length - 5} more</span>
+                        {review.tools.length > 4 && (
+                          <span className="text-gray-400 text-[10px]">+{review.tools.length - 4}</span>
                         )}
                       </div>
                     </td>
