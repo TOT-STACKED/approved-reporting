@@ -23,8 +23,13 @@ export default function Dashboard() {
   const [activities, setActivities] = useState<Activity[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [hiddenPartners, setHiddenPartners] = useState<string[]>([]);
+  const [showHidden, setShowHidden] = useState(false);
 
   useEffect(() => {
+    const saved = localStorage.getItem('hiddenPartners');
+    if (saved) setHiddenPartners(JSON.parse(saved));
+
     Promise.all([
       fetch('/api/partners').then(r => r.json()),
       fetch('/api/activity').then(r => r.json()),
@@ -39,6 +44,17 @@ export default function Dashboard() {
         setLoading(false);
       });
   }, []);
+
+  const toggleHide = (slug: string) => {
+    setHiddenPartners(prev => {
+      const next = prev.includes(slug) ? prev.filter(s => s !== slug) : [...prev, slug];
+      localStorage.setItem('hiddenPartners', JSON.stringify(next));
+      return next;
+    });
+  };
+
+  const visiblePartners = partners.filter(p => !hiddenPartners.includes(p.slug));
+  const hiddenList = partners.filter(p => hiddenPartners.includes(p.slug));
 
   const totalLeads = partners.reduce((s, p) => s + p.leadCount, 0);
 
@@ -160,7 +176,7 @@ export default function Dashboard() {
 
       {/* Partner Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {partners.map(partner => {
+        {visiblePartners.map(partner => {
           const active = (partner.statusBreakdown['In Conversation'] || 0) +
             (partner.statusBreakdown['Opportunity'] || 0) +
             (partner.statusBreakdown['SQL'] || 0);
@@ -168,39 +184,78 @@ export default function Dashboard() {
             (partner.statusBreakdown['Live Closed '] || 0);
 
           return (
-            <a
-              key={partner.slug}
-              href={`/partners/${partner.slug}`}
-              className="bg-white rounded-xl border border-gray-200 p-5 hover:border-orange-300 hover:shadow-md transition-all group"
-            >
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="font-semibold text-gray-900 group-hover:text-orange-600 transition-colors">
-                  {partner.name}
-                </h3>
-                <span className="text-xs text-gray-400 group-hover:text-orange-400">View &rarr;</span>
-              </div>
-              <div className="flex items-center gap-5">
-                <div>
-                  <p className="text-2xl font-bold text-blue-600">{partner.leadCount}</p>
-                  <p className="text-xs text-gray-500">leads</p>
+            <div key={partner.slug} className="bg-white rounded-xl border border-gray-200 p-5 hover:border-orange-300 hover:shadow-md transition-all group relative">
+              <button
+                onClick={() => toggleHide(partner.slug)}
+                className="absolute top-3 right-3 text-gray-300 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100"
+                title="Hide partner"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L6.05 6.05m3.828 3.828L6.05 6.05M6.05 6.05l-3 -3m14.95 14.95L21 21" />
+                </svg>
+              </button>
+              <a href={`/partners/${partner.slug}`}>
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="font-semibold text-gray-900 group-hover:text-orange-600 transition-colors">
+                    {partner.name}
+                  </h3>
+                  <span className="text-xs text-gray-400 group-hover:text-orange-400 mr-5">View &rarr;</span>
                 </div>
-                {active > 0 && (
+                <div className="flex items-center gap-5">
                   <div>
-                    <p className="text-lg font-bold text-emerald-600">{active}</p>
-                    <p className="text-xs text-gray-500">active</p>
+                    <p className="text-2xl font-bold text-blue-600">{partner.leadCount}</p>
+                    <p className="text-xs text-gray-500">leads</p>
                   </div>
-                )}
-                {won > 0 && (
-                  <div>
-                    <p className="text-lg font-bold text-purple-600">{won}</p>
-                    <p className="text-xs text-gray-500">won</p>
-                  </div>
-                )}
-              </div>
-            </a>
+                  {active > 0 && (
+                    <div>
+                      <p className="text-lg font-bold text-emerald-600">{active}</p>
+                      <p className="text-xs text-gray-500">active</p>
+                    </div>
+                  )}
+                  {won > 0 && (
+                    <div>
+                      <p className="text-lg font-bold text-purple-600">{won}</p>
+                      <p className="text-xs text-gray-500">won</p>
+                    </div>
+                  )}
+                </div>
+              </a>
+            </div>
           );
         })}
       </div>
+
+      {/* Hidden Partners */}
+      {hiddenList.length > 0 && (
+        <div className="mt-6">
+          <button
+            onClick={() => setShowHidden(!showHidden)}
+            className="text-sm text-gray-400 hover:text-gray-600 flex items-center gap-1"
+          >
+            <svg className={`w-4 h-4 transition-transform ${showHidden ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+            {hiddenList.length} hidden {hiddenList.length === 1 ? 'partner' : 'partners'}
+          </button>
+          {showHidden && (
+            <div className="mt-3 flex flex-wrap gap-2">
+              {hiddenList.map(p => (
+                <button
+                  key={p.slug}
+                  onClick={() => toggleHide(p.slug)}
+                  className="text-xs bg-gray-100 text-gray-500 hover:bg-orange-50 hover:text-orange-600 px-3 py-1.5 rounded-full border border-gray-200 hover:border-orange-200 transition-colors flex items-center gap-1.5"
+                >
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                  </svg>
+                  {p.name}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
