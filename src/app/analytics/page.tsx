@@ -204,26 +204,14 @@ export default function AnalyticsPage() {
         {/* Tech Stack Categories */}
         {data.categoryData.length > 0 && (
           <ChartCard title="Tech Stack Categories" subtitle="Tool selections grouped by category">
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie
-                  data={data.categoryData}
-                  dataKey="count"
-                  nameKey="category"
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={60}
-                  outerRadius={110}
-                  paddingAngle={2}
-                  label={({ name, value }: any) => `${name} (${value})`}
-                  labelLine={{ strokeWidth: 1 }}
-                >
-                  {data.categoryData.map((_, i) => (
-                    <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
-                  ))}
-                </Pie>
+            <ResponsiveContainer width="100%" height={Math.max(300, data.categoryData.length * 32)}>
+              <BarChart data={data.categoryData} layout="vertical" margin={{ left: 20 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                <XAxis type="number" tick={{ fontSize: 11 }} />
+                <YAxis dataKey="category" type="category" tick={{ fontSize: 11 }} width={160} />
                 <Tooltip />
-              </PieChart>
+                <Bar dataKey="count" fill={COLORS.purple} radius={[0, 4, 4, 0]} />
+              </BarChart>
             </ResponsiveContainer>
           </ChartCard>
         )}
