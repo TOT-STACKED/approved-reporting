@@ -32,6 +32,7 @@ export default function RootLayout({
               <a href="/" className="text-sm text-gray-600 hover:text-gray-900">Dashboard</a>
               <a href="/leads" className="text-sm text-gray-600 hover:text-gray-900">All Leads</a>
               <a href="/activity" className="text-sm text-gray-600 hover:text-gray-900">Log Activity</a>
+              <a href="/analytics" className="text-sm text-gray-600 hover:text-gray-900">Analytics</a>
               <a href="/metrics" className="text-sm text-gray-600 hover:text-gray-900">Metrics</a>
             </div>
           </div>
