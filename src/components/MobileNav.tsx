@@ -32,18 +32,21 @@ export default function MobileNav() {
       </button>
 
       {open && (
-        <div className="absolute top-16 left-0 right-0 bg-white border-b border-gray-200 shadow-lg z-50">
-          <div className="flex flex-col py-2">
-            {links.map(link => (
-              <a
-                key={link.href}
-                href={link.href}
-                onClick={() => setOpen(false)}
-                className="px-6 py-3 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-50"
-              >
-                {link.label}
-              </a>
-            ))}
+        <div className="fixed inset-0 top-[57px] z-50">
+          <div className="absolute inset-0 bg-black/20" onClick={() => setOpen(false)} />
+          <div className="relative bg-white border-b border-gray-200 shadow-lg">
+            <div className="flex flex-col py-2">
+              {links.map(link => (
+                <a
+                  key={link.href}
+                  href={link.href}
+                  onClick={() => setOpen(false)}
+                  className="px-6 py-3.5 text-base text-gray-700 hover:text-gray-900 hover:bg-gray-50 active:bg-gray-100"
+                >
+                  {link.label}
+                </a>
+              ))}
+            </div>
           </div>
         </div>
       )}
