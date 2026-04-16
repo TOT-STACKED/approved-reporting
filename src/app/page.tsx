@@ -70,7 +70,7 @@ export default function Dashboard() {
   // Sort statuses by count for display
   const sortedStatuses = Object.entries(allStatuses)
     .sort(([, a], [, b]) => b - a)
-    .filter(([status]) => status !== 'N/A');
+    .filter(([status]) => status !== 'N/A' && status !== 'Closed Lost');
 
   // Assign colours dynamically to each status
   const STATUS_COLORS = ['bg-gray-300', 'bg-blue-500', 'bg-amber-400', 'bg-emerald-500', 'bg-purple-500', 'bg-red-400', 'bg-teal-500', 'bg-pink-400', 'bg-indigo-400', 'bg-orange-400'];
@@ -180,7 +180,7 @@ export default function Dashboard() {
           // Show top 2 non-N/A statuses dynamically
           const partnerStatuses = Object.entries(partner.statusBreakdown)
             .map(([s, c]) => [s.trim(), c] as [string, number])
-            .filter(([s]) => s && s !== 'N/A')
+            .filter(([s]) => s && s !== 'N/A' && s !== 'Closed Lost')
             .sort(([, a], [, b]) => b - a);
 
           return (
