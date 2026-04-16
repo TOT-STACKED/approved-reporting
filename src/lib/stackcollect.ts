@@ -32,7 +32,22 @@ export interface StackCollectStats {
 }
 
 export async function getTechStackEntries(): Promise<TechStackEntry[]> {
-  return supabaseFetch('tech_stack_entries', 'select=*&limit=5000');
+  // Paginate through all entries (Supabase caps at 1000 per request)
+  const allEntries: TechStackEntry[] = [];
+  let offset = 0;
+  const pageSize = 1000;
+
+  while (true) {
+    const batch = await supabaseFetch(
+      'tech_stack_entries',
+      `select=*&limit=${pageSize}&offset=${offset}&order=created_at.desc`
+    );
+    allEntries.push(...batch);
+    if (batch.length < pageSize) break;
+    offset += pageSize;
+  }
+
+  return allEntries;
 }
 
 export async function getStackCollectStats(): Promise<StackCollectStats> {
