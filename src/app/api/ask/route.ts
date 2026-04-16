@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import OpenAI from 'openai';
 import { getPartnerList, getMarketingActivities, getMetrics } from '@/lib/airtable';
+import { getTechStackEntries } from '@/lib/stackcollect';
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
@@ -12,15 +13,37 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Question is required' }, { status: 400 });
     }
 
-    // Fetch all portal data in parallel (including individual leads)
-    const [partners, activities, metrics, leadsRes] = await Promise.all([
+    // Fetch all portal data in parallel (including individual leads + stack data)
+    const [partners, activities, metrics, leadsRes, stackEntries] = await Promise.all([
       getPartnerList(),
       getMarketingActivities(),
       getMetrics(),
       fetch(new URL('/api/leads', request.url)).then(r => r.json()),
+      getTechStackEntries(),
     ]);
 
     const leads = leadsRes.leads || [];
+
+    // Process stack data into submission-level summaries
+    const stackSubmissions: Record<string, { created_at: string; tools: { category: string; tool_name: string }[] }> = {};
+    for (const e of stackEntries) {
+      if (!stackSubmissions[e.submission_id]) {
+        stackSubmissions[e.submission_id] = { created_at: e.created_at, tools: [] };
+      }
+      stackSubmissions[e.submission_id].tools.push({ category: e.category, tool_name: e.tool_name });
+    }
+    const stackReviews = Object.values(stackSubmissions).sort((a, b) => b.created_at.localeCompare(a.created_at));
+
+    // Top tools from stack
+    const toolCounts: Record<string, number> = {};
+    const catCounts: Record<string, number> = {};
+    for (const e of stackEntries) {
+      const key = e.tool_name.toLowerCase().trim();
+      toolCounts[key] = (toolCounts[key] || 0) + 1;
+      catCounts[e.category] = (catCounts[e.category] || 0) + 1;
+    }
+    const stackTopTools = Object.entries(toolCounts).sort(([, a], [, b]) => b - a).slice(0, 20).map(([name, count]) => ({ name, count }));
+    const stackCategories = Object.entries(catCounts).sort(([, a], [, b]) => b - a).map(([category, count]) => ({ category, count }));
 
     // Build a concise data summary for the AI
     const allStatuses: Record<string, number> = {};
@@ -69,6 +92,17 @@ export async function POST(request: Request) {
         users: m.users,
         pageViews: m.pageViews,
       })),
+      stackCollect: {
+        totalReviews: stackReviews.length,
+        totalToolEntries: stackEntries.length,
+        topTools: stackTopTools,
+        categories: stackCategories,
+        recentReviews: stackReviews.slice(0, 15).map(r => ({
+          date: r.created_at.split('T')[0],
+          toolCount: r.tools.length,
+          tools: r.tools.map(t => `${t.tool_name} (${t.category})`),
+        })),
+      },
     });
 
     const completion = await openai.chat.completions.create({
@@ -85,6 +119,8 @@ The data includes every individual lead/client with their business name, status,
 Lead statuses in the pipeline: MAL (Marketing Accepted Lead) → MQL → SQL → In Conversation → Opportunity → Live Closed (won) / Lost / nurture
 
 "Partners" are the tech companies (e.g. Lightspeed, Sona, Square). "Leads" are the hospitality businesses/restaurants/clients being referred to those partners.
+
+The data also includes StackCollect tech stack review data. Each "review" or "stack" is a submission from a hospitality venue showing which tech tools they use across categories like Point Of Sale, Payments, Reservations, etc. You can answer questions about the most popular tools, categories, review counts over time, and which tools appear together.
 
 Here is the current portal data:
 ${dataContext}`,
