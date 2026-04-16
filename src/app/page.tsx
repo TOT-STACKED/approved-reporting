@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import AskBox from '@/components/AskBox';
+import StacksDashboard from '@/components/StacksDashboard';
 
 interface Partner {
   name: string;
@@ -150,6 +151,11 @@ export default function Dashboard() {
           <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block"></span> Won ({closedWon})</span>
           <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-red-400 inline-block"></span> Lost ({closedLost})</span>
         </div>
+      </div>
+
+      {/* Stacks Section */}
+      <div className="mb-8">
+        <StacksDashboard />
       </div>
 
       {/* Partner Cards */}

@@ -40,13 +40,19 @@ interface AnalyticsData {
   };
 }
 
-function ChartCard({ title, subtitle, children }: { title: string; subtitle?: string; children: React.ReactNode }) {
+function ChartCard({ title, subtitle, children, scrollable }: { title: string; subtitle?: string; children: React.ReactNode; scrollable?: boolean }) {
   return (
-    <div className="bg-white rounded-xl border border-gray-200 p-6">
+    <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-6">
       <h3 className="text-sm font-semibold text-gray-700 mb-1">{title}</h3>
-      {subtitle && <p className="text-xs text-gray-400 mb-4">{subtitle}</p>}
-      {!subtitle && <div className="mb-4" />}
-      {children}
+      {subtitle && <p className="text-xs text-gray-400 mb-3 sm:mb-4">{subtitle}</p>}
+      {!subtitle && <div className="mb-3 sm:mb-4" />}
+      {scrollable ? (
+        <div className="overflow-x-auto -mx-4 sm:-mx-6 px-4 sm:px-6">
+          <div className="min-w-[500px]">
+            {children}
+          </div>
+        </div>
+      ) : children}
     </div>
   );
 }
@@ -88,13 +94,13 @@ export default function AnalyticsPage() {
 
   return (
     <div>
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-900">Analytics</h1>
-        <p className="text-gray-500 mt-1">Visual breakdown of traffic, pipeline, and tech stack data</p>
+      <div className="mb-6 sm:mb-8">
+        <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Analytics</h1>
+        <p className="text-gray-500 mt-1 text-sm">Visual breakdown of traffic, pipeline, and tech stack data</p>
       </div>
 
       {/* Summary KPIs */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-8">
+      <div className="grid grid-cols-3 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-3 mb-6 sm:mb-8">
         {[
           { label: 'Total Leads', value: data.summary.totalLeads.toLocaleString(), color: 'from-blue-600 to-blue-700' },
           { label: 'Partners', value: data.summary.totalPartners, color: 'from-orange-500 to-orange-600' },
@@ -103,26 +109,26 @@ export default function AnalyticsPage() {
           { label: 'Stack Reviews', value: data.summary.totalReviews, color: 'from-teal-500 to-teal-600' },
           { label: 'Tool Entries', value: data.summary.totalToolEntries.toLocaleString(), color: 'from-red-500 to-red-600' },
         ].map(kpi => (
-          <div key={kpi.label} className={`bg-gradient-to-br ${kpi.color} rounded-xl p-4 text-white text-center`}>
-            <p className="text-2xl font-bold">{kpi.value}</p>
-            <p className="text-xs opacity-80 mt-1">{kpi.label}</p>
+          <div key={kpi.label} className={`bg-gradient-to-br ${kpi.color} rounded-xl p-3 sm:p-4 text-white text-center`}>
+            <p className="text-lg sm:text-2xl font-bold">{kpi.value}</p>
+            <p className="text-[10px] sm:text-xs opacity-80 mt-1">{kpi.label}</p>
           </div>
         ))}
       </div>
 
       {/* Charts Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
 
         {/* Traffic Trends */}
         {data.trafficOverTime.length > 0 && (
-          <ChartCard title="Traffic Trends" subtitle="Weekly sessions, users & page views across all partners">
-            <ResponsiveContainer width="100%" height={300}>
+          <ChartCard title="Traffic Trends" subtitle="Weekly sessions, users & page views across all partners" scrollable>
+            <ResponsiveContainer width="100%" height={260}>
               <LineChart data={data.trafficOverTime}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                <XAxis dataKey="week" tick={{ fontSize: 11 }} />
-                <YAxis tick={{ fontSize: 11 }} />
+                <XAxis dataKey="week" tick={{ fontSize: 10 }} />
+                <YAxis tick={{ fontSize: 10 }} width={40} />
                 <Tooltip />
-                <Legend />
+                <Legend wrapperStyle={{ fontSize: 11 }} />
                 <Line type="monotone" dataKey="sessions" stroke={COLORS.blue} strokeWidth={2} dot={false} />
                 <Line type="monotone" dataKey="users" stroke={COLORS.orange} strokeWidth={2} dot={false} />
                 <Line type="monotone" dataKey="pageViews" stroke={COLORS.emerald} strokeWidth={2} dot={false} />
@@ -133,7 +139,7 @@ export default function AnalyticsPage() {
 
         {/* Lead Pipeline */}
         <ChartCard title="Lead Pipeline" subtitle="Status breakdown across all partners">
-          <ResponsiveContainer width="100%" height={300}>
+          <ResponsiveContainer width="100%" height={280}>
             <PieChart>
               <Pie
                 data={data.leadStatusData}
@@ -141,44 +147,45 @@ export default function AnalyticsPage() {
                 nameKey="status"
                 cx="50%"
                 cy="50%"
-                innerRadius={60}
-                outerRadius={110}
+                innerRadius={45}
+                outerRadius={90}
                 paddingAngle={2}
-                label={({ name, value }: any) => `${name} (${value})`}
-                labelLine={{ strokeWidth: 1 }}
               >
                 {data.leadStatusData.map((_, i) => (
                   <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
                 ))}
               </Pie>
               <Tooltip />
+              <Legend wrapperStyle={{ fontSize: 11 }} />
             </PieChart>
           </ResponsiveContainer>
         </ChartCard>
 
         {/* Leads by Partner */}
         <ChartCard title="Leads by Partner" subtitle="Total lead count per partner">
-          <ResponsiveContainer width="100%" height={Math.max(300, data.leadsByPartner.length * 36)}>
-            <BarChart data={data.leadsByPartner} layout="vertical" margin={{ left: 20 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-              <XAxis type="number" tick={{ fontSize: 11 }} />
-              <YAxis dataKey="name" type="category" tick={{ fontSize: 11 }} width={120} />
-              <Tooltip />
-              <Bar dataKey="leads" fill={COLORS.blue} radius={[0, 4, 4, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
+          <div className="overflow-y-auto max-h-[500px] -mx-4 sm:-mx-6 px-4 sm:px-6">
+            <ResponsiveContainer width="100%" height={Math.max(300, data.leadsByPartner.length * 32)}>
+              <BarChart data={data.leadsByPartner} layout="vertical" margin={{ left: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                <XAxis type="number" tick={{ fontSize: 10 }} />
+                <YAxis dataKey="name" type="category" tick={{ fontSize: 10 }} width={100} />
+                <Tooltip />
+                <Bar dataKey="leads" fill={COLORS.blue} radius={[0, 4, 4, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
         </ChartCard>
 
         {/* Marketing Reach */}
         {data.marketingOverTime.length > 0 && (
-          <ChartCard title="Marketing Reach" subtitle="Monthly impressions & engagements">
-            <ResponsiveContainer width="100%" height={300}>
+          <ChartCard title="Marketing Reach" subtitle="Monthly impressions & engagements" scrollable>
+            <ResponsiveContainer width="100%" height={260}>
               <BarChart data={data.marketingOverTime}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                <XAxis dataKey="month" tick={{ fontSize: 11 }} />
-                <YAxis tick={{ fontSize: 11 }} />
+                <XAxis dataKey="month" tick={{ fontSize: 10 }} />
+                <YAxis tick={{ fontSize: 10 }} width={40} />
                 <Tooltip />
-                <Legend />
+                <Legend wrapperStyle={{ fontSize: 11 }} />
                 <Bar dataKey="impressions" fill={COLORS.orange} radius={[4, 4, 0, 0]} />
                 <Bar dataKey="engagements" fill={COLORS.purple} radius={[4, 4, 0, 0]} />
               </BarChart>
@@ -189,30 +196,34 @@ export default function AnalyticsPage() {
         {/* Top Tools */}
         {data.topTools.length > 0 && (
           <ChartCard title="Top Tools (StackCollect)" subtitle="Most selected tools across all tech stack reviews">
-            <ResponsiveContainer width="100%" height={Math.max(300, data.topTools.length * 32)}>
-              <BarChart data={data.topTools} layout="vertical" margin={{ left: 20 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                <XAxis type="number" tick={{ fontSize: 11 }} />
-                <YAxis dataKey="name" type="category" tick={{ fontSize: 11 }} width={100} />
-                <Tooltip />
-                <Bar dataKey="count" fill={COLORS.teal} radius={[0, 4, 4, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
+            <div className="overflow-y-auto max-h-[500px] -mx-4 sm:-mx-6 px-4 sm:px-6">
+              <ResponsiveContainer width="100%" height={Math.max(300, data.topTools.length * 30)}>
+                <BarChart data={data.topTools} layout="vertical" margin={{ left: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                  <XAxis type="number" tick={{ fontSize: 10 }} />
+                  <YAxis dataKey="name" type="category" tick={{ fontSize: 10 }} width={90} />
+                  <Tooltip />
+                  <Bar dataKey="count" fill={COLORS.teal} radius={[0, 4, 4, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
           </ChartCard>
         )}
 
         {/* Tech Stack Categories */}
         {data.categoryData.length > 0 && (
           <ChartCard title="Tech Stack Categories" subtitle="Tool selections grouped by category">
-            <ResponsiveContainer width="100%" height={Math.max(300, data.categoryData.length * 32)}>
-              <BarChart data={data.categoryData} layout="vertical" margin={{ left: 20 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                <XAxis type="number" tick={{ fontSize: 11 }} />
-                <YAxis dataKey="category" type="category" tick={{ fontSize: 11 }} width={160} />
-                <Tooltip />
-                <Bar dataKey="count" fill={COLORS.purple} radius={[0, 4, 4, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
+            <div className="overflow-y-auto max-h-[500px] -mx-4 sm:-mx-6 px-4 sm:px-6">
+              <ResponsiveContainer width="100%" height={Math.max(300, data.categoryData.length * 30)}>
+                <BarChart data={data.categoryData} layout="vertical" margin={{ left: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                  <XAxis type="number" tick={{ fontSize: 10 }} />
+                  <YAxis dataKey="category" type="category" tick={{ fontSize: 10 }} width={130} />
+                  <Tooltip />
+                  <Bar dataKey="count" fill={COLORS.purple} radius={[0, 4, 4, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
           </ChartCard>
         )}
       </div>

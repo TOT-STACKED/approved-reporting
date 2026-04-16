@@ -38,8 +38,8 @@ export default function AskBox() {
   };
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 p-5 mb-6">
-      <form onSubmit={handleAsk} className="flex gap-3">
+    <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-5 mb-4 sm:mb-6">
+      <form onSubmit={handleAsk} className="flex flex-col sm:flex-row gap-2 sm:gap-3">
         <div className="relative flex-1">
           <input
             type="text"
