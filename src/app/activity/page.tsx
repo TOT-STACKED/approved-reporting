@@ -157,6 +157,20 @@ export default function ActivityPage() {
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Partners Featured</label>
             <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto p-2 border border-gray-200 rounded-lg">
+              <button type="button" onClick={() => {
+                if (selectedPartners.length === partners.length) {
+                  setSelectedPartners([]);
+                } else {
+                  setSelectedPartners(partners.map(p => p.name));
+                }
+              }}
+                className={`text-xs px-3 py-1.5 rounded-full border font-medium transition-colors ${
+                  selectedPartners.length === partners.length
+                    ? 'bg-blue-600 text-white border-blue-600'
+                    : 'bg-white text-blue-600 border-blue-300 hover:border-blue-500'
+                }`}>
+                All Partners
+              </button>
               {partners.map(p => (
                 <button key={p.slug} type="button" onClick={() => togglePartner(p.name)}
                   className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${
