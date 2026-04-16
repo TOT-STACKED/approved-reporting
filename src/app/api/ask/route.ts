@@ -12,12 +12,15 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Question is required' }, { status: 400 });
     }
 
-    // Fetch all portal data in parallel
-    const [partners, activities, metrics] = await Promise.all([
+    // Fetch all portal data in parallel (including individual leads)
+    const [partners, activities, metrics, leadsRes] = await Promise.all([
       getPartnerList(),
       getMarketingActivities(),
       getMetrics(),
+      fetch(new URL('/api/leads', request.url)).then(r => r.json()),
     ]);
+
+    const leads = leadsRes.leads || [];
 
     // Build a concise data summary for the AI
     const allStatuses: Record<string, number> = {};
@@ -33,8 +36,17 @@ export async function POST(request: Request) {
         leadCount: p.leadCount,
         statusBreakdown: p.statusBreakdown,
       })),
+      allLeads: leads.map((l: any) => ({
+        businessName: l.businessName,
+        status: l.status,
+        partners: l.partners,
+        source: l.source,
+        owner: l.owner,
+        location: l.location,
+        lastModified: l.lastModified,
+      })),
       overallStatusTotals: allStatuses,
-      totalLeads: partners.reduce((s, p) => s + p.leadCount, 0),
+      totalLeads: leads.length,
       totalPartners: partners.length,
       recentActivities: activities.slice(0, 20).map(a => ({
         title: a.activityTitle,
@@ -68,7 +80,11 @@ export async function POST(request: Request) {
 
 Be concise, specific, and use actual numbers from the data. If you list items, use bullet points. Keep answers to 2-4 sentences unless the question requires a detailed breakdown.
 
+The data includes every individual lead/client with their business name, status, partner, source, owner, and location. Use this to answer questions about specific businesses or clients.
+
 Lead statuses in the pipeline: MAL (Marketing Accepted Lead) → MQL → SQL → In Conversation → Opportunity → Live Closed (won) / Lost / nurture
+
+"Partners" are the tech companies (e.g. Lightspeed, Sona, Square). "Leads" are the hospitality businesses/restaurants/clients being referred to those partners.
 
 Here is the current portal data:
 ${dataContext}`,
