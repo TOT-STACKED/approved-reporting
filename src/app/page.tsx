@@ -80,8 +80,10 @@ export default function Dashboard() {
   const totalEngagements = activities.reduce((s, a) => s + a.engagements, 0);
   const totalPipeline = activities.reduce((s, a) => s + a.pipelineValue, 0);
 
-  // Top 3 statuses for KPI cards (after N/A)
-  const topStatuses = sortedStatuses.slice(0, 3);
+  // Specific KPI statuses to highlight
+  const contractCount = allStatuses['Contract'] || allStatuses['contract'] || 0;
+  const mqlCount = allStatuses['MQL'] || allStatuses['mql'] || 0;
+  const closedWonCount = allStatuses['Closed Won'] || allStatuses['Closed Won '] || 0;
 
   if (loading) {
     return (
@@ -110,30 +112,27 @@ export default function Dashboard() {
       <AskBox />
 
       {/* Hero KPIs - The Story */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-        <div className="bg-gradient-to-br from-blue-600 to-blue-700 rounded-xl p-5 text-white">
-          <p className="text-3xl font-bold">{totalLeads.toLocaleString()}</p>
-          <p className="text-sm opacity-80 mt-1">Total Leads</p>
-          <p className="text-xs opacity-60 mt-2">Across {partners.length} partners</p>
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3 sm:gap-4 mb-4">
+        <div className="bg-gradient-to-br from-blue-600 to-blue-700 rounded-xl p-4 sm:p-5 text-white">
+          <p className="text-2xl sm:text-3xl font-bold">{totalLeads.toLocaleString()}</p>
+          <p className="text-xs sm:text-sm opacity-80 mt-1">Total Leads</p>
         </div>
-        <div className="bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl p-5 text-white">
-          <p className="text-3xl font-bold">{totalReach.toLocaleString()}</p>
-          <p className="text-sm opacity-80 mt-1">Total Reach</p>
-          <p className="text-xs opacity-60 mt-2">{totalEngagements.toLocaleString()} engagements</p>
+        <div className="bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl p-4 sm:p-5 text-white">
+          <p className="text-2xl sm:text-3xl font-bold">{totalReach.toLocaleString()}</p>
+          <p className="text-xs sm:text-sm opacity-80 mt-1">Total Reach</p>
         </div>
-        {topStatuses.map(([status, count], i) => {
-          const gradients = [
-            'from-emerald-500 to-emerald-600',
-            'from-purple-600 to-purple-700',
-            'from-teal-500 to-teal-600',
-          ];
-          return (
-            <div key={status} className={`bg-gradient-to-br ${gradients[i]} rounded-xl p-5 text-white`}>
-              <p className="text-3xl font-bold">{count}</p>
-              <p className="text-sm opacity-80 mt-1">{status}</p>
-            </div>
-          );
-        })}
+        <div className="bg-gradient-to-br from-amber-500 to-amber-600 rounded-xl p-4 sm:p-5 text-white">
+          <p className="text-2xl sm:text-3xl font-bold">{mqlCount}</p>
+          <p className="text-xs sm:text-sm opacity-80 mt-1">MQL</p>
+        </div>
+        <div className="bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-xl p-4 sm:p-5 text-white">
+          <p className="text-2xl sm:text-3xl font-bold">{contractCount}</p>
+          <p className="text-xs sm:text-sm opacity-80 mt-1">Contract</p>
+        </div>
+        <div className="bg-gradient-to-br from-purple-600 to-purple-700 rounded-xl p-4 sm:p-5 text-white col-span-2 md:col-span-1">
+          <p className="text-2xl sm:text-3xl font-bold">{closedWonCount}</p>
+          <p className="text-xs sm:text-sm opacity-80 mt-1">Closed Won</p>
+        </div>
       </div>
 
       {/* Pipeline breakdown bar — dynamic from Airtable */}
