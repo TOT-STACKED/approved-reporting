@@ -83,6 +83,33 @@ export interface StackCollectStats {
   partnerToolData: { category: string; tool_name: string; count: number }[];
 }
 
+export interface NpsScore {
+  id: string;
+  created_at: string;
+  source: 'techstackreview' | 'toast-support-bot';
+  touchpoint: string | null;
+  score: number;
+  comment: string | null;
+  vendor: string | null;
+  category: string | null;
+  respondent_name: string | null;
+  respondent_email: string | null;
+  company: string | null;
+  venue_id: string | null;
+  external_id: string | null;
+  meta: Record<string, unknown>;
+}
+
+export interface NpsVendorRollup {
+  vendor: string;
+  nps: number;          // -100..100
+  avg: number;          // average score 0..10
+  count: number;
+  promoters: number;
+  passives: number;
+  detractors: number;
+}
+
 // --- Fetch functions ---
 
 // Pattern matches to exclude test submissions
@@ -127,6 +154,34 @@ export async function getToolUsageStats(): Promise<ToolUsageStat[]> {
 
 export async function getPOSMarketShare(): Promise<POSMarketShare[]> {
   return supabaseFetchAll('analytics_pos_systems', 'select=*&order=market_share_percentage.desc');
+}
+
+export async function getNpsScores(params: { source?: NpsScore['source']; limit?: number } = {}): Promise<NpsScore[]> {
+  const qs: string[] = ['select=*', 'order=created_at.desc'];
+  if (params.source) qs.push(`source=eq.${params.source}`);
+  const all = await supabaseFetchAll('nps_scores', qs.join('&'));
+  return typeof params.limit === 'number' ? all.slice(0, params.limit) : all;
+}
+
+// Roll scores up per vendor into NPS (%promoters − %detractors × 100).
+export function rollupNpsByVendor(scores: NpsScore[]): NpsVendorRollup[] {
+  const byVendor = new Map<string, number[]>();
+  for (const s of scores) {
+    const v = (s.vendor ?? '').trim();
+    if (!v) continue;
+    if (!byVendor.has(v)) byVendor.set(v, []);
+    byVendor.get(v)!.push(s.score);
+  }
+  return Array.from(byVendor.entries())
+    .map(([vendor, arr]) => {
+      const promoters  = arr.filter(s => s >= 9).length;
+      const passives   = arr.filter(s => s === 7 || s === 8).length;
+      const detractors = arr.filter(s => s <= 6).length;
+      const avg = arr.reduce((a, b) => a + b, 0) / arr.length;
+      const nps = Math.round(((promoters - detractors) / arr.length) * 100);
+      return { vendor, nps, avg: Number(avg.toFixed(1)), count: arr.length, promoters, passives, detractors };
+    })
+    .sort((a, b) => b.nps - a.nps);
 }
 
 // --- Aggregation functions ---
