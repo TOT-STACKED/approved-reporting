@@ -159,8 +159,27 @@ export async function getPOSMarketShare(): Promise<POSMarketShare[]> {
 export async function getNpsScores(params: { source?: NpsScore['source']; limit?: number } = {}): Promise<NpsScore[]> {
   const qs: string[] = ['select=*', 'order=created_at.desc'];
   if (params.source) qs.push(`source=eq.${params.source}`);
-  const all = await supabaseFetchAll('nps_scores', qs.join('&'));
-  return typeof params.limit === 'number' ? all.slice(0, params.limit) : all;
+
+  // NPS lands in near real-time — bypass the 5-min supabaseFetch cache so
+  // the dashboard picks up submissions as they arrive.
+  const rows: NpsScore[] = [];
+  let offset = 0;
+  const pageSize = 1000;
+  while (true) {
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/nps_scores?${qs.join('&')}&limit=${pageSize}&offset=${offset}`,
+      {
+        headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` },
+        cache: 'no-store',
+      }
+    );
+    if (!res.ok) break;
+    const batch: NpsScore[] = await res.json();
+    rows.push(...batch);
+    if (batch.length < pageSize) break;
+    offset += pageSize;
+  }
+  return typeof params.limit === 'number' ? rows.slice(0, params.limit) : rows;
 }
 
 // Roll scores up per vendor into NPS (%promoters − %detractors × 100).
