@@ -85,12 +85,40 @@ export interface StackCollectStats {
 
 // --- Fetch functions ---
 
-export async function getTechStackEntries(): Promise<TechStackEntry[]> {
-  return supabaseFetchAll('tech_stack_entries', 'select=*&order=created_at.desc');
+// Pattern matches to exclude test submissions
+const TEST_PATTERNS = [
+  /\btest\b/i,
+  /\bqa\b/i,
+  /\bprobe\b/i,
+  /^copy\s/i,
+  /stackreview/i,
+  /portal\s*link/i,
+  /^tot$/i,
+  /sync\s*test/i,
+  /phone\/lastname/i,
+  /^ss$/i,
+];
+
+function isTestSubmission(businessName: string | null | undefined): boolean {
+  if (!businessName) return false;
+  return TEST_PATTERNS.some(p => p.test(businessName));
 }
 
 export async function getBusinessSubmissions(): Promise<BusinessSubmission[]> {
-  return supabaseFetchAll('business_submissions', 'select=*&order=created_at.desc');
+  const all = await supabaseFetchAll('business_submissions', 'select=*&order=created_at.desc');
+  // Filter out test submissions
+  return all.filter(b => !isTestSubmission(b.business_name));
+}
+
+export async function getTechStackEntries(): Promise<TechStackEntry[]> {
+  const [entries, validBusinesses] = await Promise.all([
+    supabaseFetchAll('tech_stack_entries', 'select=*&order=created_at.desc'),
+    getBusinessSubmissions(),
+  ]);
+
+  // Only include entries whose submission_id matches a non-test business
+  const validIds = new Set(validBusinesses.map(b => b.id));
+  return entries.filter(e => validIds.has(e.submission_id));
 }
 
 export async function getToolUsageStats(): Promise<ToolUsageStat[]> {
