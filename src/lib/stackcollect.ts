@@ -234,6 +234,43 @@ export async function getStackCollectStats(): Promise<StackCollectStats> {
   };
 }
 
+// Maps a partner's display name (lowercased) to the tool_name/vendor terms
+// used across tech_stack_entries and nps_scores. Shared between the stack
+// breakdown and the NPS rollup so partner pages stay in sync.
+export const PARTNER_VENDOR_ALIASES: Record<string, string[]> = {
+  'sky': ['sky'],
+  'workforce': ['workforce'],
+  'bizimply': ['bizimply'],
+  'square': ['square'],
+  'sona': ['sona'],
+  'lightspeed': ['lightspeed'],
+  'nory': ['nory'],
+  'cinchio': ['cinchio'],
+  'wrs': ['wrs'],
+  'urocked': ['urocked'],
+  'deputy': ['deputy'],
+  'stampede': ['stampede'],
+  'tayl': ['tayl'],
+  'tenzo': ['tenzo'],
+  'apicbase': ['apicbase'],
+  'fourth': ['fourth'],
+  'trisaas': ['trisaas'],
+  'cocentric': ['cocentric'],
+  'sunday': ['sunday'],
+  'tissl': ['tissl'],
+  'clearcourse / giftpro / tissl': ['tissl', 'giftpro', 'clearcourse'],
+  'embargo': ['embargo'],
+  'monotree': ['monotree'],
+  'toast': ['toast'],
+  'como': ['como'],
+  'storekit': ['storekit'],
+};
+
+export function matchTermsForPartner(partnerName: string): string[] {
+  const key = partnerName.toLowerCase().trim();
+  return PARTNER_VENDOR_ALIASES[key] || [key];
+}
+
 export async function getPartnerStackCollectData(partnerName: string): Promise<{
   mentions: number;
   categories: { category: string; count: number }[];
@@ -242,38 +279,7 @@ export async function getPartnerStackCollectData(partnerName: string): Promise<{
 }> {
   const entries: TechStackEntry[] = await getTechStackEntries();
 
-  const partnerLower = partnerName.toLowerCase().trim();
-
-  const aliases: Record<string, string[]> = {
-    'sky': ['sky'],
-    'workforce': ['workforce'],
-    'bizimply': ['bizimply'],
-    'square': ['square'],
-    'sona': ['sona'],
-    'lightspeed': ['lightspeed'],
-    'nory': ['nory'],
-    'cinchio': ['cinchio'],
-    'wrs': ['wrs'],
-    'urocked': ['urocked'],
-    'deputy': ['deputy'],
-    'stampede': ['stampede'],
-    'tayl': ['tayl'],
-    'tenzo': ['tenzo'],
-    'apicbase': ['apicbase'],
-    'fourth': ['fourth'],
-    'trisaas': ['trisaas'],
-    'cocentric': ['cocentric'],
-    'sunday': ['sunday'],
-    'tissl': ['tissl'],
-    'clearcourse / giftpro / tissl': ['tissl', 'giftpro', 'clearcourse'],
-    'embargo': ['embargo'],
-    'monotree': ['monotree'],
-    'toast': ['toast'],
-    'como': ['como'],
-    'storekit': ['storekit'],
-  };
-
-  const matchTerms = aliases[partnerLower] || [partnerLower];
+  const matchTerms = matchTermsForPartner(partnerName);
 
   const matched = entries.filter(e =>
     matchTerms.some(term => e.tool_name.toLowerCase().trim().includes(term))
@@ -295,5 +301,65 @@ export async function getPartnerStackCollectData(partnerName: string): Promise<{
     marketShare: totalSubmissions > 0
       ? ((new Set(matched.map(e => e.submission_id)).size / totalSubmissions) * 100).toFixed(1)
       : '0',
+  };
+}
+
+export interface PartnerNpsRollup {
+  count: number;
+  nps: number | null;
+  avg: number | null;
+  promoters: number;
+  passives: number;
+  detractors: number;
+  bySource: Record<string, number>;
+  recent: Array<{
+    id: string;
+    created_at: string;
+    source: NpsScore['source'];
+    touchpoint: string | null;
+    score: number;
+    vendor: string | null;
+    company: string | null;
+    comment: string | null;
+  }>;
+}
+
+export async function getPartnerNpsRollup(partnerName: string): Promise<PartnerNpsRollup> {
+  const terms = matchTermsForPartner(partnerName);
+  const scores = await getNpsScores();
+
+  const matched = scores.filter(s => {
+    const v = (s.vendor ?? '').toLowerCase().trim();
+    if (!v) return false;
+    return terms.some(t => v.includes(t));
+  });
+
+  const all = matched.map(s => s.score);
+  const promoters  = all.filter(s => s >= 9).length;
+  const passives   = all.filter(s => s === 7 || s === 8).length;
+  const detractors = all.filter(s => s <= 6).length;
+  const bySource: Record<string, number> = {};
+  for (const s of matched) bySource[s.source] = (bySource[s.source] || 0) + 1;
+
+  const recent = matched.slice(0, 10).map(s => ({
+    id: s.id,
+    created_at: s.created_at,
+    source: s.source,
+    touchpoint: s.touchpoint,
+    score: s.score,
+    vendor: s.vendor,
+    company: s.company,
+    comment: s.comment,
+  }));
+
+  return {
+    count: matched.length,
+    nps: all.length ? Math.round(((promoters - detractors) / all.length) * 100) : null,
+    avg: all.length ? Number((all.reduce((a, b) => a + b, 0) / all.length).toFixed(1)) : null,
+    promoters,
+    passives,
+    detractors,
+    bySource,
+    recent,
   };
 }

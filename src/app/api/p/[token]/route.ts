@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { getPartnerDetail, getMetrics, getMarketingActivities, getActivitiesForPartner } from '@/lib/airtable';
-import { getPartnerStackCollectData } from '@/lib/stackcollect';
+import { getPartnerStackCollectData, getPartnerNpsRollup } from '@/lib/stackcollect';
+
+export const dynamic = 'force-dynamic';
 
 function getTokenMap(): Record<string, string> {
   try {
@@ -38,13 +40,17 @@ export async function GET(
     );
 
     const partnerActivities = getActivitiesForPartner(allActivities, partner.name);
-    const stackCollect = await getPartnerStackCollectData(partner.name);
+    const [stackCollect, nps] = await Promise.all([
+      getPartnerStackCollectData(partner.name),
+      getPartnerNpsRollup(partner.name),
+    ]);
 
     return NextResponse.json({
       partner,
       metrics: partnerMetrics,
       activities: partnerActivities,
       stackCollect,
+      nps,
     });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });

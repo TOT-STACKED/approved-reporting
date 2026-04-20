@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
+import PartnerNps, { type PartnerNpsData } from '@/components/PartnerNps';
 
 interface Lead {
   id: string;
@@ -53,6 +54,7 @@ export default function SecurePartnerPage() {
     totalReviews: number;
     marketShare: string;
   } | null>(null);
+  const [nps, setNps] = useState<PartnerNpsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [unauthorized, setUnauthorized] = useState(false);
   const [generating, setGenerating] = useState(false);
@@ -76,6 +78,7 @@ export default function SecurePartnerPage() {
         setMetrics(data.metrics || []);
         setActivities(data.activities || []);
         setStackCollect(data.stackCollect || null);
+        setNps(data.nps || null);
         setLoading(false);
       })
       .catch(() => setLoading(false));
@@ -338,6 +341,11 @@ export default function SecurePartnerPage() {
               </div>
             )}
           </div>
+        )}
+
+        {/* Partner NPS */}
+        {nps && partner && (
+          <PartnerNps data={nps} partnerName={partner.name} />
         )}
 
         {/* Metrics Table */}

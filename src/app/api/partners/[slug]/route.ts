@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { getPartnerDetail, getMetrics } from '@/lib/airtable';
-import { getPartnerStackCollectData } from '@/lib/stackcollect';
+import { getPartnerStackCollectData, getPartnerNpsRollup } from '@/lib/stackcollect';
+
+export const dynamic = 'force-dynamic';
 
 export async function GET(
   request: Request,
@@ -21,9 +23,12 @@ export async function GET(
       m => m.partnerName.trim().toLowerCase() === partner.name.trim().toLowerCase()
     );
 
-    const stackCollect = await getPartnerStackCollectData(partner.name);
+    const [stackCollect, nps] = await Promise.all([
+      getPartnerStackCollectData(partner.name),
+      getPartnerNpsRollup(partner.name),
+    ]);
 
-    return NextResponse.json({ partner, metrics: partnerMetrics, stackCollect });
+    return NextResponse.json({ partner, metrics: partnerMetrics, stackCollect, nps });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
