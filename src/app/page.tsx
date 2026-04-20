@@ -82,7 +82,7 @@ export default function Dashboard() {
   const totalPipeline = activities.reduce((s, a) => s + a.pipelineValue, 0);
 
   // Specific KPI statuses to highlight
-  const contractCount = allStatuses['Contract'] || allStatuses['contract'] || 0;
+  const sqlCount = allStatuses['SQL'] || allStatuses['sql'] || 0;
   const mqlCount = allStatuses['MQL'] || allStatuses['mql'] || 0;
   const closedWonCount = allStatuses['Closed Won'] || allStatuses['Closed Won '] || 0;
 
@@ -127,8 +127,8 @@ export default function Dashboard() {
           <p className="text-xs sm:text-sm opacity-80 mt-1">MQL</p>
         </div>
         <div className="bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-xl p-4 sm:p-5 text-white">
-          <p className="text-2xl sm:text-3xl font-bold">{contractCount}</p>
-          <p className="text-xs sm:text-sm opacity-80 mt-1">Contract</p>
+          <p className="text-2xl sm:text-3xl font-bold">{sqlCount}</p>
+          <p className="text-xs sm:text-sm opacity-80 mt-1">SQL</p>
         </div>
         <div className="bg-gradient-to-br from-purple-600 to-purple-700 rounded-xl p-4 sm:p-5 text-white col-span-2 md:col-span-1">
           <p className="text-2xl sm:text-3xl font-bold">{closedWonCount}</p>
