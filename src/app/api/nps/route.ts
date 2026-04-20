@@ -1,0 +1,59 @@
+import { NextResponse } from 'next/server';
+import { getNpsScores, rollupNpsByVendor } from '@/lib/stackcollect';
+
+export const dynamic = 'force-dynamic';
+
+export async function GET() {
+  try {
+    const scores = await getNpsScores();
+
+    // Filter out our own pipeline smoke-test rows and any clearly-bogus vendor names.
+    const clean = scores.filter(
+      s => s.vendor !== '__e2e_check__' && s.touchpoint !== 'pipeline-smoke-test'
+    );
+
+    const vendorRollup = rollupNpsByVendor(clean);
+
+    const bySource: Record<string, number> = {};
+    for (const s of clean) bySource[s.source] = (bySource[s.source] || 0) + 1;
+
+    const all = clean.map(s => s.score);
+    const promoters = all.filter(s => s >= 9).length;
+    const passives = all.filter(s => s === 7 || s === 8).length;
+    const detractors = all.filter(s => s <= 6).length;
+    const overallNps = all.length
+      ? Math.round(((promoters - detractors) / all.length) * 100)
+      : null;
+    const avg = all.length
+      ? Number((all.reduce((a, b) => a + b, 0) / all.length).toFixed(1))
+      : null;
+
+    // Trim to a lightweight payload for the recent-responses list.
+    const recent = clean.slice(0, 20).map(s => ({
+      id: s.id,
+      created_at: s.created_at,
+      source: s.source,
+      touchpoint: s.touchpoint,
+      score: s.score,
+      vendor: s.vendor,
+      category: s.category,
+      company: s.company,
+      comment: s.comment,
+    }));
+
+    return NextResponse.json({
+      total: clean.length,
+      overallNps,
+      avg,
+      promoters,
+      passives,
+      detractors,
+      bySource,
+      vendorRollup,
+      recent,
+    });
+  } catch (e: unknown) {
+    const message = e instanceof Error ? e.message : 'unknown error';
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
+}

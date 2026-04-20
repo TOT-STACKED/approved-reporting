@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import AskBox from '@/components/AskBox';
 import StacksDashboard from '@/components/StacksDashboard';
+import NpsDashboard from '@/components/NpsDashboard';
 
 interface Partner {
   name: string;
@@ -171,6 +172,11 @@ export default function Dashboard() {
       {/* Stacks Section */}
       <div className="mb-8">
         <StacksDashboard />
+      </div>
+
+      {/* NPS Section */}
+      <div className="mb-8">
+        <NpsDashboard />
       </div>
 
       {/* Partner Cards */}
