@@ -1,6 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { scoreLead, PRIORITY_LABEL, PRIORITY_CLASS, type LeadPriority } from '@/lib/scoring';
+import { toCsv, downloadCsv } from '@/lib/csv';
 
 interface Lead {
   id: string;
@@ -16,6 +18,11 @@ interface Lead {
   date: string;
 }
 
+interface ScoredLead extends Lead {
+  score: number;
+  priority: LeadPriority;
+}
+
 export default function LeadsPage() {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [total, setTotal] = useState(0);
@@ -24,7 +31,8 @@ export default function LeadsPage() {
   const [statusFilter, setStatusFilter] = useState('');
   const [ownerFilter, setOwnerFilter] = useState('');
   const [partnerFilter, setPartnerFilter] = useState('');
-  const [sortField, setSortField] = useState<'businessName' | 'lastModified' | 'status'>('lastModified');
+  const [priorityFilter, setPriorityFilter] = useState<'' | LeadPriority>('');
+  const [sortField, setSortField] = useState<'businessName' | 'lastModified' | 'status' | 'score'>('score');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
 
   useEffect(() => {
@@ -43,13 +51,21 @@ export default function LeadsPage() {
   const owners = [...new Set(leads.map(l => l.owner).filter(Boolean))].sort();
   const partners = [...new Set(leads.flatMap(l => l.partners).filter(Boolean))].sort();
 
+  // Score every lead once — memoised because scoreLead is pure and leads are
+  // big (hundreds to thousands of rows).
+  const scoredLeads: ScoredLead[] = useMemo(
+    () => leads.map(l => ({ ...l, ...scoreLead(l) })),
+    [leads]
+  );
+
   // Filter
-  const filtered = leads.filter(l => {
+  const filtered = scoredLeads.filter(l => {
     if (search && !l.businessName.toLowerCase().includes(search.toLowerCase()) &&
         !l.location.toLowerCase().includes(search.toLowerCase())) return false;
     if (statusFilter && l.status !== statusFilter) return false;
     if (ownerFilter && l.owner !== ownerFilter) return false;
     if (partnerFilter && !l.partners.includes(partnerFilter)) return false;
+    if (priorityFilter && l.priority !== priorityFilter) return false;
     return true;
   });
 
@@ -59,8 +75,33 @@ export default function LeadsPage() {
     if (sortField === 'businessName') cmp = a.businessName.localeCompare(b.businessName);
     else if (sortField === 'lastModified') cmp = (a.lastModified || '').localeCompare(b.lastModified || '');
     else if (sortField === 'status') cmp = (a.status || '').localeCompare(b.status || '');
+    else if (sortField === 'score') cmp = a.score - b.score;
     return sortDir === 'asc' ? cmp : -cmp;
   });
+
+  function exportCsv() {
+    const headers = [
+      'Business', 'Priority', 'Score', 'Status', 'Stage', 'Source',
+      'Owner', 'Partners', 'Size', 'Location', 'Last modified',
+    ];
+    const rows = sorted.map(l => [
+      l.businessName,
+      PRIORITY_LABEL[l.priority].replace(/^\W+\s*/, ''), // strip emoji for CSV
+      l.score,
+      l.status,
+      l.stage,
+      l.source,
+      l.owner,
+      l.partners.join('; '),
+      l.size,
+      l.location,
+      l.lastModified ? l.lastModified.split('T')[0] : '',
+    ]);
+    const date = new Date().toISOString().slice(0, 10);
+    const suffix = (search || statusFilter || ownerFilter || partnerFilter || priorityFilter)
+      ? '-filtered' : '';
+    downloadCsv(`leads${suffix}-${date}.csv`, toCsv(headers, rows));
+  }
 
   const toggleSort = (field: typeof sortField) => {
     if (sortField === field) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
@@ -91,16 +132,31 @@ export default function LeadsPage() {
     return <div className="flex items-center justify-center py-20 text-gray-500">Loading all leads...</div>;
   }
 
+  const hotCount  = scoredLeads.filter(l => l.priority === 'hot').length;
+  const highCount = scoredLeads.filter(l => l.priority === 'high').length;
+
   return (
     <div>
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">All Leads</h1>
-        <p className="text-gray-500 mt-1">{total.toLocaleString()} total leads in the pipeline</p>
+      <div className="mb-6 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">All Leads</h1>
+          <p className="text-gray-500 mt-1">
+            {total.toLocaleString()} total · <span className="text-rose-600 font-medium">{hotCount} hot</span> ·{' '}
+            <span className="text-amber-600 font-medium">{highCount} high priority</span>
+          </p>
+        </div>
+        <button
+          onClick={exportCsv}
+          className="bg-gray-900 hover:bg-gray-800 text-white text-sm px-4 py-2 rounded-lg font-medium whitespace-nowrap"
+          title={sorted.length === leads.length ? 'Export all leads' : `Export ${sorted.length} filtered leads`}
+        >
+          ↓ Export CSV{sorted.length !== leads.length ? ` (${sorted.length})` : ''}
+        </button>
       </div>
 
       {/* Filters */}
       <div className="bg-white rounded-xl border border-gray-200 p-4 mb-6">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
           <input
             type="text"
             value={search}
@@ -123,11 +179,19 @@ export default function LeadsPage() {
             <option value="">All Partners</option>
             {partners.map(p => <option key={p} value={p}>{p}</option>)}
           </select>
+          <select value={priorityFilter} onChange={e => setPriorityFilter(e.target.value as '' | LeadPriority)}
+            className="border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 focus:ring-2 focus:ring-orange-500 focus:border-orange-500">
+            <option value="">All Priorities</option>
+            <option value="hot">🔥 Hot ({scoredLeads.filter(l => l.priority === 'hot').length})</option>
+            <option value="high">⭐ High ({scoredLeads.filter(l => l.priority === 'high').length})</option>
+            <option value="normal">Normal</option>
+            <option value="cold">Cold</option>
+          </select>
         </div>
         <div className="mt-3 text-sm text-gray-500">
           Showing {sorted.length.toLocaleString()} of {total.toLocaleString()} leads
-          {(search || statusFilter || ownerFilter || partnerFilter) && (
-            <button onClick={() => { setSearch(''); setStatusFilter(''); setOwnerFilter(''); setPartnerFilter(''); }}
+          {(search || statusFilter || ownerFilter || partnerFilter || priorityFilter) && (
+            <button onClick={() => { setSearch(''); setStatusFilter(''); setOwnerFilter(''); setPartnerFilter(''); setPriorityFilter(''); }}
               className="ml-3 text-orange-500 hover:text-orange-600">
               Clear filters
             </button>
@@ -141,6 +205,10 @@ export default function LeadsPage() {
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-gray-50 border-b border-gray-200">
+                <th className="text-left py-3 px-4 font-medium text-gray-700 cursor-pointer hover:text-gray-900 select-none"
+                    onClick={() => toggleSort('score')}>
+                  Priority {sortIcon('score')}
+                </th>
                 <th className="text-left py-3 px-4 font-medium text-gray-700 cursor-pointer hover:text-gray-900 select-none"
                     onClick={() => toggleSort('businessName')}>
                   Business {sortIcon('businessName')}
@@ -164,6 +232,14 @@ export default function LeadsPage() {
             <tbody>
               {sorted.slice(0, 200).map((lead) => (
                 <tr key={lead.id} className="border-b border-gray-100 hover:bg-gray-50">
+                  <td className="py-3 px-4">
+                    <span
+                      className={`inline-block text-xs px-2 py-1 rounded-full whitespace-nowrap ${PRIORITY_CLASS[lead.priority]}`}
+                      title={`Score ${lead.score}/100`}
+                    >
+                      {PRIORITY_LABEL[lead.priority]}
+                    </span>
+                  </td>
                   <td className="py-3 px-4 font-medium text-gray-900">{lead.businessName}</td>
                   <td className="py-3 px-4">
                     {lead.status && (

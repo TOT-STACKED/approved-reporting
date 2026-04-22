@@ -36,6 +36,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           <div className="hidden md:flex gap-6">
             <a href="/" className="text-sm text-gray-600 hover:text-gray-900">Dashboard</a>
             <a href="/leads" className="text-sm text-gray-600 hover:text-gray-900">All Leads</a>
+            <a href="/performance" className="text-sm text-gray-600 hover:text-gray-900">Performance</a>
             <a href="/activity" className="text-sm text-gray-600 hover:text-gray-900">Log Activity</a>
             <a href="/analytics" className="text-sm text-gray-600 hover:text-gray-900">Analytics</a>
             <a href="/metrics" className="text-sm text-gray-600 hover:text-gray-900">Metrics</a>
