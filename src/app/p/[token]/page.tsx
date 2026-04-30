@@ -149,16 +149,12 @@ export default function SecurePartnerPage() {
     ? (metrics.reduce((s, m) => s + m.bounceRate, 0) / metrics.length * 100).toFixed(1)
     : 'N/A';
 
-  const activeConversations = (partner.statusBreakdown['In Conversation'] || 0) +
-    (partner.statusBreakdown['Opportunity'] || 0) +
-    (partner.statusBreakdown['SQL'] || 0);
-  const closedWon = (partner.statusBreakdown['Live Closed'] || 0) +
-    (partner.statusBreakdown['Live Closed '] || 0) +
+  const mqlCount = partner.statusBreakdown['MQL'] || 0;
+  const sqlCount = partner.statusBreakdown['SQL'] || 0;
+  const closedWon = (partner.statusBreakdown['Closed Won'] || 0) +
+    (partner.statusBreakdown['Closed Won '] || 0) +
     (partner.stageBreakdown['Closed Won'] || 0) +
     (partner.stageBreakdown['Closed Won '] || 0);
-  const closedLost = (partner.statusBreakdown['Lost'] || 0) +
-    (partner.statusBreakdown['Lost '] || 0);
-  const nurturing = partner.statusBreakdown['nurture'] || 0;
 
   const totalImpressions = activities.reduce((s, a) => s + a.impressions, 0);
   const totalEngagements = activities.reduce((s, a) => s + a.engagements, 0);
@@ -217,27 +213,42 @@ export default function SecurePartnerPage() {
           </div>
         )}
 
-        {/* KPI Cards */}
+        {/* KPI Cards — MQL, SQL, Closed Won + Total Leads */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 mb-6 sm:mb-8">
+          <div className="bg-gradient-to-br from-amber-500 to-amber-600 rounded-xl p-4 sm:p-5 text-white">
+            <p className="text-2xl sm:text-3xl font-bold">{mqlCount}</p>
+            <p className="text-xs sm:text-sm opacity-80 mt-1">MQL</p>
+          </div>
+          <div className="bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-xl p-4 sm:p-5 text-white">
+            <p className="text-2xl sm:text-3xl font-bold">{sqlCount}</p>
+            <p className="text-xs sm:text-sm opacity-80 mt-1">SQL</p>
+          </div>
+          <div className="bg-gradient-to-br from-purple-600 to-purple-700 rounded-xl p-4 sm:p-5 text-white">
+            <p className="text-2xl sm:text-3xl font-bold">{closedWon}</p>
+            <p className="text-xs sm:text-sm opacity-80 mt-1">Closed Won</p>
+          </div>
           <div className="bg-gradient-to-br from-blue-600 to-blue-700 rounded-xl p-4 sm:p-5 text-white">
             <p className="text-2xl sm:text-3xl font-bold">{partner.leadCount}</p>
             <p className="text-xs sm:text-sm opacity-80 mt-1">Total Leads</p>
             <p className="text-[10px] sm:text-xs opacity-60 mt-2">{partner.recentLeads.length} active last 90d</p>
           </div>
-          <div className="bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl p-4 sm:p-5 text-white">
-            <p className="text-2xl sm:text-3xl font-bold">{totalSessions.toLocaleString()}</p>
-            <p className="text-xs sm:text-sm opacity-80 mt-1">Page Sessions</p>
-            <p className="text-[10px] sm:text-xs opacity-60 mt-2">{totalUsers.toLocaleString()} unique users</p>
+        </div>
+
+        {/* GA4 Traffic */}
+        <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-5 mb-6 sm:mb-8">
+          <div className="mb-3">
+            <h2 className="text-sm font-semibold text-gray-700">Page Traffic (GA4)</h2>
+            <p className="text-xs text-gray-400">Find <code className="bg-gray-100 px-1 rounded">/partners/{partner.slug}</code> in the chart</p>
           </div>
-          <div className="bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-xl p-4 sm:p-5 text-white">
-            <p className="text-2xl sm:text-3xl font-bold">{activeConversations}</p>
-            <p className="text-xs sm:text-sm opacity-80 mt-1">Active Conversations</p>
-            <p className="text-[10px] sm:text-xs opacity-60 mt-2">{nurturing} nurturing</p>
-          </div>
-          <div className="bg-gradient-to-br from-purple-600 to-purple-700 rounded-xl p-4 sm:p-5 text-white">
-            <p className="text-2xl sm:text-3xl font-bold">{closedWon}</p>
-            <p className="text-xs sm:text-sm opacity-80 mt-1">Closed Won</p>
-            <p className="text-[10px] sm:text-xs opacity-60 mt-2">{closedLost} lost</p>
+          <div className="overflow-hidden rounded-lg">
+            <iframe
+              src="https://datastudio.google.com/embed/reporting/a2df8bed-3635-4a61-ab35-d4e370ce7b09/page/HqswF"
+              className="w-full"
+              style={{ minHeight: '450px', border: 0 }}
+              allowFullScreen
+              sandbox="allow-storage-access-by-user-activation allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox"
+              title="Page Traffic"
+            />
           </div>
         </div>
 
