@@ -19,9 +19,14 @@ interface Activity {
   pipelineValue: number;
 }
 
+interface Lead {
+  status: string;
+}
+
 export default function Dashboard() {
   const [partners, setPartners] = useState<Partner[]>([]);
   const [activities, setActivities] = useState<Activity[]>([]);
+  const [allLeads, setAllLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [hiddenPartners, setHiddenPartners] = useState<string[]>([]);
@@ -34,10 +39,12 @@ export default function Dashboard() {
     Promise.all([
       fetch('/api/partners').then(r => r.json()),
       fetch('/api/activity').then(r => r.json()),
+      fetch('/api/leads').then(r => r.json()),
     ])
-      .then(([partnerData, activityData]) => {
+      .then(([partnerData, activityData, leadsData]) => {
         setPartners(partnerData.partners || []);
         setActivities(activityData.activities || []);
+        setAllLeads(leadsData.leads || []);
         setLoading(false);
       })
       .catch(err => {
@@ -57,15 +64,13 @@ export default function Dashboard() {
   const visiblePartners = partners.filter(p => !hiddenPartners.includes(p.slug));
   const hiddenList = partners.filter(p => hiddenPartners.includes(p.slug));
 
-  const totalLeads = partners.reduce((s, p) => s + p.leadCount, 0);
+  const totalLeads = allLeads.length;
 
-  // Aggregate all statuses dynamically from Airtable
+  // True status counts from raw leads (every lead counted once, including unassigned)
   const allStatuses: Record<string, number> = {};
-  partners.forEach(p => {
-    Object.entries(p.statusBreakdown).forEach(([status, count]) => {
-      const key = status.trim();
-      if (key) allStatuses[key] = (allStatuses[key] || 0) + count;
-    });
+  allLeads.forEach(l => {
+    const key = (l.status || '').trim();
+    if (key) allStatuses[key] = (allStatuses[key] || 0) + 1;
   });
 
   // Sort statuses by count for display
