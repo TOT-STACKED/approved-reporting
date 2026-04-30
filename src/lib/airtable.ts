@@ -267,65 +267,6 @@ export async function getPartnerDetail(slug: string): Promise<PartnerDetail | nu
   };
 }
 
-export async function getMetrics(partnerName?: string): Promise<MetricsEntry[]> {
-  const filter = partnerName
-    ? `{${FIELDS.partnerMetrics.partnerName}}="${partnerName}"`
-    : undefined;
-
-  let records: any[] = [];
-  try {
-    records = await fetchAllRecords(
-      TABLES.partnerMetrics,
-      Object.values(FIELDS.partnerMetrics),
-      filter
-    );
-  } catch (err) {
-    // Airtable token may not have permission to this table — degrade gracefully
-    console.warn('getMetrics failed, returning empty:', err);
-    return [];
-  }
-
-  return records
-    .map((r: any) => ({
-      id: r.id,
-      partnerName: r.fields?.[FIELDS.partnerMetrics.partnerName] || '',
-      weekStarting: r.fields?.[FIELDS.partnerMetrics.weekStarting] || '',
-      sessions: r.fields?.[FIELDS.partnerMetrics.sessions] || 0,
-      users: r.fields?.[FIELDS.partnerMetrics.users] || 0,
-      pageViews: r.fields?.[FIELDS.partnerMetrics.pageViews] || 0,
-      bounceRate: r.fields?.[FIELDS.partnerMetrics.bounceRate] || 0,
-    }))
-    .sort((a, b) => a.weekStarting.localeCompare(b.weekStarting));
-}
-
-export async function writeMetrics(entry: Omit<MetricsEntry, 'id'>): Promise<void> {
-  const res = await fetch(`${BASE_URL}/${TABLES.partnerMetrics}`, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${API_KEY}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      records: [
-        {
-          fields: {
-            [FIELDS.partnerMetrics.partnerName]: entry.partnerName,
-            [FIELDS.partnerMetrics.weekStarting]: entry.weekStarting,
-            [FIELDS.partnerMetrics.sessions]: entry.sessions,
-            [FIELDS.partnerMetrics.users]: entry.users,
-            [FIELDS.partnerMetrics.pageViews]: entry.pageViews,
-            [FIELDS.partnerMetrics.bounceRate]: entry.bounceRate / 100,
-          },
-        },
-      ],
-    }),
-  });
-
-  if (!res.ok) {
-    throw new Error(`Failed to write metrics: ${res.status} ${await res.text()}`);
-  }
-}
-
 // --- Weekly Spread ---
 
 export interface SpreadEntry {

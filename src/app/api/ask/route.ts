@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import OpenAI from 'openai';
-import { getPartnerList, getMarketingActivities, getMetrics } from '@/lib/airtable';
+import { getPartnerList } from '@/lib/airtable';
 import { getTechStackEntries, getBusinessSubmissions, getToolUsageStats, getPOSMarketShare } from '@/lib/stackcollect';
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
@@ -14,10 +14,8 @@ export async function POST(request: Request) {
     }
 
     // Fetch all portal data in parallel (including individual leads + stack data)
-    const [partners, activities, metrics, leadsRes, stackEntries, businesses, toolUsage, posMarketShare] = await Promise.all([
+    const [partners, leadsRes, stackEntries, businesses, toolUsage, posMarketShare] = await Promise.all([
       getPartnerList(),
-      getMarketingActivities(),
-      getMetrics(),
       fetch(new URL('/api/leads', request.url)).then(r => r.json()),
       getTechStackEntries(),
       getBusinessSubmissions(),
@@ -74,27 +72,6 @@ export async function POST(request: Request) {
       overallStatusTotals: allStatuses,
       totalLeads: leads.length,
       totalPartners: partners.length,
-      recentActivities: activities.slice(0, 20).map(a => ({
-        title: a.activityTitle,
-        type: a.activityType,
-        date: a.date,
-        partnersFeatured: a.partnersFeatured,
-        impressions: a.impressions,
-        engagements: a.engagements,
-        leadsGenerated: a.leadsGenerated,
-        pipelineValue: a.pipelineValue,
-      })),
-      totalActivities: activities.length,
-      totalImpressions: activities.reduce((s, a) => s + a.impressions, 0),
-      totalEngagements: activities.reduce((s, a) => s + a.engagements, 0),
-      totalPipelineValue: activities.reduce((s, a) => s + a.pipelineValue, 0),
-      recentMetrics: metrics.slice(-10).map(m => ({
-        partner: m.partnerName,
-        week: m.weekStarting,
-        sessions: m.sessions,
-        users: m.users,
-        pageViews: m.pageViews,
-      })),
       stackCollect: {
         totalReviews: stackReviews.length,
         totalToolEntries: stackEntries.length,

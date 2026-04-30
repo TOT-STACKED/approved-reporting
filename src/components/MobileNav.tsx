@@ -7,7 +7,6 @@ const links = [
   { href: '/leads', label: 'All Leads' },
   { href: '/performance', label: 'Performance' },
   { href: '/analytics', label: 'Analytics' },
-  { href: '/metrics', label: 'Metrics' },
 ];
 
 export default function MobileNav() {

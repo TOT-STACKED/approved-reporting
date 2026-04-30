@@ -1,14 +1,13 @@
 import { NextResponse } from 'next/server';
-import { getPartnerDetail, getMetrics, getMarketingActivities, getActivitiesForPartner } from '@/lib/airtable';
+import { getPartnerDetail, getMarketingActivities, getActivitiesForPartner } from '@/lib/airtable';
 import { getPartnerStackCollectData } from '@/lib/stackcollect';
 
 export async function POST(request: Request) {
   try {
     const { partnerName, slug, narrativeContext } = await request.json();
 
-    const [partner, allMetrics, allActivities] = await Promise.all([
+    const [partner, allActivities] = await Promise.all([
       getPartnerDetail(slug),
-      getMetrics(),
       getMarketingActivities(),
     ]);
 
@@ -18,10 +17,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Partner not found' }, { status: 404 });
     }
 
-    const metrics = allMetrics.filter(
-      m => m.partnerName.trim().toLowerCase() === partner.name.trim().toLowerCase()
-    );
-
+    const metrics: Array<{ weekStarting: string; sessions: number; users: number; pageViews: number; bounceRate: number }> = [];
     const partnerActivities = getActivitiesForPartner(allActivities, partner.name);
 
     const now = new Date();
