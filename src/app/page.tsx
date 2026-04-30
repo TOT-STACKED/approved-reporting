@@ -154,18 +154,29 @@ export default function Dashboard() {
       </div>
 
       {/* GA4 Marketplace Traffic */}
-      <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-5 mb-8">
-        <div className="flex items-center justify-between mb-3">
+      <div className="bg-gradient-to-br from-white to-orange-50/40 rounded-2xl border border-gray-200 shadow-sm p-5 sm:p-6 mb-8">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4">
           <div>
-            <h2 className="text-sm font-semibold text-gray-700">Marketplace Traffic</h2>
-            <p className="text-xs text-gray-400">Live GA4 data — partner page views on techontoast.community</p>
+            <div className="flex items-center gap-2">
+              <span className="inline-flex items-center justify-center w-6 h-6 rounded-md bg-orange-100 text-orange-600">
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                </svg>
+              </span>
+              <h2 className="text-base font-semibold text-gray-900">Marketplace Traffic</h2>
+              <span className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 bg-emerald-50 text-emerald-700 rounded-full">
+                <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></span>
+                Live GA4
+              </span>
+            </div>
+            <p className="text-xs text-gray-500 mt-1 ml-8">Partner page views on techontoast.community</p>
           </div>
         </div>
-        <div className="overflow-hidden rounded-lg">
+        <div className="bg-white rounded-xl border border-gray-100 overflow-hidden shadow-inner">
           <iframe
             src="https://datastudio.google.com/embed/reporting/a2df8bed-3635-4a61-ab35-d4e370ce7b09/page/HqswF"
-            className="w-full"
-            style={{ minHeight: '450px', border: 0 }}
+            className="w-full block"
+            style={{ height: '520px', border: 0 }}
             allowFullScreen
             sandbox="allow-storage-access-by-user-activation allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox"
             title="Marketplace Traffic"
