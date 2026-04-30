@@ -272,11 +272,18 @@ export async function getMetrics(partnerName?: string): Promise<MetricsEntry[]> 
     ? `{${FIELDS.partnerMetrics.partnerName}}="${partnerName}"`
     : undefined;
 
-  const records = await fetchAllRecords(
-    TABLES.partnerMetrics,
-    Object.values(FIELDS.partnerMetrics),
-    filter
-  );
+  let records: any[] = [];
+  try {
+    records = await fetchAllRecords(
+      TABLES.partnerMetrics,
+      Object.values(FIELDS.partnerMetrics),
+      filter
+    );
+  } catch (err) {
+    // Airtable token may not have permission to this table — degrade gracefully
+    console.warn('getMetrics failed, returning empty:', err);
+    return [];
+  }
 
   return records
     .map((r: any) => ({
