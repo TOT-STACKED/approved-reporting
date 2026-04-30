@@ -166,7 +166,21 @@ export async function GET() {
       };
     });
 
-    return NextResponse.json({ rows });
+    // Raw totals across all leads (includes unassigned, no double counting)
+    // so the page header matches the main dashboard.
+    const statusCount = (status: string) =>
+      leads.filter(l => l.status.trim().toLowerCase() === status.toLowerCase()).length;
+    const stageCount = (stage: string) =>
+      leads.filter(l => l.stage.trim().toLowerCase() === stage.toLowerCase()).length;
+
+    const totals = {
+      totalLeads: leads.length,
+      sqlCount: statusCount('SQL'),
+      mqlCount: statusCount('MQL'),
+      wonCount: statusCount('Closed Won') + stageCount('Closed Won'),
+    };
+
+    return NextResponse.json({ rows, totals });
   } catch (e: unknown) {
     const message = e instanceof Error ? e.message : 'unknown error';
     return NextResponse.json({ error: message }, { status: 500 });

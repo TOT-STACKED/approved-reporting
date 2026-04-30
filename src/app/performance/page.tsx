@@ -54,8 +54,16 @@ function daysLabel(days: number | null): string {
   return `${Math.round(days / 365)}y`;
 }
 
+interface RawTotals {
+  totalLeads: number;
+  sqlCount: number;
+  mqlCount: number;
+  wonCount: number;
+}
+
 export default function PerformancePage() {
   const [rows, setRows] = useState<PartnerPerformance[]>([]);
+  const [totals, setTotals] = useState<RawTotals | null>(null);
   const [loading, setLoading] = useState(true);
   const [hidden, setHidden] = useState<Set<string>>(new Set());
   const [sortKey, setSortKey] = useState<SortKey>('sqlCount');
@@ -64,7 +72,11 @@ export default function PerformancePage() {
   useEffect(() => {
     fetch('/api/performance')
       .then(r => r.json())
-      .then(d => { setRows(d.rows || []); setLoading(false); })
+      .then(d => {
+        setRows(d.rows || []);
+        setTotals(d.totals || null);
+        setLoading(false);
+      })
       .catch(() => setLoading(false));
 
     // Reuse the hide list the dashboard already maintains.
@@ -124,9 +136,12 @@ export default function PerformancePage() {
     return <div className="flex items-center justify-center py-20 text-gray-500">Loading partner performance…</div>;
   }
 
-  const totalLeads = visible.reduce((s, r) => s + r.leadCount, 0);
-  const totalSql   = visible.reduce((s, r) => s + r.sqlCount, 0);
-  const totalWon   = visible.reduce((s, r) => s + r.wonCount, 0);
+  // Use raw totals from API (matches main dashboard — every lead counted once,
+  // including unassigned). Falls back to summing visible rows if API doesn't
+  // include totals (older deploys).
+  const totalLeads = totals?.totalLeads ?? visible.reduce((s, r) => s + r.leadCount, 0);
+  const totalSql   = totals?.sqlCount   ?? visible.reduce((s, r) => s + r.sqlCount, 0);
+  const totalWon   = totals?.wonCount   ?? visible.reduce((s, r) => s + r.wonCount, 0);
   const totalGbp   = visible.reduce((s, r) => s + r.pipelineGbp, 0);
 
   return (
