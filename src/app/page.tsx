@@ -153,6 +153,26 @@ export default function Dashboard() {
         </div>
       </div>
 
+      {/* GA4 Marketplace Traffic */}
+      <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-5 mb-8">
+        <div className="flex items-center justify-between mb-3">
+          <div>
+            <h2 className="text-sm font-semibold text-gray-700">Marketplace Traffic</h2>
+            <p className="text-xs text-gray-400">Live GA4 data — partner page views on techontoast.community</p>
+          </div>
+        </div>
+        <div className="overflow-hidden rounded-lg">
+          <iframe
+            src="https://datastudio.google.com/embed/reporting/a2df8bed-3635-4a61-ab35-d4e370ce7b09/page/HqswF"
+            className="w-full"
+            style={{ minHeight: '450px', border: 0 }}
+            allowFullScreen
+            sandbox="allow-storage-access-by-user-activation allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox"
+            title="Marketplace Traffic"
+          />
+        </div>
+      </div>
+
       {/* Stacks Section */}
       <div className="mb-8">
         <StacksDashboard />
