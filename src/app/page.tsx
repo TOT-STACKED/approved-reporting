@@ -12,20 +12,12 @@ interface Partner {
   statusBreakdown: Record<string, number>;
 }
 
-interface Activity {
-  impressions: number;
-  engagements: number;
-  leadsGenerated: number;
-  pipelineValue: number;
-}
-
 interface Lead {
   status: string;
 }
 
 export default function Dashboard() {
   const [partners, setPartners] = useState<Partner[]>([]);
-  const [activities, setActivities] = useState<Activity[]>([]);
   const [allLeads, setAllLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -38,12 +30,10 @@ export default function Dashboard() {
 
     Promise.all([
       fetch('/api/partners').then(r => r.json()),
-      fetch('/api/activity').then(r => r.json()),
       fetch('/api/leads').then(r => r.json()),
     ])
-      .then(([partnerData, activityData, leadsData]) => {
+      .then(([partnerData, leadsData]) => {
         setPartners(partnerData.partners || []);
-        setActivities(activityData.activities || []);
         setAllLeads(leadsData.leads || []);
         setLoading(false);
       })
@@ -80,11 +70,6 @@ export default function Dashboard() {
 
   // Assign colours dynamically to each status
   const STATUS_COLORS = ['bg-gray-300', 'bg-blue-500', 'bg-amber-400', 'bg-emerald-500', 'bg-purple-500', 'bg-red-400', 'bg-teal-500', 'bg-pink-400', 'bg-indigo-400', 'bg-orange-400'];
-
-  // Marketing reach
-  const totalReach = activities.reduce((s, a) => s + a.impressions, 0);
-  const totalEngagements = activities.reduce((s, a) => s + a.engagements, 0);
-  const totalPipeline = activities.reduce((s, a) => s + a.pipelineValue, 0);
 
   // Specific KPI statuses to highlight
   const malCount = allStatuses['MAL'] || allStatuses['mal'] || 0;
@@ -142,9 +127,6 @@ export default function Dashboard() {
       <div className="bg-white rounded-xl border border-gray-200 p-5 mb-8">
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-sm font-semibold text-gray-700">Pipeline Breakdown</h2>
-          {totalPipeline > 0 && (
-            <span className="text-sm font-semibold text-green-600">£{totalPipeline.toLocaleString()} pipeline value</span>
-          )}
         </div>
         <div className="flex rounded-full overflow-hidden h-4 bg-gray-100">
           {totalLeads > 0 && sortedStatuses.map(([status, count], i) => (

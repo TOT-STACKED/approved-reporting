@@ -401,27 +401,9 @@ export interface MarketingActivity {
 }
 
 export async function getMarketingActivities(): Promise<MarketingActivity[]> {
-  const records = await fetchAllRecords(
-    TABLES.marketingActivity,
-    Object.values(FIELDS.marketingActivity)
-  );
-
-  return records
-    .map((r: any) => ({
-      id: r.id,
-      activityTitle: r.fields?.[FIELDS.marketingActivity.activityTitle] || '',
-      activityType: extractValue(r.fields?.[FIELDS.marketingActivity.activityType]),
-      date: r.fields?.[FIELDS.marketingActivity.date] || '',
-      partnersFeatured: r.fields?.[FIELDS.marketingActivity.partnersFeatured] || '',
-      impressions: r.fields?.[FIELDS.marketingActivity.impressions] || 0,
-      engagements: r.fields?.[FIELDS.marketingActivity.engagements] || 0,
-      clickThroughs: r.fields?.[FIELDS.marketingActivity.clickThroughs] || 0,
-      leadsGenerated: r.fields?.[FIELDS.marketingActivity.leadsGenerated] || 0,
-      pipelineValue: r.fields?.[FIELDS.marketingActivity.pipelineValue] || 0,
-      url: r.fields?.[FIELDS.marketingActivity.url] || '',
-      notes: r.fields?.[FIELDS.marketingActivity.notes] || '',
-    }))
-    .sort((a, b) => b.date.localeCompare(a.date));
+  // Marketing activity logging has been removed. Return empty array so
+  // any callers (reports, analytics, AI context) keep working without it.
+  return [];
 }
 
 export function getActivitiesForPartner(activities: MarketingActivity[], partnerName: string): MarketingActivity[] {
