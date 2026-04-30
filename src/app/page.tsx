@@ -82,8 +82,9 @@ export default function Dashboard() {
   const totalPipeline = activities.reduce((s, a) => s + a.pipelineValue, 0);
 
   // Specific KPI statuses to highlight
-  const sqlCount = allStatuses['SQL'] || allStatuses['sql'] || 0;
+  const malCount = allStatuses['MAL'] || allStatuses['mal'] || 0;
   const mqlCount = allStatuses['MQL'] || allStatuses['mql'] || 0;
+  const sqlCount = allStatuses['SQL'] || allStatuses['sql'] || 0;
   const closedWonCount = allStatuses['Closed Won'] || allStatuses['Closed Won '] || 0;
 
   if (loading) {
@@ -112,15 +113,11 @@ export default function Dashboard() {
 
       <AskBox />
 
-      {/* Hero KPIs - The Story */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3 sm:gap-4 mb-4">
+      {/* Hero KPIs - Pipeline stages */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 mb-4">
         <div className="bg-gradient-to-br from-blue-600 to-blue-700 rounded-xl p-4 sm:p-5 text-white">
-          <p className="text-2xl sm:text-3xl font-bold">{totalLeads.toLocaleString()}</p>
-          <p className="text-xs sm:text-sm opacity-80 mt-1">Total Leads</p>
-        </div>
-        <div className="bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl p-4 sm:p-5 text-white">
-          <p className="text-2xl sm:text-3xl font-bold">{totalReach.toLocaleString()}</p>
-          <p className="text-xs sm:text-sm opacity-80 mt-1">Total Reach</p>
+          <p className="text-2xl sm:text-3xl font-bold">{malCount}</p>
+          <p className="text-xs sm:text-sm opacity-80 mt-1">MAL</p>
         </div>
         <div className="bg-gradient-to-br from-amber-500 to-amber-600 rounded-xl p-4 sm:p-5 text-white">
           <p className="text-2xl sm:text-3xl font-bold">{mqlCount}</p>
@@ -130,7 +127,7 @@ export default function Dashboard() {
           <p className="text-2xl sm:text-3xl font-bold">{sqlCount}</p>
           <p className="text-xs sm:text-sm opacity-80 mt-1">SQL</p>
         </div>
-        <div className="bg-gradient-to-br from-purple-600 to-purple-700 rounded-xl p-4 sm:p-5 text-white col-span-2 md:col-span-1">
+        <div className="bg-gradient-to-br from-purple-600 to-purple-700 rounded-xl p-4 sm:p-5 text-white">
           <p className="text-2xl sm:text-3xl font-bold">{closedWonCount}</p>
           <p className="text-xs sm:text-sm opacity-80 mt-1">Closed Won</p>
         </div>
