@@ -280,9 +280,17 @@ export default function Dashboard() {
                           </span>
                         </td>
                         <td className="py-2 px-3 text-gray-600 text-xs">
-                          {lead.partners && lead.partners.length > 0
-                            ? lead.partners.slice(0, 3).join(', ') + (lead.partners.length > 3 ? ` +${lead.partners.length - 3}` : '')
-                            : '—'}
+                          {(() => {
+                            // Only show partners that have progressed this lead to MQL+ — not MAL.
+                            const stages = lead.stages || {} as Record<string, string[]>;
+                            const progressed = Array.from(new Set([
+                              ...(stages.MQL || []),
+                              ...(stages.SQL || []),
+                              ...(stages['Closed Won'] || []),
+                            ]));
+                            if (progressed.length === 0) return <span className="text-gray-300">—</span>;
+                            return progressed.slice(0, 3).join(', ') + (progressed.length > 3 ? ` +${progressed.length - 3}` : '');
+                          })()}
                         </td>
                         <td className="py-2 px-3 text-gray-500 text-xs">{lead.source || '—'}</td>
                         <td className="py-2 px-4 sm:px-5 text-gray-500 text-xs whitespace-nowrap">
