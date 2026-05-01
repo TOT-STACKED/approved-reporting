@@ -35,8 +35,11 @@ interface AnalyticsData {
     totalPartners: number;
     totalReviews: number;
     totalToolEntries: number;
-    totalActivities: number;
-    totalImpressions: number;
+    malCount: number;
+    mqlCount: number;
+    sqlCount: number;
+    closedWon: number;
+    closedLost: number;
   };
 }
 
@@ -99,14 +102,14 @@ export default function AnalyticsPage() {
         <p className="text-gray-500 mt-1 text-sm">Visual breakdown of traffic, pipeline, and tech stack data</p>
       </div>
 
-      {/* Summary KPIs */}
+      {/* Summary KPIs — match the main dashboard */}
       <div className="grid grid-cols-3 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-3 mb-6 sm:mb-8">
         {[
           { label: 'Total Leads', value: data.summary.totalLeads.toLocaleString(), color: 'from-blue-600 to-blue-700' },
-          { label: 'Partners', value: data.summary.totalPartners, color: 'from-orange-500 to-orange-600' },
-          { label: 'Activities', value: data.summary.totalActivities, color: 'from-emerald-500 to-emerald-600' },
-          { label: 'Impressions', value: data.summary.totalImpressions.toLocaleString(), color: 'from-purple-600 to-purple-700' },
-          { label: 'Stack Reviews', value: data.summary.totalReviews, color: 'from-teal-500 to-teal-600' },
+          { label: 'MQL', value: data.summary.mqlCount.toLocaleString(), color: 'from-amber-500 to-amber-600' },
+          { label: 'SQL', value: data.summary.sqlCount.toLocaleString(), color: 'from-emerald-500 to-emerald-600' },
+          { label: 'Closed Won', value: data.summary.closedWon.toLocaleString(), color: 'from-purple-600 to-purple-700' },
+          { label: 'Stack Reviews', value: data.summary.totalReviews.toLocaleString(), color: 'from-teal-500 to-teal-600' },
           { label: 'Tool Entries', value: data.summary.totalToolEntries.toLocaleString(), color: 'from-red-500 to-red-600' },
         ].map(kpi => (
           <div key={kpi.label} className={`bg-gradient-to-br ${kpi.color} rounded-xl p-3 sm:p-4 text-white text-center`}>

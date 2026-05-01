@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import ConversionTimeline from '@/components/ConversionTimeline';
 import PartnerNps, { type PartnerNpsData } from '@/components/PartnerNps';
+import StacksDashboard from '@/components/StacksDashboard';
 
 interface Lead {
   id: string;
@@ -279,6 +280,11 @@ export default function PartnerPage() {
       {nps && partner && (
         <PartnerNps data={nps} partnerName={partner.name} />
       )}
+
+      {/* Marketplace Stacks (general, same data shown on main dashboard) */}
+      <div className="mb-8">
+        <StacksDashboard />
+      </div>
 
       {/* Metrics Table */}
       {metrics.length > 0 && (
