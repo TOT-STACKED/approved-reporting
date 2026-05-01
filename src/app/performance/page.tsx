@@ -70,11 +70,11 @@ function attentionLevel(p: { mqlCount: number; sqlCount: number; daysSinceLastLe
   if (days > 14 && pipeline >= 1) return 'medium';
   return 'healthy';
 }
-const ATTENTION_BADGE: Record<Attention, { dot: string; label: string; chip: string }> = {
-  high:    { dot: 'bg-rose-500',    label: 'Action needed', chip: 'bg-rose-50 text-rose-700 border-rose-200' },
-  medium:  { dot: 'bg-amber-500',   label: 'Follow up',     chip: 'bg-amber-50 text-amber-700 border-amber-200' },
-  healthy: { dot: 'bg-emerald-500', label: 'Healthy',       chip: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
-  quiet:   { dot: 'bg-gray-300',    label: 'Quiet',         chip: 'bg-gray-50 text-gray-500 border-gray-200' },
+const ATTENTION_BADGE: Record<Attention, { dot: string; label: string; chip: string; row: string; emoji: string }> = {
+  high:    { dot: 'bg-rose-500',    label: 'Action needed', chip: 'bg-rose-100 text-rose-800 border-rose-300 ring-1 ring-rose-200',      row: 'bg-rose-50/70 hover:bg-rose-50',         emoji: '🚨' },
+  medium:  { dot: 'bg-amber-500',   label: 'Follow up',     chip: 'bg-amber-100 text-amber-800 border-amber-300 ring-1 ring-amber-200',  row: 'bg-amber-50/60 hover:bg-amber-50',       emoji: '⚠️' },
+  healthy: { dot: 'bg-emerald-500', label: 'Healthy',       chip: 'bg-emerald-50 text-emerald-700 border-emerald-200',                   row: 'hover:bg-gray-50',                       emoji: '✓' },
+  quiet:   { dot: 'bg-gray-300',    label: 'Quiet',         chip: 'bg-gray-50 text-gray-500 border-gray-200',                            row: 'hover:bg-gray-50',                       emoji: '·' },
 };
 
 function daysLabel(days: number | null): string {
@@ -125,11 +125,16 @@ export default function PerformancePage() {
 
   const sorted = useMemo(() => {
     const copy = [...visible];
+    // Always float poor performers (high → medium → healthy → quiet) above the
+    // user's chosen sort, so the table reads top-to-bottom as "needs help first".
+    const ATTN_ORDER: Record<Attention, number> = { high: 0, medium: 1, healthy: 2, quiet: 3 };
     copy.sort((a, b) => {
+      const attnDiff = ATTN_ORDER[attentionLevel(a)] - ATTN_ORDER[attentionLevel(b)];
+      if (attnDiff !== 0) return attnDiff;
+
       let cmp = 0;
       if (sortKey === 'name') cmp = a.name.localeCompare(b.name);
       else if (sortKey === 'daysSinceLastLead' || sortKey === 'daysSinceLastActivity') {
-        // Null = never, treat as very stale so it sinks to the bottom on desc.
         const av = a[sortKey] ?? Number.MAX_SAFE_INTEGER;
         const bv = b[sortKey] ?? Number.MAX_SAFE_INTEGER;
         cmp = av - bv;
@@ -152,13 +157,11 @@ export default function PerformancePage() {
     const headers = [
       'Partner', 'Attention', 'MAL', 'MQLs', 'SQLs', 'Demos', 'Closed Won', 'Closed Lost',
       'Active', 'Lead → SQL %', 'SQL → Won %',
-      'Pipeline £', 'Impressions', 'Engagements', 'Activities',
       'Days since last lead', 'Days since last activity',
     ];
     const body = sorted.map(r => [
       r.name, ATTENTION_BADGE[attentionLevel(r)].label, r.leadCount, r.mqlCount, r.sqlCount, r.demoCount, r.wonCount, r.lostCount,
       r.activeCount, r.leadToSqlPct, r.sqlToWonPct,
-      r.pipelineGbp, r.impressions, r.engagements, r.activityCount,
       r.daysSinceLastLead ?? '', r.daysSinceLastActivity ?? '',
     ]);
     downloadCsv(`partner-performance-${new Date().toISOString().slice(0, 10)}.csv`, toCsv(headers, body));
@@ -196,9 +199,8 @@ export default function PerformancePage() {
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Partner Performance</h1>
           <p className="text-gray-500 mt-1 text-sm">
-            SQLs, conversion rates, pipeline and recency across every active partner.
-            Hidden partners excluded. MRR and first-response time still need dedicated Airtable fields
-            — until they're added we surface marketing pipeline £ and last-lead recency as proxies.
+            MQL/SQL pipeline volume, conversion rates and last-lead recency across every active partner.
+            Partners that need attention float to the top — sorted red → amber → green.
           </p>
         </div>
         <button
@@ -224,9 +226,9 @@ export default function PerformancePage() {
           <p className="text-2xl sm:text-3xl font-bold">{totalWon.toLocaleString()}</p>
           <p className="text-xs sm:text-sm opacity-80 mt-1">Closed Won</p>
         </div>
-        <div className="bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl p-4 sm:p-5 text-white">
-          <p className="text-2xl sm:text-3xl font-bold">{fmtGbp(totalGbp)}</p>
-          <p className="text-xs sm:text-sm opacity-80 mt-1">Pipeline £ (proxy)</p>
+        <div className="bg-gradient-to-br from-amber-500 to-amber-600 rounded-xl p-4 sm:p-5 text-white">
+          <p className="text-2xl sm:text-3xl font-bold">{visible.reduce((s, r) => s + r.mqlCount, 0).toLocaleString()}</p>
+          <p className="text-xs sm:text-sm opacity-80 mt-1">MQLs in pipeline</p>
         </div>
       </div>
 
@@ -271,10 +273,6 @@ export default function PerformancePage() {
                   SQL→Won {sortIcon('sqlToWonPct')}
                 </th>
                 <th className="text-right py-3 px-3 font-medium text-gray-700 cursor-pointer select-none"
-                    onClick={() => toggleSort('pipelineGbp')} title="Sum of pipeline value from logged marketing activities — proxy for MRR until a contract-value field exists in Airtable.">
-                  Pipeline £ {sortIcon('pipelineGbp')}
-                </th>
-                <th className="text-right py-3 px-3 font-medium text-gray-700 cursor-pointer select-none"
                     onClick={() => toggleSort('daysSinceLastLead')} title="Days since the newest lead was modified — proxy for response-time until a first-response timestamp exists in Airtable.">
                   Last Lead {sortIcon('daysSinceLastLead')}
                 </th>
@@ -288,14 +286,18 @@ export default function PerformancePage() {
               {sorted.map(r => {
                 const attn = attentionLevel(r);
                 const badge = ATTENTION_BADGE[attn];
+                const isPoor = attn === 'high' || attn === 'medium';
                 return (
-                <tr key={r.slug} className="border-b border-gray-100 hover:bg-gray-50">
+                <tr key={r.slug} className={`border-b border-gray-100 transition-colors ${badge.row}`}>
                   <td className="py-3 px-4 font-medium text-gray-900">
-                    <a href={`/partners/${r.slug}`} className="hover:text-orange-600">{r.name}</a>
+                    <span className="flex items-center gap-2">
+                      {isPoor && <span className="text-base leading-none" aria-hidden>{badge.emoji}</span>}
+                      <a href={`/partners/${r.slug}`} className="hover:text-orange-600">{r.name}</a>
+                    </span>
                   </td>
                   <td className="py-3 px-3 text-center">
-                    <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full border text-[11px] font-medium ${badge.chip}`}>
-                      <span className={`w-1.5 h-1.5 rounded-full ${badge.dot}`}></span>
+                    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[11px] font-semibold ${badge.chip}`}>
+                      <span className={`w-2 h-2 rounded-full ${badge.dot}`}></span>
                       {badge.label}
                     </span>
                   </td>
@@ -309,7 +311,6 @@ export default function PerformancePage() {
                   <td className="py-3 px-3 text-right text-gray-600">{r.leadToSqlPct}%</td>
                   <td className="py-3 px-3 text-right text-purple-700 font-semibold">{r.wonCount.toLocaleString()}</td>
                   <td className="py-3 px-3 text-right text-gray-600">{r.sqlToWonPct}%</td>
-                  <td className="py-3 px-3 text-right text-gray-700">{fmtGbp(r.pipelineGbp)}</td>
                   <td className={`py-3 px-3 text-right ${recencyTone(r.daysSinceLastLead)}`}>{daysLabel(r.daysSinceLastLead)}</td>
                   <td className={`py-3 px-3 text-right ${recencyTone(r.daysSinceLastActivity)}`}>{daysLabel(r.daysSinceLastActivity)}</td>
                 </tr>
@@ -321,10 +322,8 @@ export default function PerformancePage() {
       </div>
 
       <p className="text-xs text-gray-400 mt-4">
-        Tip: a red Last Lead / Last Activity cell means 30+ days since anything happened for that partner.
-        Add <code className="bg-gray-100 px-1 rounded">Deal Value</code> and
-        <code className="bg-gray-100 px-1 rounded">First Response</code> fields in Airtable to swap the
-        proxy columns above for true MRR and response-time metrics.
+        🚨 = Action needed (MQL/SQL pipeline with no activity in 30+ days). ⚠️ = Follow up (14–30 days stale).
+        MQL and SQL columns are heat-shaded — darker means more leads at that stage relative to the top performer.
       </p>
     </div>
   );
