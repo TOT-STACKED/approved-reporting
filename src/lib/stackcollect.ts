@@ -124,6 +124,8 @@ const TEST_PATTERNS = [
   /sync\s*test/i,
   /phone\/lastname/i,
   /^ss$/i,
+  /^hfdhdhdfhdf/i,
+  /^14652073$/,
 ];
 
 function isTestSubmission(businessName: string | null | undefined): boolean {
@@ -179,7 +181,9 @@ export async function getNpsScores(params: { source?: NpsScore['source']; limit?
     if (batch.length < pageSize) break;
     offset += pageSize;
   }
-  return typeof params.limit === 'number' ? rows.slice(0, params.limit) : rows;
+  // Strip test entries by company name so dashboards aren't polluted.
+  const cleaned = rows.filter(s => !isTestSubmission(s.company));
+  return typeof params.limit === 'number' ? cleaned.slice(0, params.limit) : cleaned;
 }
 
 // Roll scores up per vendor into NPS (%promoters − %detractors × 100).
