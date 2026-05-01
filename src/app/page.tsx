@@ -22,9 +22,13 @@ interface LeadStages {
 }
 
 interface Lead {
+  id?: string;
+  businessName?: string;
   status: string;
   date: string;
   lastModified: string;
+  source?: string;
+  partners?: string[];
   stages?: LeadStages;
 }
 
@@ -210,6 +214,88 @@ export default function Dashboard() {
             title="Marketplace Traffic"
           />
         </div>
+      </div>
+
+      {/* Recent Activity — MQL+ leads only, max 10 */}
+      <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-5 mb-8">
+        <div className="flex items-center justify-between mb-3">
+          <div>
+            <h2 className="text-sm font-semibold text-gray-700">Recent Activity</h2>
+            <p className="text-[11px] text-gray-400 mt-0.5">Most recently updated leads at MQL stage or above</p>
+          </div>
+        </div>
+        {(() => {
+          const filtered = allLeads
+            .filter(l => {
+              const s = (l.status || '').trim().toLowerCase();
+              return s === 'mql' || s === 'sql' || s === 'demo' || s === 'closed won';
+            })
+            .sort((a, b) => {
+              const priority = (s: string) => {
+                const k = (s || '').trim().toLowerCase();
+                if (k === 'closed won') return 0;
+                if (k === 'sql') return 1;
+                if (k === 'demo') return 2;
+                if (k === 'mql') return 3;
+                return 4;
+              };
+              const pa = priority(a.status), pb = priority(b.status);
+              if (pa !== pb) return pa - pb;
+              return (b.lastModified || '').localeCompare(a.lastModified || '');
+            })
+            .slice(0, 10);
+
+          if (filtered.length === 0) {
+            return <p className="text-sm text-gray-400 italic">No recent MQL+ leads to show.</p>;
+          }
+
+          return (
+            <div className="overflow-x-auto -mx-4 sm:-mx-5">
+              <table className="w-full text-sm min-w-[640px]">
+                <thead>
+                  <tr className="border-b border-gray-100">
+                    <th className="text-left py-2 px-4 sm:px-5 text-gray-500 font-medium">Business</th>
+                    <th className="text-left py-2 px-3 text-gray-500 font-medium">Status</th>
+                    <th className="text-left py-2 px-3 text-gray-500 font-medium">Partners</th>
+                    <th className="text-left py-2 px-3 text-gray-500 font-medium">Source</th>
+                    <th className="text-left py-2 px-4 sm:px-5 text-gray-500 font-medium whitespace-nowrap">Last Updated</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filtered.map(lead => {
+                    const statusColor = (() => {
+                      const s = (lead.status || '').trim().toLowerCase();
+                      if (s === 'closed won') return 'bg-purple-100 text-purple-700';
+                      if (s === 'sql') return 'bg-emerald-100 text-emerald-700';
+                      if (s === 'demo') return 'bg-blue-100 text-blue-700';
+                      if (s === 'mql') return 'bg-amber-100 text-amber-700';
+                      return 'bg-gray-100 text-gray-700';
+                    })();
+                    return (
+                      <tr key={lead.id} className="border-b border-gray-50 hover:bg-gray-50">
+                        <td className="py-2 px-4 sm:px-5 text-gray-900 font-medium">{lead.businessName || '—'}</td>
+                        <td className="py-2 px-3">
+                          <span className={`inline-block text-xs px-2 py-0.5 rounded-full font-medium ${statusColor}`}>
+                            {lead.status}
+                          </span>
+                        </td>
+                        <td className="py-2 px-3 text-gray-600 text-xs">
+                          {lead.partners && lead.partners.length > 0
+                            ? lead.partners.slice(0, 3).join(', ') + (lead.partners.length > 3 ? ` +${lead.partners.length - 3}` : '')
+                            : '—'}
+                        </td>
+                        <td className="py-2 px-3 text-gray-500 text-xs">{lead.source || '—'}</td>
+                        <td className="py-2 px-4 sm:px-5 text-gray-500 text-xs whitespace-nowrap">
+                          {lead.lastModified ? lead.lastModified.split('T')[0] : '—'}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          );
+        })()}
       </div>
 
       {/* Stacks Section */}
