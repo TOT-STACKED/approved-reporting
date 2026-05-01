@@ -167,7 +167,8 @@ export default function PerformancePage() {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 mb-6">
         <div className="bg-gradient-to-br from-blue-600 to-blue-700 rounded-xl p-4 sm:p-5 text-white">
           <p className="text-2xl sm:text-3xl font-bold">{totalLeads.toLocaleString()}</p>
-          <p className="text-xs sm:text-sm opacity-80 mt-1">Total leads</p>
+          <p className="text-xs sm:text-sm opacity-80 mt-1">MAL</p>
+          <p className="text-[10px] opacity-50 mt-0.5">Marketing Awareness Leads</p>
         </div>
         <div className="bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-xl p-4 sm:p-5 text-white">
           <p className="text-2xl sm:text-3xl font-bold">{totalSql.toLocaleString()}</p>

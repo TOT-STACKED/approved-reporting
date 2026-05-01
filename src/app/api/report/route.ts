@@ -188,7 +188,7 @@ export async function POST(request: Request) {
     <div class="kpi" style="background:#f39c12"><div class="value">${mqlCount}</div><div class="label">MQL</div></div>
     <div class="kpi" style="background:#27ae60"><div class="value">${sqlCount}</div><div class="label">SQL</div></div>
     <div class="kpi" style="background:#8e44ad"><div class="value">${closedWon}</div><div class="label">Closed Won</div></div>
-    <div class="kpi" style="background:#2980b9"><div class="value">${partner.leadCount}</div><div class="label">Total Leads</div></div>
+    <div class="kpi" style="background:#2980b9"><div class="value">${partner.leadCount}</div><div class="label">MAL</div></div>
   </div>
 
   <!-- Conversion Timeline -->

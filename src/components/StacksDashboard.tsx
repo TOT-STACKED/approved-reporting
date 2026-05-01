@@ -80,7 +80,11 @@ const PERIOD_LABELS: Record<Period, string> = {
   all: 'All Time',
 };
 
-export default function StacksDashboard() {
+interface StacksDashboardProps {
+  hideRecentReviews?: boolean;
+}
+
+export default function StacksDashboard({ hideRecentReviews = false }: StacksDashboardProps = {}) {
   const [data, setData] = useState<StacksData | null>(null);
   const [period, setPeriod] = useState<Period>('all');
   const [loading, setLoading] = useState(true);
@@ -211,7 +215,7 @@ export default function StacksDashboard() {
       </div>
 
       {/* Recent Reviews */}
-      {filtered.length > 0 && (
+      {!hideRecentReviews && filtered.length > 0 && (
         <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-5 mt-4">
           <h3 className="text-sm font-semibold text-gray-700 mb-3">
             Recent Reviews

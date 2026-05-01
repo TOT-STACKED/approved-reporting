@@ -231,7 +231,7 @@ export default function SecurePartnerPage() {
           </div>
         )}
 
-        {/* KPI Cards — MQL, SQL, Closed Won + Total Leads */}
+        {/* KPI Cards — MQL, SQL, Closed Won + MAL */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 mb-6 sm:mb-8">
           <div className="bg-gradient-to-br from-amber-500 to-amber-600 rounded-xl p-4 sm:p-5 text-white">
             <p className="text-2xl sm:text-3xl font-bold">{mqlCount}</p>
@@ -247,7 +247,8 @@ export default function SecurePartnerPage() {
           </div>
           <div className="bg-gradient-to-br from-blue-600 to-blue-700 rounded-xl p-4 sm:p-5 text-white">
             <p className="text-2xl sm:text-3xl font-bold">{partner.leadCount}</p>
-            <p className="text-xs sm:text-sm opacity-80 mt-1">Total Leads</p>
+            <p className="text-xs sm:text-sm opacity-80 mt-1">MAL</p>
+            <p className="text-[10px] opacity-50 mt-0.5">Marketing Awareness Leads</p>
             <p className="text-[10px] sm:text-xs opacity-60 mt-2">{partner.recentLeads.length} active last 90d</p>
           </div>
         </div>
@@ -398,9 +399,9 @@ export default function SecurePartnerPage() {
           <PartnerNps data={nps} partnerName={partner.name} />
         )}
 
-        {/* Marketplace Stacks (same general view as the main dashboard) */}
+        {/* Marketplace Stacks (same general view as the main dashboard — recent reviews hidden) */}
         <div className="mb-6 sm:mb-8">
-          <StacksDashboard />
+          <StacksDashboard hideRecentReviews />
         </div>
 
         {/* Metrics Table */}

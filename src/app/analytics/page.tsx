@@ -105,7 +105,7 @@ export default function AnalyticsPage() {
       {/* Summary KPIs — match the main dashboard */}
       <div className="grid grid-cols-3 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-3 mb-6 sm:mb-8">
         {[
-          { label: 'Total Leads', value: data.summary.totalLeads.toLocaleString(), color: 'from-blue-600 to-blue-700' },
+          { label: 'MAL', value: data.summary.totalLeads.toLocaleString(), color: 'from-blue-600 to-blue-700' },
           { label: 'MQL', value: data.summary.mqlCount.toLocaleString(), color: 'from-amber-500 to-amber-600' },
           { label: 'SQL', value: data.summary.sqlCount.toLocaleString(), color: 'from-emerald-500 to-emerald-600' },
           { label: 'Closed Won', value: data.summary.closedWon.toLocaleString(), color: 'from-purple-600 to-purple-700' },
