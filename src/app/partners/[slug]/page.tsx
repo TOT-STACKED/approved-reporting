@@ -380,7 +380,7 @@ export default function PartnerPage() {
                   const pa = priority(a.status), pb = priority(b.status);
                   if (pa !== pb) return pa - pb;
                   return (b.lastModified || '').localeCompare(a.lastModified || '');
-                }).slice(0, 30).map((lead) => (
+                }).slice(0, 10).map((lead) => (
                   <tr key={lead.id} className="border-b border-gray-100">
                     <td className="py-3 px-3 text-gray-900">{lead.businessName}</td>
                     <td className="py-3 px-3">
