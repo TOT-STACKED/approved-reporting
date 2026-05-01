@@ -86,51 +86,54 @@ export async function POST(request: Request) {
       });
     });
 
+    // Slim lead representation — keep only fields the AI actually needs
+    const slimLeads = leads.map((l: any) => ({
+      name: l.businessName,
+      status: l.status,
+      ...(scopedPartner ? {} : { partners: l.partners }),
+      source: l.source,
+      location: l.location,
+      lastModified: l.lastModified ? l.lastModified.split('T')[0] : '',
+    }));
+
     const dataContext = JSON.stringify({
-      partners: partners.map(p => ({
-        name: p.name,
-        leadCount: p.leadCount,
-        statusBreakdown: p.statusBreakdown,
-      })),
-      allLeads: leads.map((l: any) => ({
-        businessName: l.businessName,
-        status: l.status,
-        partners: l.partners,
-        source: l.source,
-        owner: l.owner,
-        location: l.location,
-        lastModified: l.lastModified,
-      })),
-      overallStatusTotals: allStatuses,
+      // Only include the partner roster when NOT scoped (saves tokens)
+      ...(scopedPartner ? {} : {
+        partners: partners.map(p => ({
+          name: p.name,
+          leadCount: p.leadCount,
+          statusBreakdown: p.statusBreakdown,
+        })),
+        overallStatusTotals: allStatuses,
+        totalPartners: partners.length,
+      }),
+      ...(scopedPartner ? {
+        scopedPartner: scopedPartner.name,
+        partnerLeadCount: leads.length,
+      } : {}),
+      leads: slimLeads,
       totalLeads: leads.length,
-      totalPartners: partners.length,
       stackCollect: {
         totalReviews: stackReviews.length,
         totalToolEntries: stackEntries.length,
-        topTools: stackTopTools,
-        categories: stackCategories,
-        recentReviews: stackReviews.slice(0, 15).map(r => ({
-          date: r.created_at.split('T')[0],
-          toolCount: r.tools.length,
-          tools: r.tools.map(t => `${t.tool_name} (${t.category})`),
-        })),
+        topTools: stackTopTools.slice(0, 15),
+        categories: stackCategories.slice(0, 15),
       },
-      businessSubmissions: businesses.map((b: any) => ({
-        businessName: b.business_name,
-        industry: b.industry,
-        size: b.size,
-        location: b.location,
-        role: b.role,
-        numberOfLocations: b.number_of_locations,
-        submissionType: b.submission_type,
-        date: b.created_at?.split('T')[0],
-      })),
-      totalBusinessSubmissions: businesses.length,
-      toolUsageAnalytics: toolUsage.slice(0, 30).map((t: any) => ({
+      // Only include detailed business submissions for global queries
+      ...(scopedPartner ? {} : {
+        recentSubmissions: businesses.slice(0, 50).map((b: any) => ({
+          name: b.business_name,
+          industry: b.industry,
+          location: b.location,
+          locations: b.number_of_locations,
+          date: b.created_at?.split('T')[0],
+        })),
+        totalBusinessSubmissions: businesses.length,
+      }),
+      toolUsageAnalytics: toolUsage.slice(0, 20).map((t: any) => ({
         tool: t.tool_name,
         category: t.category,
         usageCount: t.usage_count,
-        uniqueBusinesses: t.unique_businesses,
       })),
       posMarketShare: posMarketShare.map((p: any) => ({
         tool: p.tool_name,
