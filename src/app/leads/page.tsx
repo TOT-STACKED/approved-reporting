@@ -39,8 +39,13 @@ export default function LeadsPage() {
     fetch('/api/leads')
       .then(r => r.json())
       .then(data => {
-        setLeads(data.leads || []);
-        setTotal(data.total || 0);
+        // Only show leads at MQL or SQL stage — MAL is too noisy.
+        const filtered = (data.leads || []).filter((l: Lead) => {
+          const s = (l.status || '').trim().toUpperCase();
+          return s === 'MQL' || s === 'SQL';
+        });
+        setLeads(filtered);
+        setTotal(filtered.length);
         setLoading(false);
       })
       .catch(() => setLoading(false));
