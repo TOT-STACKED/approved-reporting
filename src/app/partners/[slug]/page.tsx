@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
+import ConversionTimeline from '@/components/ConversionTimeline';
 import PartnerNps, { type PartnerNpsData } from '@/components/PartnerNps';
 
 interface Lead {
@@ -12,6 +13,7 @@ interface Lead {
   owner: string;
   stage: string;
   lastModified: string;
+  date?: string;
 }
 
 interface MetricsEntry {
@@ -184,6 +186,16 @@ export default function PartnerPage() {
           <p className="text-sm opacity-80 mt-1">Total Leads</p>
           <p className="text-xs opacity-60 mt-2">{partner.recentLeads.length} active last 90d</p>
         </div>
+      </div>
+
+      {/* Conversion Timeline */}
+      <div className="mb-8">
+        <ConversionTimeline
+          leads={partner.leads}
+          mqlCount={mqlCount}
+          sqlCount={sqlCount}
+          closedWonCount={closedWon}
+        />
       </div>
 
       {/* GA4 Traffic for this partner */}
