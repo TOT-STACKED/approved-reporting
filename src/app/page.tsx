@@ -208,7 +208,7 @@ export default function Dashboard() {
           <iframe
             src="https://datastudio.google.com/embed/reporting/a2df8bed-3635-4a61-ab35-d4e370ce7b09/page/HqswF"
             className="w-full block"
-            style={{ height: '520px', border: 0 }}
+            style={{ height: '340px', border: 0 }}
             allowFullScreen
             sandbox="allow-storage-access-by-user-activation allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox"
             title="Marketplace Traffic"
