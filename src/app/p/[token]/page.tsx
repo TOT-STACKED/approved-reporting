@@ -246,36 +246,6 @@ export default function SecurePartnerPage() {
           />
         </div>
 
-        {/* GA4 Traffic */}
-        <div className="bg-gradient-to-br from-white to-orange-50/40 rounded-2xl border border-gray-200 shadow-sm p-5 sm:p-6 mb-6 sm:mb-8">
-          <div className="mb-4">
-            <div className="flex items-center gap-2">
-              <span className="inline-flex items-center justify-center w-6 h-6 rounded-md bg-orange-100 text-orange-600">
-                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-                </svg>
-              </span>
-              <h2 className="text-base font-semibold text-gray-900">Page Traffic</h2>
-              <span className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 bg-emerald-50 text-emerald-700 rounded-full">
-                <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></span>
-                Live GA4
-              </span>
-            </div>
-            <p className="text-xs text-gray-500 mt-1 ml-8">
-              Filter to <code className="bg-gray-100 px-1.5 py-0.5 rounded text-gray-700 text-[11px]">/partners/{partner.slug}</code> in the dropdown
-            </p>
-          </div>
-          <div className="bg-white rounded-xl border border-gray-100 overflow-hidden shadow-inner">
-            <iframe
-              src="https://datastudio.google.com/embed/reporting/a2df8bed-3635-4a61-ab35-d4e370ce7b09/page/HqswF"
-              className="w-full block"
-              style={{ height: '520px', border: 0 }}
-              allowFullScreen
-              sandbox="allow-storage-access-by-user-activation allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox"
-              title="Page Traffic"
-            />
-          </div>
-        </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 mb-6 sm:mb-8">
           {/* Status Breakdown */}
