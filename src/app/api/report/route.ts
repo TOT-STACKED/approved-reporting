@@ -1,108 +1,93 @@
 import { NextResponse } from 'next/server';
-import { getPartnerDetail, getMarketingActivities, getActivitiesForPartner } from '@/lib/airtable';
+import { getPartnerDetail } from '@/lib/airtable';
 import { getPartnerStackCollectData } from '@/lib/stackcollect';
+
+// Median days between lead creation and the lead's last status change.
+// Used as a proxy for stage-transition time on the report.
+function medianDaysToStatus(
+  leads: { status: string; date?: string; lastModified?: string }[],
+  target: string
+) {
+  const matches = leads.filter(l => (l.status || '').trim() === target);
+  const gaps: number[] = [];
+  for (const l of matches) {
+    if (!l.date || !l.lastModified) continue;
+    const d1 = Date.parse(l.date);
+    const d2 = Date.parse(l.lastModified);
+    if (!isNaN(d1) && !isNaN(d2) && d2 >= d1) {
+      gaps.push(Math.round((d2 - d1) / 86400000));
+    }
+  }
+  if (gaps.length === 0) return { median: null as number | null, count: 0 };
+  gaps.sort((a, b) => a - b);
+  const mid = Math.floor(gaps.length / 2);
+  const median = gaps.length % 2 === 0
+    ? Math.round((gaps[mid - 1] + gaps[mid]) / 2)
+    : gaps[mid];
+  return { median, count: gaps.length };
+}
 
 export async function POST(request: Request) {
   try {
-    const { partnerName, slug, narrativeContext } = await request.json();
+    const { slug, narrativeContext } = await request.json();
 
-    const [partner, allActivities] = await Promise.all([
-      getPartnerDetail(slug),
-      getMarketingActivities(),
-    ]);
-
-    const stackCollect = partner ? await getPartnerStackCollectData(partner.name) : null;
-
+    const partner = await getPartnerDetail(slug);
     if (!partner) {
       return NextResponse.json({ error: 'Partner not found' }, { status: 404 });
     }
 
-    const metrics: Array<{ weekStarting: string; sessions: number; users: number; pageViews: number; bounceRate: number }> = [];
-    const partnerActivities = getActivitiesForPartner(allActivities, partner.name);
+    const stackCollect = await getPartnerStackCollectData(partner.name);
 
     const now = new Date();
     const monthYear = now.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
 
-    // --- Marketing Value Metrics ---
-    const totalImpressions = partnerActivities.reduce((s, a) => s + a.impressions, 0);
-    const totalEngagements = partnerActivities.reduce((s, a) => s + a.engagements, 0);
-    const totalClicks = partnerActivities.reduce((s, a) => s + a.clickThroughs, 0);
-    const totalMarketingLeads = partnerActivities.reduce((s, a) => s + a.leadsGenerated, 0);
-    const totalPipeline = partnerActivities.reduce((s, a) => s + a.pipelineValue, 0);
+    // --- Pipeline KPIs (matches dashboard) ---
+    const malCount = partner.statusBreakdown['MAL'] || 0;
+    const mqlCount = partner.statusBreakdown['MQL'] || 0;
+    const sqlCount = partner.statusBreakdown['SQL'] || 0;
+    const closedWon =
+      (partner.statusBreakdown['Closed Won'] || 0) +
+      (partner.statusBreakdown['Closed Won '] || 0);
 
-    // Group activities by type
-    const byType: Record<string, { count: number; impressions: number; engagements: number }> = {};
-    for (const a of partnerActivities) {
-      if (!byType[a.activityType]) byType[a.activityType] = { count: 0, impressions: 0, engagements: 0 };
-      byType[a.activityType].count++;
-      byType[a.activityType].impressions += a.impressions;
-      byType[a.activityType].engagements += a.engagements;
-    }
-
-    // --- Pipeline Metrics ---
-    const activeConversations = (partner.statusBreakdown['In Conversation'] || 0) +
-      (partner.statusBreakdown['Opportunity'] || 0) +
-      (partner.statusBreakdown['SQL'] || 0);
-    const closedWon = (partner.statusBreakdown['Live Closed'] || 0) +
-      (partner.statusBreakdown['Live Closed '] || 0);
-    const closedLost = (partner.statusBreakdown['Lost'] || 0) +
-      (partner.statusBreakdown['Lost '] || 0);
-    const nurturing = partner.statusBreakdown['nurture'] || 0;
-
-    // --- Site Traffic ---
-    const totalSessions = metrics.reduce((s, m) => s + m.sessions, 0);
-    const totalUsers = metrics.reduce((s, m) => s + m.users, 0);
-    const totalPageViews = metrics.reduce((s, m) => s + m.pageViews, 0);
-    const avgBounce = metrics.length > 0
-      ? (metrics.reduce((s, m) => s + m.bounceRate, 0) / metrics.length * 100).toFixed(1)
-      : 'N/A';
+    // --- Conversion Timeline (median days, MAL → each stage) ---
+    const tMql = medianDaysToStatus(partner.leads, 'MQL');
+    const tSql = medianDaysToStatus(partner.leads, 'SQL');
+    const tWonA = medianDaysToStatus(partner.leads, 'Closed Won');
+    const tWonB = medianDaysToStatus(partner.leads, 'Closed Won ');
+    const tWon = (() => {
+      const total = tWonA.count + tWonB.count;
+      if (total === 0) return { median: null as number | null, count: 0 };
+      const sum = (tWonA.median ?? 0) * tWonA.count + (tWonB.median ?? 0) * tWonB.count;
+      return { median: Math.round(sum / total), count: total };
+    })();
 
     // --- Generate Narrative ---
     const generateNarrative = () => {
       const parts: string[] = [];
 
-      // Opening
       parts.push(`This month, Tech on Toast continued to drive visibility and value for ${partner.name} across our network.`);
 
-      // Leads story
       if (partner.leadCount > 0) {
         parts.push(`We currently have ${partner.leadCount} leads in the pipeline for ${partner.name}.`);
-        if (activeConversations > 0) {
-          parts.push(`Of these, ${activeConversations} ${activeConversations === 1 ? 'is' : 'are'} in active conversation, showing strong engagement from prospective operators.`);
+        if (mqlCount > 0) {
+          parts.push(`${mqlCount} ${mqlCount === 1 ? 'lead has' : 'leads have'} reached MQL stage.`);
+        }
+        if (sqlCount > 0) {
+          parts.push(`${sqlCount} ${sqlCount === 1 ? 'is' : 'are'} now Sales Qualified, showing strong engagement from prospective operators.`);
         }
         if (closedWon > 0) {
           parts.push(`${closedWon} ${closedWon === 1 ? 'lead has' : 'leads have'} successfully closed this period.`);
         }
-        if (nurturing > 0) {
-          parts.push(`${nurturing} ${nurturing === 1 ? 'lead is' : 'leads are'} being nurtured towards conversion.`);
-        }
       }
 
-      // Marketing activity story
-      if (partnerActivities.length > 0) {
-        const types = Object.keys(byType);
-        parts.push(`On the marketing front, we featured ${partner.name} across ${partnerActivities.length} ${partnerActivities.length === 1 ? 'activity' : 'activities'}${types.length > 0 ? `, including ${types.slice(0, 3).join(', ').toLowerCase()}` : ''}.`);
-        if (totalImpressions > 0) {
-          parts.push(`This generated a total reach of ${totalImpressions.toLocaleString()} impressions with ${totalEngagements.toLocaleString()} engagements.`);
-        }
+      if (tMql.median !== null) {
+        parts.push(`On average, leads progress from initial contact to MQL in around ${tMql.median} days.`);
       }
 
-      // Traffic story
-      if (totalSessions > 0) {
-        parts.push(`Partner page traffic saw ${totalSessions.toLocaleString()} sessions from ${totalUsers.toLocaleString()} unique users this period.`);
-      }
-
-      // Pipeline value
-      if (totalPipeline > 0) {
-        parts.push(`The estimated pipeline value attributed to these efforts stands at £${totalPipeline.toLocaleString()}.`);
-      }
-
-      // StackCollect data
       if (stackCollect && stackCollect.mentions > 0) {
         parts.push(`On the marketplace, ${partner.name} was selected ${stackCollect.mentions} time${stackCollect.mentions === 1 ? '' : 's'} by operators completing tech stack reviews on StackCollect, representing a ${stackCollect.marketShare}% market share across ${stackCollect.totalReviews} total reviews.`);
       }
 
-      // User-provided context
       if (narrativeContext && narrativeContext.trim()) {
         parts.push(narrativeContext.trim());
       }
@@ -112,36 +97,9 @@ export async function POST(request: Request) {
 
     const narrative = generateNarrative();
 
-    // --- Build HTML ---
-    const activityTypeRows = Object.entries(byType)
-      .sort(([, a], [, b]) => b.impressions - a.impressions)
-      .map(([type, data]) => `
-        <tr>
-          <td style="padding:8px 12px;border-bottom:1px solid #eee">${type}</td>
-          <td style="padding:8px 12px;border-bottom:1px solid #eee;text-align:center">${data.count}</td>
-          <td style="padding:8px 12px;border-bottom:1px solid #eee;text-align:center">${data.impressions.toLocaleString()}</td>
-          <td style="padding:8px 12px;border-bottom:1px solid #eee;text-align:center">${data.engagements.toLocaleString()}</td>
-        </tr>`).join('');
-
-    const activityDetailRows = partnerActivities.slice(0, 15).map(a => `
-      <tr>
-        <td style="padding:8px 12px;border-bottom:1px solid #eee">${a.activityTitle}</td>
-        <td style="padding:8px 12px;border-bottom:1px solid #eee;text-align:center">${a.activityType}</td>
-        <td style="padding:8px 12px;border-bottom:1px solid #eee;text-align:center">${a.date}</td>
-        <td style="padding:8px 12px;border-bottom:1px solid #eee;text-align:center">${a.impressions.toLocaleString()}</td>
-        <td style="padding:8px 12px;border-bottom:1px solid #eee;text-align:center">${a.engagements.toLocaleString()}</td>
-      </tr>`).join('');
-
-    const metricsRows = metrics.map(m => `
-      <tr>
-        <td style="padding:8px 12px;border-bottom:1px solid #eee">${m.weekStarting}</td>
-        <td style="padding:8px 12px;border-bottom:1px solid #eee;text-align:center">${m.sessions.toLocaleString()}</td>
-        <td style="padding:8px 12px;border-bottom:1px solid #eee;text-align:center">${m.users.toLocaleString()}</td>
-        <td style="padding:8px 12px;border-bottom:1px solid #eee;text-align:center">${m.pageViews.toLocaleString()}</td>
-        <td style="padding:8px 12px;border-bottom:1px solid #eee;text-align:center">${(m.bounceRate * 100).toFixed(1)}%</td>
-      </tr>`).join('');
-
-    const statusRows = Object.entries(partner.statusBreakdown)
+    // --- Lead status rows ---
+    const statusRows = (Object.entries(partner.statusBreakdown) as [string, number][])
+      .filter(([s]) => s && s !== 'N/A')
       .sort(([, a], [, b]) => b - a)
       .map(([status, count]) => `
         <tr>
@@ -150,14 +108,45 @@ export async function POST(request: Request) {
           <td style="padding:8px 12px;border-bottom:1px solid #eee;text-align:center">${(count / partner.leadCount * 100).toFixed(1)}%</td>
         </tr>`).join('');
 
-    const recentLeadRows = partner.recentLeads.slice(0, 15).map(l => `
+    // --- Lead source rows ---
+    const sourceRows = Object.entries(partner.sourceBreakdown)
+      .sort(([, a], [, b]) => b - a)
+      .map(([source, count]) => `
+        <tr>
+          <td style="padding:8px 12px;border-bottom:1px solid #eee">${source}</td>
+          <td style="padding:8px 12px;border-bottom:1px solid #eee;text-align:center">${count}</td>
+        </tr>`).join('');
+
+    // --- Recent leads (MQL+ only, max 10, matches dashboard) ---
+    const priority = (s: string) => {
+      const k = (s || '').trim().toLowerCase();
+      if (k === 'closed won') return 0;
+      if (k === 'sql') return 1;
+      if (k === 'demo') return 2;
+      if (k === 'mql') return 3;
+      return 4;
+    };
+    const recentLeads = [...partner.recentLeads]
+      .filter(l => {
+        const s = (l.status || '').trim().toLowerCase();
+        return s === 'mql' || s === 'sql' || s === 'demo' || s === 'closed won';
+      })
+      .sort((a, b) => {
+        const pa = priority(a.status), pb = priority(b.status);
+        if (pa !== pb) return pa - pb;
+        return (b.lastModified || '').localeCompare(a.lastModified || '');
+      })
+      .slice(0, 10);
+
+    const recentLeadRows = recentLeads.map(l => `
       <tr>
         <td style="padding:8px 12px;border-bottom:1px solid #eee">${l.businessName}</td>
         <td style="padding:8px 12px;border-bottom:1px solid #eee;text-align:center">${l.status}</td>
+        <td style="padding:8px 12px;border-bottom:1px solid #eee">${l.source || '—'}</td>
         <td style="padding:8px 12px;border-bottom:1px solid #eee;text-align:center">${l.lastModified ? l.lastModified.split('T')[0] : 'N/A'}</td>
-        <td style="padding:8px 12px;border-bottom:1px solid #eee">${l.source}</td>
       </tr>`).join('');
 
+    // --- Build HTML ---
     const html = `
 <!DOCTYPE html>
 <html>
@@ -173,12 +162,17 @@ export async function POST(request: Request) {
     .narrative { background: #f8f9fa; border-left: 4px solid #e67e22; padding: 20px 24px; margin: 20px 0 24px 0; border-radius: 0 8px 8px 0; font-size: 14px; line-height: 1.7; color: #2d3436; }
     .kpi-grid { display: flex; gap: 12px; margin: 20px 0; flex-wrap: wrap; }
     .kpi { flex: 1; min-width: 120px; padding: 16px; border-radius: 8px; color: white; text-align: center; }
-    .kpi .value { font-size: 24px; font-weight: bold; }
-    .kpi .label { font-size: 11px; opacity: 0.9; margin-top: 4px; }
+    .kpi .value { font-size: 28px; font-weight: bold; }
+    .kpi .label { font-size: 12px; opacity: 0.9; margin-top: 4px; }
     table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 13px; }
     th { background: #2c3e50; color: white; padding: 10px 12px; text-align: left; }
     tr:nth-child(even) { background: #f8f9fa; }
-    .highlight-box { background: #fef9f0; border: 1px solid #f0dcc0; border-radius: 8px; padding: 20px; margin: 16px 0; }
+    .timeline { display: flex; align-items: center; gap: 8px; margin: 24px 0; }
+    .timeline-stage { display: flex; flex-direction: column; align-items: center; min-width: 80px; }
+    .timeline-circle { width: 48px; height: 48px; border-radius: 50%; color: white; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 12px; }
+    .timeline-arrow { flex: 1; height: 2px; position: relative; min-width: 40px; }
+    .timeline-arrow .days { position: absolute; top: -18px; left: 50%; transform: translateX(-50%); font-size: 12px; font-weight: 600; white-space: nowrap; }
+    .timeline-arrow .n { position: absolute; top: 6px; left: 50%; transform: translateX(-50%); font-size: 10px; color: #95a5a6; white-space: nowrap; }
     .footer { margin-top: 40px; padding-top: 16px; border-top: 1px solid #ddd; color: #95a5a6; font-size: 11px; text-align: center; }
   </style>
 </head>
@@ -189,39 +183,53 @@ export async function POST(request: Request) {
 
   <div class="narrative">${narrative}</div>
 
-  <!-- Performance Snapshot -->
+  <!-- Pipeline KPIs (mirrors dashboard) -->
   <div class="kpi-grid">
-    <div class="kpi" style="background:#2980b9"><div class="value">${partner.leadCount}</div><div class="label">Total Leads</div></div>
-    <div class="kpi" style="background:#e67e22"><div class="value">${totalImpressions.toLocaleString()}</div><div class="label">Total Reach</div></div>
-    <div class="kpi" style="background:#27ae60"><div class="value">${activeConversations}</div><div class="label">Active Conversations</div></div>
+    <div class="kpi" style="background:#f39c12"><div class="value">${mqlCount}</div><div class="label">MQL</div></div>
+    <div class="kpi" style="background:#27ae60"><div class="value">${sqlCount}</div><div class="label">SQL</div></div>
     <div class="kpi" style="background:#8e44ad"><div class="value">${closedWon}</div><div class="label">Closed Won</div></div>
-  </div>
-  <div class="kpi-grid" style="margin-top:0">
-    <div class="kpi" style="background:#2c3e50"><div class="value">${totalEngagements.toLocaleString()}</div><div class="label">Engagements</div></div>
-    <div class="kpi" style="background:#16a085"><div class="value">${totalClicks.toLocaleString()}</div><div class="label">Click-throughs</div></div>
-    <div class="kpi" style="background:#d35400"><div class="value">${nurturing}</div><div class="label">Nurturing</div></div>
-    <div class="kpi" style="background:#c0392b"><div class="value">&pound;${totalPipeline.toLocaleString()}</div><div class="label">Pipeline Value</div></div>
+    <div class="kpi" style="background:#2980b9"><div class="value">${partner.leadCount}</div><div class="label">Total Leads</div></div>
   </div>
 
-  <!-- Marketing Activity by Type -->
-  ${Object.keys(byType).length > 0 ? `
-  <h2>Marketing Activity Breakdown</h2>
-  <table>
-    <thead><tr><th>Activity Type</th><th style="text-align:center">Count</th><th style="text-align:center">Reach</th><th style="text-align:center">Engagements</th></tr></thead>
-    <tbody>${activityTypeRows}</tbody>
-  </table>` : ''}
+  <!-- Conversion Timeline -->
+  <h2>Conversion Timeline</h2>
+  <p style="color:#7f8c8d;font-size:12px;margin:0 0 8px 0">Median days from MAL → each stage</p>
+  <div class="timeline">
+    <div class="timeline-stage">
+      <div class="timeline-circle" style="background:#bdc3c7;color:#2c3e50">MAL</div>
+      <div style="font-size:10px;color:#95a5a6;margin-top:6px">Day 0</div>
+      <div style="font-size:10px;color:#7f8c8d">${malCount} leads</div>
+    </div>
+    <div class="timeline-arrow" style="background:linear-gradient(to right,#bdc3c7,#f39c12)">
+      <div class="days" style="color:#f39c12">${tMql.median !== null ? `${tMql.median}d` : '—'}</div>
+      <div class="n">n=${tMql.count}</div>
+    </div>
+    <div class="timeline-stage">
+      <div class="timeline-circle" style="background:#f39c12">MQL</div>
+      <div style="font-size:10px;color:#95a5a6;margin-top:6px">${tMql.median !== null ? `~${tMql.median}d` : '—'}</div>
+      <div style="font-size:10px;color:#7f8c8d">${mqlCount} leads</div>
+    </div>
+    <div class="timeline-arrow" style="background:linear-gradient(to right,#f39c12,#27ae60)">
+      <div class="days" style="color:#27ae60">${tSql.median !== null ? `${tSql.median}d` : '—'}</div>
+      <div class="n">n=${tSql.count}</div>
+    </div>
+    <div class="timeline-stage">
+      <div class="timeline-circle" style="background:#27ae60">SQL</div>
+      <div style="font-size:10px;color:#95a5a6;margin-top:6px">${tSql.median !== null ? `~${tSql.median}d` : '—'}</div>
+      <div style="font-size:10px;color:#7f8c8d">${sqlCount} leads</div>
+    </div>
+    <div class="timeline-arrow" style="background:linear-gradient(to right,#27ae60,#8e44ad)">
+      <div class="days" style="color:#8e44ad">${tWon.median !== null ? `${tWon.median}d` : '—'}</div>
+      <div class="n">n=${tWon.count}</div>
+    </div>
+    <div class="timeline-stage">
+      <div class="timeline-circle" style="background:#8e44ad;font-size:10px">Won</div>
+      <div style="font-size:10px;color:#95a5a6;margin-top:6px">${tWon.median !== null ? `~${tWon.median}d` : '—'}</div>
+      <div style="font-size:10px;color:#7f8c8d">${closedWon} leads</div>
+    </div>
+  </div>
 
-  <!-- Activity Detail -->
-  ${partnerActivities.length > 0 ? `
-  <h2>What We Did For ${partner.name}</h2>
-  <table>
-    <thead><tr><th>Activity</th><th style="text-align:center">Type</th><th style="text-align:center">Date</th><th style="text-align:center">Reach</th><th style="text-align:center">Engagements</th></tr></thead>
-    <tbody>${activityDetailRows}</tbody>
-  </table>` : `
-  <div class="highlight-box">
-    <p style="color:#7f8c8d;margin:0"><em>No marketing activities logged yet for ${partner.name}. Use the portal to start tracking activities.</em></p>
-  </div>`}
-
+  <!-- StackCollect Marketplace Presence -->
   ${stackCollect && stackCollect.mentions > 0 ? `
   <h2>StackCollect - Marketplace Presence</h2>
   <div class="kpi-grid">
@@ -240,44 +248,27 @@ export async function POST(request: Request) {
     </tbody>
   </table>` : ''}` : ''}
 
-  <div class="page-break"></div>
-
-  <!-- Site Traffic -->
-  <h2>Partner Page Traffic</h2>
-  <div class="kpi-grid">
-    <div class="kpi" style="background:#34495e"><div class="value">${partner.leadCount}</div><div class="label">Total Leads</div></div>
-    <div class="kpi" style="background:#2980b9"><div class="value">${totalSessions.toLocaleString()}</div><div class="label">Sessions</div></div>
-    <div class="kpi" style="background:#8e44ad"><div class="value">${totalUsers.toLocaleString()}</div><div class="label">Users</div></div>
-    <div class="kpi" style="background:#c0392b"><div class="value">${avgBounce}%</div><div class="label">Bounce Rate</div></div>
-  </div>
-
-  ${metrics.length > 0 ? `
-  <table>
-    <thead><tr>
-      <th>Week</th><th style="text-align:center">Sessions</th><th style="text-align:center">Users</th><th style="text-align:center">Page Views</th><th style="text-align:center">Bounce Rate</th>
-    </tr></thead>
-    <tbody>${metricsRows}
-      <tr style="background:#2c3e50;color:white;font-weight:bold">
-        <td style="padding:10px 12px">Total</td>
-        <td style="padding:10px 12px;text-align:center">${totalSessions.toLocaleString()}</td>
-        <td style="padding:10px 12px;text-align:center">${totalUsers.toLocaleString()}</td>
-        <td style="padding:10px 12px;text-align:center">${totalPageViews.toLocaleString()}</td>
-        <td style="padding:10px 12px;text-align:center">${avgBounce}% avg</td>
-      </tr>
-    </tbody>
-  </table>` : '<p style="color:#7f8c8d"><em>No traffic metrics available yet.</em></p>'}
-
-  <!-- Lead Pipeline -->
+  <!-- Lead Pipeline Breakdown -->
   <h2>Lead Pipeline</h2>
   <table>
     <thead><tr><th>Status</th><th style="text-align:center">Count</th><th style="text-align:center">Share</th></tr></thead>
     <tbody>${statusRows}</tbody>
   </table>
 
-  ${partner.recentLeads.length > 0 ? `
-  <h2>Recently Active Leads</h2>
+  <!-- Lead Sources -->
+  ${sourceRows ? `
+  <h2>Lead Sources</h2>
   <table>
-    <thead><tr><th>Business</th><th style="text-align:center">Status</th><th style="text-align:center">Last Modified</th><th>Source</th></tr></thead>
+    <thead><tr><th>Source</th><th style="text-align:center">Count</th></tr></thead>
+    <tbody>${sourceRows}</tbody>
+  </table>` : ''}
+
+  <!-- Recently Active Leads (MQL+, max 10 — mirrors dashboard) -->
+  ${recentLeads.length > 0 ? `
+  <h2>Recently Active Leads</h2>
+  <p style="color:#7f8c8d;font-size:12px;margin:0 0 8px 0">Top 10 most recently updated leads at MQL or above</p>
+  <table>
+    <thead><tr><th>Business</th><th style="text-align:center">Status</th><th>Source</th><th style="text-align:center">Last Updated</th></tr></thead>
     <tbody>${recentLeadRows}</tbody>
   </table>` : ''}
 
