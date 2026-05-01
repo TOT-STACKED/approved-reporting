@@ -7,7 +7,7 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 export async function POST(request: Request) {
   try {
-    const { question } = await request.json();
+    const { question, partnerSlug } = await request.json();
 
     if (!question || typeof question !== 'string') {
       return NextResponse.json({ error: 'Question is required' }, { status: 400 });
@@ -23,7 +23,39 @@ export async function POST(request: Request) {
       getPOSMarketShare(),
     ]);
 
-    const leads = leadsRes.leads || [];
+    const allLeadsRaw = leadsRes.leads || [];
+
+    // Resolve partner from slug (if provided) — used to scope answers
+    let scopedPartner: { name: string; slug: string } | null = null;
+    if (partnerSlug && typeof partnerSlug === 'string') {
+      const found = partners.find(p => p.slug === partnerSlug);
+      if (found) scopedPartner = { name: found.name, slug: found.slug };
+    }
+
+    // When scoped to a partner, only include leads where that partner appears
+    // in any of the stage fields, and tag each lead with its stage for that partner.
+    const partnerLower = scopedPartner ? scopedPartner.name.trim().toLowerCase() : '';
+    const filteredLeads = scopedPartner
+      ? allLeadsRaw
+          .filter((l: any) =>
+            (l.partners || []).some((p: string) => (p || '').trim().toLowerCase() === partnerLower)
+          )
+          .map((l: any) => {
+            // Highest-stage-wins for this specific partner
+            const stages = l.stages || {};
+            const ORDER = ['MAL', 'MQL', 'SQL', 'Closed Lost', 'Closed Won'];
+            let stageForPartner = '';
+            for (const stage of ORDER) {
+              const list: string[] = stages[stage] || [];
+              if (list.some(p => (p || '').trim().toLowerCase() === partnerLower)) {
+                stageForPartner = stage;
+              }
+            }
+            return { ...l, status: stageForPartner || l.status };
+          })
+      : allLeadsRaw;
+
+    const leads = filteredLeads;
 
     // Process stack data into submission-level summaries
     const stackSubmissions: Record<string, { created_at: string; tools: { category: string; tool_name: string }[] }> = {};
@@ -112,7 +144,18 @@ export async function POST(request: Request) {
       messages: [
         {
           role: 'system',
-          content: `You are a helpful data assistant for Tech on Toast, a hospitality tech community. You answer questions about partner performance, leads, marketing activities, and metrics based on the data provided.
+          content: scopedPartner
+            ? `You are a helpful data assistant for ${scopedPartner.name}, a partner of Tech on Toast (a hospitality tech community).
+
+You answer questions about ${scopedPartner.name}'s leads ONLY — the data below has already been filtered to leads where ${scopedPartner.name} is involved at any pipeline stage. Each lead's "status" is its current stage for ${scopedPartner.name} specifically (MAL, MQL, SQL, Closed Won, or Closed Lost). Do not reveal data about other partners or other partners' specific leads.
+
+Be concise, specific, and use actual numbers from the data. Use bullet points for lists. Keep answers to 2-4 sentences unless a detailed breakdown is needed.
+
+Pipeline stages: MAL → MQL → SQL → Closed Won / Closed Lost.
+
+Here is ${scopedPartner.name}'s lead data and the marketplace context:
+${dataContext}`
+            : `You are a helpful data assistant for Tech on Toast, a hospitality tech community. You answer questions about partner performance, leads, marketing activities, and metrics based on the data provided.
 
 Be concise, specific, and use actual numbers from the data. If you list items, use bullet points. Keep answers to 2-4 sentences unless the question requires a detailed breakdown.
 

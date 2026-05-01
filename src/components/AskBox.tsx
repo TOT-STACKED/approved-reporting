@@ -2,11 +2,22 @@
 
 import { useState } from 'react';
 
-export default function AskBox() {
+interface AskBoxProps {
+  partnerSlug?: string;
+  partnerName?: string;
+  placeholder?: string;
+}
+
+export default function AskBox({ partnerSlug, partnerName, placeholder }: AskBoxProps = {}) {
   const [question, setQuestion] = useState('');
   const [answer, setAnswer] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  const isPartnerScoped = !!partnerSlug;
+  const defaultPlaceholder = isPartnerScoped
+    ? `Ask about ${partnerName || 'your'} leads... e.g. Which MQL leads need follow-up?`
+    : 'Ask about your data... e.g. Who is in active conversation?';
 
   const handleAsk = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -20,7 +31,10 @@ export default function AskBox() {
       const res = await fetch('/api/ask', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ question: question.trim() }),
+        body: JSON.stringify({
+          question: question.trim(),
+          partnerSlug: partnerSlug || undefined,
+        }),
       });
 
       const data = await res.json();
@@ -39,13 +53,24 @@ export default function AskBox() {
 
   return (
     <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-5 mb-4 sm:mb-6">
+      {isPartnerScoped && (
+        <div className="mb-3 flex items-center gap-2">
+          <span className="inline-flex items-center justify-center w-5 h-5 rounded bg-orange-100 text-orange-600">
+            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+            </svg>
+          </span>
+          <h3 className="text-sm font-semibold text-gray-900">Ask AI about your leads</h3>
+          <span className="text-[10px] text-gray-400">Scoped to {partnerName || 'your data'}</span>
+        </div>
+      )}
       <form onSubmit={handleAsk} className="flex flex-col sm:flex-row gap-2 sm:gap-3">
         <div className="relative flex-1">
           <input
             type="text"
             value={question}
             onChange={e => setQuestion(e.target.value)}
-            placeholder="Ask about your data... e.g. Who is in active conversation?"
+            placeholder={placeholder || defaultPlaceholder}
             className="w-full px-4 py-3 pr-10 rounded-lg border border-gray-200 focus:border-orange-400 focus:ring-2 focus:ring-orange-100 outline-none text-sm text-gray-800 placeholder-gray-400"
             disabled={loading}
           />

@@ -2,9 +2,24 @@
 
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
+import {
+  PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis,
+  Tooltip, ResponsiveContainer, CartesianGrid,
+} from 'recharts';
 import ConversionTimeline from '@/components/ConversionTimeline';
 import PartnerNps, { type PartnerNpsData } from '@/components/PartnerNps';
 import StacksDashboard from '@/components/StacksDashboard';
+import AskBox from '@/components/AskBox';
+
+const STATUS_COLORS: Record<string, string> = {
+  MAL: '#94a3b8',
+  MQL: '#f59e0b',
+  SQL: '#10b981',
+  Demo: '#3b82f6',
+  'Closed Won': '#a855f7',
+  'Closed Lost': '#ef4444',
+};
+const PIE_FALLBACKS = ['#3b82f6', '#f59e0b', '#10b981', '#a855f7', '#ef4444', '#06b6d4', '#ec4899', '#84cc16'];
 
 interface Lead {
   id: string;
@@ -189,6 +204,9 @@ export default function PartnerPage() {
         </div>
       </div>
 
+      {/* Partner-scoped AI query box */}
+      <AskBox partnerSlug={partner.slug} partnerName={partner.name} />
+
       {/* Conversion Timeline */}
       <div className="mb-8">
         <ConversionTimeline
@@ -200,43 +218,66 @@ export default function PartnerPage() {
       </div>
 
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-        {/* Status Breakdown */}
-        <div className="bg-white rounded-xl border border-gray-200 p-6">
-          <h2 className="font-semibold text-gray-900 mb-4">Lead Status</h2>
-          <div className="space-y-2">
-            {Object.entries(partner.statusBreakdown)
-              .sort(([, a], [, b]) => b - a)
-              .map(([status, count]) => (
-                <div key={status} className="flex items-center justify-between">
-                  <span className="text-sm text-gray-700">{status}</span>
-                  <div className="flex items-center gap-3">
-                    <div className="w-32 bg-gray-100 rounded-full h-2">
-                      <div
-                        className="bg-blue-500 rounded-full h-2"
-                        style={{ width: `${(count / partner.leadCount) * 100}%` }}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 mb-8">
+        {/* Status Breakdown - Pie chart */}
+        <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-5">
+          <h2 className="font-semibold text-gray-900 mb-2 text-sm">Lead Status</h2>
+          {(() => {
+            const statusData = Object.entries(partner.statusBreakdown)
+              .filter(([s]) => s && s !== 'N/A')
+              .map(([status, count]) => ({ status, count }))
+              .sort((a, b) => b.count - a.count);
+            if (statusData.length === 0) return <p className="text-sm text-gray-400 italic">No status data</p>;
+            return (
+              <ResponsiveContainer width="100%" height={220}>
+                <PieChart>
+                  <Pie
+                    data={statusData}
+                    dataKey="count"
+                    nameKey="status"
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={45}
+                    outerRadius={80}
+                    paddingAngle={2}
+                    label={({ status, count }: any) => `${status}: ${count}`}
+                    labelLine={{ strokeWidth: 1 }}
+                  >
+                    {statusData.map((entry, i) => (
+                      <Cell
+                        key={entry.status}
+                        fill={STATUS_COLORS[entry.status] || PIE_FALLBACKS[i % PIE_FALLBACKS.length]}
                       />
-                    </div>
-                    <span className="text-sm font-medium text-gray-900 w-8 text-right">{count}</span>
-                  </div>
-                </div>
-              ))}
-          </div>
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                </PieChart>
+              </ResponsiveContainer>
+            );
+          })()}
         </div>
 
-        {/* Source Breakdown */}
-        <div className="bg-white rounded-xl border border-gray-200 p-6">
-          <h2 className="font-semibold text-gray-900 mb-4">Lead Sources</h2>
-          <div className="space-y-2">
-            {Object.entries(partner.sourceBreakdown)
-              .sort(([, a], [, b]) => b - a)
-              .map(([source, count]) => (
-                <div key={source} className="flex items-center justify-between">
-                  <span className="text-sm text-gray-700">{source}</span>
-                  <span className="text-sm font-medium text-gray-900">{count}</span>
-                </div>
-              ))}
-          </div>
+        {/* Source Breakdown - Horizontal bar chart */}
+        <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-5">
+          <h2 className="font-semibold text-gray-900 mb-2 text-sm">Lead Sources</h2>
+          {(() => {
+            const sourceData = Object.entries(partner.sourceBreakdown)
+              .map(([source, count]) => ({ source, count }))
+              .sort((a, b) => b.count - a.count)
+              .slice(0, 8);
+            if (sourceData.length === 0) return <p className="text-sm text-gray-400 italic">No source data</p>;
+            return (
+              <ResponsiveContainer width="100%" height={Math.max(200, sourceData.length * 28)}>
+                <BarChart data={sourceData} layout="vertical" margin={{ left: 0, right: 16, top: 4, bottom: 4 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" horizontal={false} />
+                  <XAxis type="number" tick={{ fontSize: 10 }} />
+                  <YAxis dataKey="source" type="category" tick={{ fontSize: 11 }} width={110} />
+                  <Tooltip />
+                  <Bar dataKey="count" fill="#f97316" radius={[0, 4, 4, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            );
+          })()}
         </div>
       </div>
 
