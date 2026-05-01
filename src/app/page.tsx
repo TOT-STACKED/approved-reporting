@@ -13,10 +13,19 @@ interface Partner {
   statusBreakdown: Record<string, number>;
 }
 
+interface LeadStages {
+  MAL: string[];
+  MQL: string[];
+  SQL: string[];
+  'Closed Won': string[];
+  'Closed Lost': string[];
+}
+
 interface Lead {
   status: string;
   date: string;
   lastModified: string;
+  stages?: LeadStages;
 }
 
 
@@ -60,26 +69,31 @@ export default function Dashboard() {
 
   const totalLeads = allLeads.length;
 
-  // True status counts from raw leads (every lead counted once, including unassigned)
-  const allStatuses: Record<string, number> = {};
-  allLeads.forEach(l => {
-    const key = (l.status || '').trim();
-    if (key) allStatuses[key] = (allStatuses[key] || 0) + 1;
-  });
+  // Stage counts from the new MAL/MQL/SQL/Closed Won/Closed Lost multi-select fields.
+  // A lead is counted at a stage if any partner is attached to that stage on that lead.
+  const countAtStage = (stage: keyof LeadStages) =>
+    allLeads.filter(l => (l.stages?.[stage]?.length ?? 0) > 0).length;
 
-  // Sort statuses by count for display
-  const sortedStatuses = Object.entries(allStatuses)
-    .sort(([, a], [, b]) => b - a)
-    .filter(([status]) => status !== 'N/A' && status !== 'Closed Lost');
+  const malCount = countAtStage('MAL');
+  const mqlCount = countAtStage('MQL');
+  const sqlCount = countAtStage('SQL');
+  const closedWonCount = countAtStage('Closed Won');
+  const closedLostCount = countAtStage('Closed Lost');
 
-  // Assign colours dynamically to each status
+  const allStatuses: Record<string, number> = {
+    MAL: malCount,
+    MQL: mqlCount,
+    SQL: sqlCount,
+    'Closed Won': closedWonCount,
+    'Closed Lost': closedLostCount,
+  };
+
+  // For the pipeline breakdown bar — exclude Closed Lost from the visible mix.
+  const sortedStatuses = (Object.entries(allStatuses) as [string, number][])
+    .filter(([status, count]) => count > 0 && status !== 'Closed Lost')
+    .sort(([, a], [, b]) => b - a);
+
   const STATUS_COLORS = ['bg-gray-300', 'bg-blue-500', 'bg-amber-400', 'bg-emerald-500', 'bg-purple-500', 'bg-red-400', 'bg-teal-500', 'bg-pink-400', 'bg-indigo-400', 'bg-orange-400'];
-
-  // Specific KPI statuses to highlight
-  const malCount = allStatuses['MAL'] || allStatuses['mal'] || 0;
-  const mqlCount = allStatuses['MQL'] || allStatuses['mql'] || 0;
-  const sqlCount = allStatuses['SQL'] || allStatuses['sql'] || 0;
-  const closedWonCount = allStatuses['Closed Won'] || allStatuses['Closed Won '] || 0;
 
   if (loading) {
     return (

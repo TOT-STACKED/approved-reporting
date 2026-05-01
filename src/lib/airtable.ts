@@ -12,11 +12,27 @@ const TABLES = {
   marketingActivity: 'tblN0KgGlA3bjPlnd',
 };
 
+// Stage fields are MULTI-SELECTS containing partner names. A single lead can
+// be at different stages for different partners (e.g. SQL for Lightspeed,
+// MAL for Square). Highest-stage-wins when computing the lead's "current
+// status" for a given partner.
+const STAGE_FIELDS = {
+  MAL:           'fldeqDBBIEBrTCUz7',
+  MQL:           'fldwsJvK2OXEMnqZv',
+  SQL:           'fldX3oJVfCPqBaB2E',
+  'Closed Won':  'fldvWQ5uF7AovgfFo',
+  'Closed Lost': 'fld0D3InAxjneoAYe',
+} as const;
+
+// Order from earliest to latest pipeline stage. Used to determine a lead's
+// current status for a given partner — later stages override earlier.
+const STAGE_ORDER = ['MAL', 'MQL', 'SQL', 'Closed Lost', 'Closed Won'] as const;
+type Stage = typeof STAGE_ORDER[number];
+
 const FIELDS = {
   masterView: {
     businessName: 'fldaIprcZqrPGRxen',
-    partnerReferral: 'fldwsJvK2OXEMnqZv',
-    leadStatus: 'fldf4TNAglyB9s2gP',
+    leadStatus: 'fldf4TNAglyB9s2gP', // legacy — kept temporarily for fallback
     source: 'fldMgrGbR7iFwSxij',
     leadOwner: 'fldVDhPPUQuW4OTJY',
     stage: 'fldbNGUCnii13HcIm',
@@ -151,91 +167,131 @@ function extractMultiValues(field: any): string[] {
   return field.map((f: any) => (typeof f === 'string' ? f : f.name || '').trim()).filter(Boolean);
 }
 
+// Returns the highest-priority stage a partner appears in for this record's stage fields.
+// Returns null if the partner doesn't appear in any stage field.
+function getPartnerStage(fields: any, partnerName: string): Stage | null {
+  const target = normalizePartnerName(partnerName);
+  let highest: Stage | null = null;
+  let highestIdx = -1;
+  for (const stage of STAGE_ORDER) {
+    const partnersAtStage = extractMultiValues(fields[STAGE_FIELDS[stage]]);
+    if (partnersAtStage.some(p => normalizePartnerName(p) === target)) {
+      const idx = STAGE_ORDER.indexOf(stage);
+      if (idx > highestIdx) {
+        highest = stage;
+        highestIdx = idx;
+      }
+    }
+  }
+  return highest;
+}
+
+// Returns all { partner -> highest stage } pairs for a given record.
+function getRecordPartnerStages(fields: any): Map<string, { name: string; stage: Stage }> {
+  const result = new Map<string, { name: string; stage: Stage }>();
+  for (const stage of STAGE_ORDER) {
+    const partners = extractMultiValues(fields[STAGE_FIELDS[stage]]);
+    for (const p of partners) {
+      const key = normalizePartnerName(p);
+      const existing = result.get(key);
+      const existingIdx = existing ? STAGE_ORDER.indexOf(existing.stage) : -1;
+      const newIdx = STAGE_ORDER.indexOf(stage);
+      if (newIdx > existingIdx) {
+        result.set(key, { name: p.trim(), stage });
+      }
+    }
+  }
+  return result;
+}
+
 export async function getPartnerList(): Promise<Partner[]> {
   const records = await fetchAllRecords(
     TABLES.masterView,
-    [FIELDS.masterView.businessName, FIELDS.masterView.partnerReferral, FIELDS.masterView.leadStatus]
+    [
+      FIELDS.masterView.businessName,
+      ...Object.values(STAGE_FIELDS),
+    ]
   );
 
-  const partnerMap = new Map<string, { count: number; statuses: Record<string, number> }>();
+  const partnerMap = new Map<string, { name: string; count: number; statuses: Record<string, number> }>();
 
   for (const r of records) {
     const fields = r.fields || {};
-    const partners = extractMultiValues(fields[FIELDS.masterView.partnerReferral]);
-    const status = extractValue(fields[FIELDS.masterView.leadStatus]);
+    const partnerStages = getRecordPartnerStages(fields);
 
-    for (const p of partners) {
-      const key = normalizePartnerName(p);
+    for (const [key, { name, stage }] of partnerStages) {
       if (!partnerMap.has(key)) {
-        partnerMap.set(key, { count: 0, statuses: {} });
+        partnerMap.set(key, { name, count: 0, statuses: {} });
       }
       const entry = partnerMap.get(key)!;
       entry.count++;
-      entry.statuses[status] = (entry.statuses[status] || 0) + 1;
+      entry.statuses[stage] = (entry.statuses[stage] || 0) + 1;
     }
   }
 
   return Array.from(partnerMap.entries())
-    .map(([key, data]) => {
-      const originalName = [...new Set(
-        records.flatMap((r: any) =>
-          extractMultiValues(r.fields?.[FIELDS.masterView.partnerReferral])
-        )
-      )].find(n => normalizePartnerName(n) === key) || key;
-
-      return {
-        name: originalName.trim(),
-        slug: key.replace(/[^a-z0-9]+/g, '-').replace(/-+$/, ''),
-        leadCount: data.count,
-        statusBreakdown: data.statuses,
-      };
-    })
+    .map(([key, data]) => ({
+      name: data.name,
+      slug: key.replace(/[^a-z0-9]+/g, '-').replace(/-+$/, ''),
+      leadCount: data.count,
+      statusBreakdown: data.statuses,
+    }))
     .sort((a, b) => b.leadCount - a.leadCount);
 }
 
 export async function getPartnerDetail(slug: string): Promise<PartnerDetail | null> {
   const records = await fetchAllRecords(
     TABLES.masterView,
-    Object.values(FIELDS.masterView)
+    [
+      ...Object.values(FIELDS.masterView),
+      ...Object.values(STAGE_FIELDS),
+    ]
   );
 
   const partnerLeads: Lead[] = [];
+  let partnerName: string | null = null;
 
   for (const r of records) {
     const fields = r.fields || {};
-    const partners = extractMultiValues(fields[FIELDS.masterView.partnerReferral]);
-    const matchesSlug = partners.some(
-      p => normalizePartnerName(p).replace(/[^a-z0-9]+/g, '-').replace(/-+$/, '') === slug
-    );
+    const stage = getPartnerStage(fields, slug.replace(/-/g, ' '));
 
-    if (matchesSlug) {
-      partnerLeads.push({
-        id: r.id,
-        businessName: fields[FIELDS.masterView.businessName] || 'Unknown',
-        status: extractValue(fields[FIELDS.masterView.leadStatus]),
-        source: extractValue(fields[FIELDS.masterView.source]),
-        owner: extractValue(fields[FIELDS.masterView.leadOwner]),
-        stage: extractValue(fields[FIELDS.masterView.stage]),
-        lastModified: fields[FIELDS.masterView.lastModified] || '',
-        size: fields[FIELDS.masterView.size] || '',
-        location: fields[FIELDS.masterView.location] || '',
-        date: fields[FIELDS.masterView.date] || '',
-      });
+    // Try matching by slug — derive partner name from any of the stage fields
+    let matchedName: string | null = null;
+    for (const s of STAGE_ORDER) {
+      const partners = extractMultiValues(fields[STAGE_FIELDS[s]]);
+      const match = partners.find(p =>
+        normalizePartnerName(p).replace(/[^a-z0-9]+/g, '-').replace(/-+$/, '') === slug
+      );
+      if (match) {
+        matchedName = match.trim();
+        break;
+      }
     }
+
+    if (!matchedName) continue;
+
+    if (!partnerName) partnerName = matchedName;
+
+    // Compute the lead's current stage for this specific partner
+    const leadStageForPartner = getPartnerStage(fields, matchedName);
+
+    partnerLeads.push({
+      id: r.id,
+      businessName: fields[FIELDS.masterView.businessName] || 'Unknown',
+      // status now reflects the lead's stage for THIS partner specifically
+      status: leadStageForPartner || extractValue(fields[FIELDS.masterView.leadStatus]),
+      source: extractValue(fields[FIELDS.masterView.source]),
+      owner: extractValue(fields[FIELDS.masterView.leadOwner]),
+      stage: leadStageForPartner || extractValue(fields[FIELDS.masterView.stage]),
+      lastModified: fields[FIELDS.masterView.lastModified] || '',
+      size: fields[FIELDS.masterView.size] || '',
+      location: fields[FIELDS.masterView.location] || '',
+      date: fields[FIELDS.masterView.date] || '',
+    });
+    void stage;
   }
 
   if (partnerLeads.length === 0) return null;
-
-  const partnerName = (() => {
-    for (const r of records) {
-      const partners = extractMultiValues(r.fields?.[FIELDS.masterView.partnerReferral]);
-      const match = partners.find(
-        p => normalizePartnerName(p).replace(/[^a-z0-9]+/g, '-').replace(/-+$/, '') === slug
-      );
-      if (match) return match.trim();
-    }
-    return slug;
-  })();
 
   const statusBreakdown: Record<string, number> = {};
   const stageBreakdown: Record<string, number> = {};
@@ -255,7 +311,7 @@ export async function getPartnerDetail(slug: string): Promise<PartnerDetail | nu
     .sort((a, b) => b.lastModified.localeCompare(a.lastModified));
 
   return {
-    name: partnerName,
+    name: partnerName || slug,
     slug,
     leadCount: partnerLeads.length,
     statusBreakdown,

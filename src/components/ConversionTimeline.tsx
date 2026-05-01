@@ -1,13 +1,32 @@
 'use client';
 
+interface LeadStages {
+  MAL?: string[];
+  MQL?: string[];
+  SQL?: string[];
+  'Closed Won'?: string[];
+  'Closed Lost'?: string[];
+}
+
 interface Lead {
   status: string;
   date?: string;
   lastModified?: string;
+  stages?: LeadStages;
+}
+
+// A lead is "at" a target stage if either its overall status matches OR
+// the corresponding stage field has at least one partner attached.
+function isLeadAtStage(l: Lead, target: string): boolean {
+  const s = (l.status || '').trim();
+  if (s === target) return true;
+  if (target === 'Closed Won' && s === 'Closed Won ') return true;
+  const stagePartners = l.stages?.[target as keyof LeadStages];
+  return Array.isArray(stagePartners) && stagePartners.length > 0;
 }
 
 function medianDaysToStatus(leads: Lead[], target: string) {
-  const matches = leads.filter(l => (l.status || '').trim() === target);
+  const matches = leads.filter(l => isLeadAtStage(l, target));
   const gaps: number[] = [];
   for (const l of matches) {
     if (!l.date || !l.lastModified) continue;
