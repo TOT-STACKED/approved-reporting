@@ -45,6 +45,38 @@ function recencyTone(days: number | null): string {
   return 'text-rose-600';
 }
 
+// Heat-cell background based on value relative to the max in the column.
+// Returns an inline style; we use opacity-scaled tints so 0 is neutral and
+// the highest value is the strongest tint.
+function heatBg(value: number, max: number, hue: 'amber' | 'emerald'): React.CSSProperties {
+  if (max <= 0 || value <= 0) return {};
+  const intensity = Math.min(1, value / max);
+  if (hue === 'amber') {
+    // amber-100 → amber-300
+    return { backgroundColor: `rgba(251, 191, 36, ${0.1 + intensity * 0.55})` };
+  }
+  // emerald-100 → emerald-300
+  return { backgroundColor: `rgba(16, 185, 129, ${0.1 + intensity * 0.55})` };
+}
+
+// Heuristic: which partners need follow-up attention based on MQL/SQL pipeline
+// and how stale their last lead activity is.
+type Attention = 'high' | 'medium' | 'healthy' | 'quiet';
+function attentionLevel(p: { mqlCount: number; sqlCount: number; daysSinceLastLead: number | null }): Attention {
+  const pipeline = p.mqlCount + p.sqlCount;
+  const days = p.daysSinceLastLead ?? Number.MAX_SAFE_INTEGER;
+  if (pipeline === 0) return 'quiet';
+  if (days > 30 && pipeline >= 1) return 'high';
+  if (days > 14 && pipeline >= 1) return 'medium';
+  return 'healthy';
+}
+const ATTENTION_BADGE: Record<Attention, { dot: string; label: string; chip: string }> = {
+  high:    { dot: 'bg-rose-500',    label: 'Action needed', chip: 'bg-rose-50 text-rose-700 border-rose-200' },
+  medium:  { dot: 'bg-amber-500',   label: 'Follow up',     chip: 'bg-amber-50 text-amber-700 border-amber-200' },
+  healthy: { dot: 'bg-emerald-500', label: 'Healthy',       chip: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+  quiet:   { dot: 'bg-gray-300',    label: 'Quiet',         chip: 'bg-gray-50 text-gray-500 border-gray-200' },
+};
+
 function daysLabel(days: number | null): string {
   if (days == null) return '—';
   if (days === 0) return 'today';
@@ -118,13 +150,13 @@ export default function PerformancePage() {
 
   function exportCsv() {
     const headers = [
-      'Partner', 'Total leads', 'SQLs', 'MQLs', 'Demos', 'Closed Won', 'Closed Lost',
+      'Partner', 'Attention', 'MAL', 'MQLs', 'SQLs', 'Demos', 'Closed Won', 'Closed Lost',
       'Active', 'Lead → SQL %', 'SQL → Won %',
       'Pipeline £', 'Impressions', 'Engagements', 'Activities',
       'Days since last lead', 'Days since last activity',
     ];
     const body = sorted.map(r => [
-      r.name, r.leadCount, r.sqlCount, r.mqlCount, r.demoCount, r.wonCount, r.lostCount,
+      r.name, ATTENTION_BADGE[attentionLevel(r)].label, r.leadCount, r.mqlCount, r.sqlCount, r.demoCount, r.wonCount, r.lostCount,
       r.activeCount, r.leadToSqlPct, r.sqlToWonPct,
       r.pipelineGbp, r.impressions, r.engagements, r.activityCount,
       r.daysSinceLastLead ?? '', r.daysSinceLastActivity ?? '',
@@ -143,6 +175,20 @@ export default function PerformancePage() {
   const totalSql   = totals?.sqlCount   ?? visible.reduce((s, r) => s + r.sqlCount, 0);
   const totalWon   = totals?.wonCount   ?? visible.reduce((s, r) => s + r.wonCount, 0);
   const totalGbp   = visible.reduce((s, r) => s + r.pipelineGbp, 0);
+
+  // Max values for heat-map colour intensity, computed across visible rows.
+  const maxMql = Math.max(0, ...visible.map(r => r.mqlCount));
+  const maxSql = Math.max(0, ...visible.map(r => r.sqlCount));
+
+  // Attention summary counts for the legend chips
+  const attentionCounts = visible.reduce(
+    (acc, r) => {
+      const lvl = attentionLevel(r);
+      acc[lvl]++;
+      return acc;
+    },
+    { high: 0, medium: 0, healthy: 0, quiet: 0 } as Record<Attention, number>
+  );
 
   return (
     <div>
@@ -184,6 +230,23 @@ export default function PerformancePage() {
         </div>
       </div>
 
+      {/* Attention legend / heat-map summary */}
+      <div className="flex flex-wrap gap-2 mb-4">
+        {(['high', 'medium', 'healthy', 'quiet'] as Attention[]).map(level => {
+          const b = ATTENTION_BADGE[level];
+          return (
+            <span key={level} className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-medium ${b.chip}`}>
+              <span className={`w-2 h-2 rounded-full ${b.dot}`}></span>
+              {b.label}
+              <span className="font-bold ml-1">{attentionCounts[level]}</span>
+            </span>
+          );
+        })}
+        <span className="text-xs text-gray-400 self-center ml-2">
+          Heat colour intensity = pipeline volume relative to top performer
+        </span>
+      </div>
+
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -191,8 +254,10 @@ export default function PerformancePage() {
               <tr className="bg-gray-50 border-b border-gray-200">
                 <th className="text-left py-3 px-4 font-medium text-gray-700 cursor-pointer select-none"
                     onClick={() => toggleSort('name')}>Partner {sortIcon('name')}</th>
+                <th className="text-center py-3 px-3 font-medium text-gray-700">Attention</th>
                 <th className="text-right py-3 px-3 font-medium text-gray-700 cursor-pointer select-none"
-                    onClick={() => toggleSort('leadCount')}>Leads {sortIcon('leadCount')}</th>
+                    onClick={() => toggleSort('leadCount')}>MAL {sortIcon('leadCount')}</th>
+                <th className="text-right py-3 px-3 font-medium text-gray-700">MQL</th>
                 <th className="text-right py-3 px-3 font-medium text-gray-700 cursor-pointer select-none"
                     onClick={() => toggleSort('sqlCount')}>SQL {sortIcon('sqlCount')}</th>
                 <th className="text-right py-3 px-3 font-medium text-gray-700 cursor-pointer select-none"
@@ -220,13 +285,27 @@ export default function PerformancePage() {
               </tr>
             </thead>
             <tbody>
-              {sorted.map(r => (
+              {sorted.map(r => {
+                const attn = attentionLevel(r);
+                const badge = ATTENTION_BADGE[attn];
+                return (
                 <tr key={r.slug} className="border-b border-gray-100 hover:bg-gray-50">
                   <td className="py-3 px-4 font-medium text-gray-900">
                     <a href={`/partners/${r.slug}`} className="hover:text-orange-600">{r.name}</a>
                   </td>
-                  <td className="py-3 px-3 text-right text-gray-700">{r.leadCount.toLocaleString()}</td>
-                  <td className="py-3 px-3 text-right text-emerald-700 font-semibold">{r.sqlCount.toLocaleString()}</td>
+                  <td className="py-3 px-3 text-center">
+                    <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full border text-[11px] font-medium ${badge.chip}`}>
+                      <span className={`w-1.5 h-1.5 rounded-full ${badge.dot}`}></span>
+                      {badge.label}
+                    </span>
+                  </td>
+                  <td className="py-3 px-3 text-right text-gray-500 text-xs">{r.leadCount.toLocaleString()}</td>
+                  <td className="py-3 px-3 text-right font-semibold text-amber-800" style={heatBg(r.mqlCount, maxMql, 'amber')}>
+                    {r.mqlCount.toLocaleString()}
+                  </td>
+                  <td className="py-3 px-3 text-right font-semibold text-emerald-800" style={heatBg(r.sqlCount, maxSql, 'emerald')}>
+                    {r.sqlCount.toLocaleString()}
+                  </td>
                   <td className="py-3 px-3 text-right text-gray-600">{r.leadToSqlPct}%</td>
                   <td className="py-3 px-3 text-right text-purple-700 font-semibold">{r.wonCount.toLocaleString()}</td>
                   <td className="py-3 px-3 text-right text-gray-600">{r.sqlToWonPct}%</td>
@@ -234,7 +313,8 @@ export default function PerformancePage() {
                   <td className={`py-3 px-3 text-right ${recencyTone(r.daysSinceLastLead)}`}>{daysLabel(r.daysSinceLastLead)}</td>
                   <td className={`py-3 px-3 text-right ${recencyTone(r.daysSinceLastActivity)}`}>{daysLabel(r.daysSinceLastActivity)}</td>
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
         </div>

@@ -84,17 +84,35 @@ interface StacksDashboardProps {
   hideRecentReviews?: boolean;
 }
 
+const FOLLOWED_UP_STORAGE_KEY = 'stack_review_followed_up';
+
 export default function StacksDashboard({ hideRecentReviews = false }: StacksDashboardProps = {}) {
   const [data, setData] = useState<StacksData | null>(null);
   const [period, setPeriod] = useState<Period>('all');
   const [loading, setLoading] = useState(true);
+  const [followedUp, setFollowedUp] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     fetch('/api/stacks')
       .then(r => r.json())
       .then(d => { setData(d); setLoading(false); })
       .catch(() => setLoading(false));
+
+    // Load followed-up state from localStorage (per browser, internal team use)
+    try {
+      const saved = localStorage.getItem(FOLLOWED_UP_STORAGE_KEY);
+      if (saved) setFollowedUp(JSON.parse(saved));
+    } catch {}
   }, []);
+
+  const toggleFollowedUp = (reviewId: string) => {
+    setFollowedUp(prev => {
+      const next = { ...prev, [reviewId]: !prev[reviewId] };
+      if (!next[reviewId]) delete next[reviewId];
+      try { localStorage.setItem(FOLLOWED_UP_STORAGE_KEY, JSON.stringify(next)); } catch {}
+      return next;
+    });
+  };
 
   if (loading) {
     return (
@@ -215,55 +233,83 @@ export default function StacksDashboard({ hideRecentReviews = false }: StacksDas
       </div>
 
       {/* Recent Reviews */}
-      {!hideRecentReviews && filtered.length > 0 && (
-        <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-5 mt-4">
-          <h3 className="text-sm font-semibold text-gray-700 mb-3">
-            Recent Reviews
-            <span className="text-xs font-normal text-gray-400 ml-2">({filtered.length} total)</span>
-          </h3>
-          <div className="overflow-x-auto -mx-4 sm:-mx-5">
-            <table className="w-full text-xs min-w-[600px]">
-              <thead>
-                <tr className="border-b border-gray-100">
-                  <th className="text-left py-2 px-4 sm:px-5 text-gray-500 font-medium">Venue</th>
-                  <th className="text-left py-2 px-2 text-gray-500 font-medium">Location</th>
-                  <th className="text-left py-2 px-2 text-gray-500 font-medium">Date</th>
-                  <th className="text-center py-2 px-2 text-gray-500 font-medium">Tools</th>
-                  <th className="text-left py-2 px-4 sm:px-5 text-gray-500 font-medium">Top Picks</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.slice(0, 20).map(review => (
-                  <tr key={review.id} className="border-b border-gray-50 hover:bg-gray-50">
-                    <td className="py-2 px-4 sm:px-5 text-gray-800 font-medium whitespace-nowrap">
-                      {review.businessName}
-                    </td>
-                    <td className="py-2 px-2 text-gray-500 whitespace-nowrap">
-                      {review.location || '—'}
-                    </td>
-                    <td className="py-2 px-2 text-gray-500 whitespace-nowrap">
-                      {new Date(review.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
-                    </td>
-                    <td className="py-2 px-2 text-center text-gray-800 font-medium">{review.tools.length}</td>
-                    <td className="py-2 px-4 sm:px-5">
-                      <div className="flex flex-wrap gap-1">
-                        {review.tools.slice(0, 4).map((t, i) => (
-                          <span key={i} className="inline-block bg-gray-100 text-gray-600 px-2 py-0.5 rounded text-[10px]">
-                            {t.tool_name}
-                          </span>
-                        ))}
-                        {review.tools.length > 4 && (
-                          <span className="text-gray-400 text-[10px]">+{review.tools.length - 4}</span>
-                        )}
-                      </div>
-                    </td>
+      {!hideRecentReviews && filtered.length > 0 && (() => {
+        const slice = filtered.slice(0, 20);
+        const followedUpInView = slice.filter(r => followedUp[r.id]).length;
+        const pending = slice.length - followedUpInView;
+        return (
+          <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-5 mt-4">
+            <h3 className="text-sm font-semibold text-gray-700 mb-3 flex flex-wrap items-center gap-2">
+              Recent Reviews
+              <span className="text-xs font-normal text-gray-400">({filtered.length} total)</span>
+              <span className="ml-auto inline-flex items-center gap-2">
+                {pending > 0 && (
+                  <span className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 bg-amber-50 text-amber-700 rounded-full">
+                    {pending} to follow up
+                  </span>
+                )}
+                <span className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 bg-emerald-50 text-emerald-700 rounded-full">
+                  ✓ {followedUpInView} done
+                </span>
+              </span>
+            </h3>
+            <div className="overflow-x-auto -mx-4 sm:-mx-5">
+              <table className="w-full text-xs min-w-[700px]">
+                <thead>
+                  <tr className="border-b border-gray-100">
+                    <th className="py-2 px-3 text-gray-500 font-medium w-10 text-center">Done</th>
+                    <th className="text-left py-2 px-2 text-gray-500 font-medium">Venue</th>
+                    <th className="text-left py-2 px-2 text-gray-500 font-medium">Location</th>
+                    <th className="text-left py-2 px-2 text-gray-500 font-medium">Date</th>
+                    <th className="text-center py-2 px-2 text-gray-500 font-medium">Tools</th>
+                    <th className="text-left py-2 px-4 sm:px-5 text-gray-500 font-medium">Top Picks</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {slice.map(review => {
+                    const done = !!followedUp[review.id];
+                    return (
+                      <tr key={review.id} className={`border-b border-gray-50 hover:bg-gray-50 ${done ? 'bg-emerald-50/40' : ''}`}>
+                        <td className="py-2 px-3 text-center">
+                          <input
+                            type="checkbox"
+                            checked={done}
+                            onChange={() => toggleFollowedUp(review.id)}
+                            className="w-4 h-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+                            aria-label={`Mark ${review.businessName} as followed up`}
+                          />
+                        </td>
+                        <td className={`py-2 px-2 font-medium whitespace-nowrap ${done ? 'text-gray-400 line-through' : 'text-gray-800'}`}>
+                          {review.businessName}
+                        </td>
+                        <td className="py-2 px-2 text-gray-500 whitespace-nowrap">
+                          {review.location || '—'}
+                        </td>
+                        <td className="py-2 px-2 text-gray-500 whitespace-nowrap">
+                          {new Date(review.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+                        </td>
+                        <td className="py-2 px-2 text-center text-gray-800 font-medium">{review.tools.length}</td>
+                        <td className="py-2 px-4 sm:px-5">
+                          <div className="flex flex-wrap gap-1">
+                            {review.tools.slice(0, 4).map((t, i) => (
+                              <span key={i} className="inline-block bg-gray-100 text-gray-600 px-2 py-0.5 rounded text-[10px]">
+                                {t.tool_name}
+                              </span>
+                            ))}
+                            {review.tools.length > 4 && (
+                              <span className="text-gray-400 text-[10px]">+{review.tools.length - 4}</span>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
     </div>
   );
 }
