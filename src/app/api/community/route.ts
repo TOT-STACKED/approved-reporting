@@ -15,7 +15,8 @@ const STAGE_FIELDS = {
   'Closed Won':  'fldvWQ5uF7AovgfFo',
   'Closed Lost': 'fld0D3InAxjneoAYe',
 } as const;
-const DATE_FIELD = 'fldRND3uaiduLQouI';
+const DATE_FIELD = 'fldRND3uaiduLQouI';        // user-entered "Date" (often blank)
+const CREATED_FIELD = 'fld6NrBqMViSsFSRd';     // Airtable createdTime — reliable "when lead entered system"
 
 const EVENTS_URL = 'https://www.techontoast.community/events';
 const PODCAST_RSS = 'https://anchor.fm/s/dbfe4940/podcast/rss';
@@ -27,7 +28,7 @@ async function fetchAllLeads() {
     const url = new URL(`https://api.airtable.com/v0/${BASE_ID}/${LEADS_TABLE}`);
     url.searchParams.set('returnFieldsByFieldId', 'true');
     url.searchParams.set('pageSize', '100');
-    [...Object.values(STAGE_FIELDS), DATE_FIELD].forEach((f, i) => url.searchParams.set(`fields[${i}]`, f));
+    [...Object.values(STAGE_FIELDS), DATE_FIELD, CREATED_FIELD].forEach((f, i) => url.searchParams.set(`fields[${i}]`, f));
     if (offset) url.searchParams.set('offset', offset);
     const res = await fetch(url.toString(), {
       headers: { Authorization: `Bearer ${API_KEY}` },
@@ -195,8 +196,11 @@ export async function GET() {
     const sqlTotal = rawLeads.filter(r => Array.isArray(r.fields?.[STAGE_FIELDS.SQL]) && r.fields[STAGE_FIELDS.SQL].length > 0).length;
     const wonTotal = rawLeads.filter(r => Array.isArray(r.fields?.[STAGE_FIELDS['Closed Won']]) && r.fields[STAGE_FIELDS['Closed Won']].length > 0).length;
 
-    const last30Lead = rawLeads.filter(r => withinDays(r.fields?.[DATE_FIELD], 30)).length;
-    const last90Lead = rawLeads.filter(r => withinDays(r.fields?.[DATE_FIELD], 90)).length;
+    // Prefer the createdTime field (every record has it); fall back to the
+    // user-entered Date field if for some reason it's missing.
+    const leadDate = (r: any) => r.fields?.[CREATED_FIELD] || r.fields?.[DATE_FIELD] || r.createdTime || '';
+    const last30Lead = rawLeads.filter(r => withinDays(leadDate(r), 30)).length;
+    const last90Lead = rawLeads.filter(r => withinDays(leadDate(r), 90)).length;
 
     const monthly: Record<string, number> = {};
     for (const b of businesses) {
