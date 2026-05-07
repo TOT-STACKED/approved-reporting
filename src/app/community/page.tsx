@@ -144,7 +144,7 @@ export default function CommunityPage() {
                   <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                   <XAxis dataKey="month" tickFormatter={monthLabel} tick={{ fontSize: 11 }} />
                   <YAxis tick={{ fontSize: 11 }} width={30} />
-                  <Tooltip labelFormatter={monthLabel} />
+                  <Tooltip labelFormatter={(label: unknown) => monthLabel(String(label ?? ''))} />
                   <Bar dataKey="count" fill="#f97316" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
