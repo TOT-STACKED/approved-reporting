@@ -37,6 +37,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             <a href="/" className="text-sm text-gray-600 hover:text-gray-900">Dashboard</a>
             <a href="/leads" className="text-sm text-gray-600 hover:text-gray-900">All Leads</a>
             <a href="/performance" className="text-sm text-gray-600 hover:text-gray-900">Performance</a>
+            <a href="/community" className="text-sm text-gray-600 hover:text-gray-900">Community</a>
             <a href="/analytics" className="text-sm text-gray-600 hover:text-gray-900">Analytics</a>
           </div>
           {/* Mobile nav */}
