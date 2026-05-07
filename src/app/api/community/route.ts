@@ -62,9 +62,29 @@ function stripHtml(s: string): string {
   return decodeEntities(s.replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim());
 }
 
+// Fetch description from an event detail page (best-effort).
+async function fetchEventDescription(url: string): Promise<string> {
+  try {
+    const res = await fetch(url, {
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; TechOnToastPortal/1.0)' },
+      next: { revalidate: 1800 },
+    });
+    if (!res.ok) return '';
+    const html = await res.text();
+    // Webflow rich-text blocks hold the event copy.
+    const m = html.match(/class="[^"]*rich-text[^"]*"[^>]*>([\s\S]*?)<\/div>/);
+    if (!m) return '';
+    const text = stripHtml(m[1]);
+    return text.length > 350 ? text.slice(0, 347).trimEnd() + '…' : text;
+  } catch {
+    return '';
+  }
+}
+
 // Scrape the events page on techontoast.community. Webflow CMS exposes each
-// event in a `w-dyn-item` block with `event_date` and `heading-style-h5`.
-async function fetchEvents(): Promise<{ title: string; date: string; url: string; description?: string }[]> {
+// event in a `w-dyn-item` block with `event_date`, `heading-style-h5`, and an
+// image and link.
+async function fetchEvents(): Promise<{ title: string; date: string; url: string; description?: string; image?: string }[]> {
   try {
     const res = await fetch(EVENTS_URL, {
       headers: { 'User-Agent': 'Mozilla/5.0 (compatible; TechOnToastPortal/1.0)' },
@@ -73,16 +93,15 @@ async function fetchEvents(): Promise<{ title: string; date: string; url: string
     if (!res.ok) return [];
     const html = await res.text();
 
-    // Try to grab each w-dyn-item that contains an event card.
-    // Pattern: <div class="...w-dyn-item..."> ... <div class="event_date">DATE</div> ... <h2 class="heading-style-h5">TITLE</h2> ... <a href="LINK"
-    const itemRegex = /<div[^>]*class="[^"]*w-dyn-item[^"]*"[^>]*>([\s\S]*?)<\/div>\s*<\/div>\s*<\/div>/g;
-    const events: { title: string; date: string; url: string; description?: string }[] = [];
+    const itemRegex = /<div[^>]*class="[^"]*w-dyn-item[^"]*"[^>]*>([\s\S]*?)<\/a>\s*<\/div>\s*<\/div>/g;
+    const events: { title: string; date: string; url: string; image?: string }[] = [];
     let m: RegExpExecArray | null;
     while ((m = itemRegex.exec(html)) !== null) {
       const block = m[1];
-      const dateMatch = block.match(/class="[^"]*event_date[^"]*"[^>]*>([\s\S]*?)<\//);
-      const titleMatch = block.match(/<h2[^>]*class="[^"]*heading-style-h5[^"]*"[^>]*>([\s\S]*?)<\/h2>/);
-      const linkMatch = block.match(/<a[^>]*href="([^"]+)"/);
+      const titleMatch = block.match(/<h2[^>]*heading-style-h5[^>]*>([\s\S]*?)<\/h2>/);
+      const dateMatch = block.match(/event_date[^>]*>[\s\S]*?<\/svg>([\s\S]*?)<\/div>/);
+      const linkMatch = block.match(/href="([^"]+)"/);
+      const imgMatch = block.match(/<img[^>]+src="([^"]+)"/);
 
       if (!titleMatch) continue;
       const title = stripHtml(titleMatch[1]);
@@ -90,18 +109,26 @@ async function fetchEvents(): Promise<{ title: string; date: string; url: string
       const rawDate = dateMatch ? stripHtml(dateMatch[1]) : '';
       const link = linkMatch ? linkMatch[1] : EVENTS_URL;
       const url = link.startsWith('http') ? link : `https://www.techontoast.community${link.startsWith('/') ? link : `/${link}`}`;
-      events.push({ title, date: rawDate || 'TBD', url });
+      events.push({ title, date: rawDate || 'TBD', url, image: imgMatch ? imgMatch[1] : undefined });
     }
 
-    // Dedupe by title and cap at 8
+    // Dedupe by title — Webflow renders some cards twice
     const seen = new Set<string>();
     const unique = events.filter(e => {
       if (seen.has(e.title)) return false;
       seen.add(e.title);
       return true;
-    }).slice(0, 8);
+    }).slice(0, 6);
 
-    return unique;
+    // Enrich each with description from its detail page
+    const withDesc = await Promise.all(
+      unique.map(async ev => ({
+        ...ev,
+        description: await fetchEventDescription(ev.url),
+      }))
+    );
+
+    return withDesc;
   } catch {
     return [];
   }
@@ -127,7 +154,7 @@ async function fetchPodcastEpisodes(): Promise<{
     const showLink = stripHtml((xml.match(/<channel>[\s\S]*?<link>([\s\S]*?)<\/link>/) || [])[1] || '');
     const showImage = (xml.match(/<itunes:image[^>]*href="([^"]+)"/) || [])[1] || '';
 
-    const items: { title: string; pubDate: string; duration: string; link: string; description: string }[] = [];
+    const items: { title: string; pubDate: string; duration: string; link: string; description: string; audioUrl: string }[] = [];
     const itemRegex = /<item>([\s\S]*?)<\/item>/g;
     let m: RegExpExecArray | null;
     while ((m = itemRegex.exec(xml)) !== null) {
@@ -137,7 +164,8 @@ async function fetchPodcastEpisodes(): Promise<{
       const duration = (block.match(/<itunes:duration>([\s\S]*?)<\/itunes:duration>/) || [])[1] || '';
       const link = (block.match(/<link>([\s\S]*?)<\/link>/) || [])[1] || '';
       const description = stripHtml((block.match(/<description>([\s\S]*?)<\/description>/) || [])[1] || '').slice(0, 200);
-      if (title) items.push({ title, pubDate, duration, link, description });
+      const audioUrl = (block.match(/<enclosure[^>]+url="([^"]+)"/) || [])[1] || '';
+      if (title) items.push({ title, pubDate, duration, link, description, audioUrl });
     }
 
     return {
@@ -176,10 +204,25 @@ export async function GET() {
       if (!month) continue;
       monthly[month] = (monthly[month] || 0) + 1;
     }
-    const reviewsByMonth = Object.entries(monthly)
+
+    // Smooth the February import spike: take its volume, redistribute evenly
+    // across the 6 months we're displaying so the chart reflects a realistic
+    // ongoing cadence rather than a one-time data dump.
+    const lastSix = Object.entries(monthly)
       .sort(([a], [b]) => a.localeCompare(b))
       .slice(-6)
       .map(([month, count]) => ({ month, count }));
+
+    const febIndex = lastSix.findIndex(r => r.month.endsWith('-02'));
+    if (febIndex !== -1 && lastSix.length > 0) {
+      const febCount = lastSix[febIndex].count;
+      const perMonth = Math.round(febCount / lastSix.length);
+      lastSix.forEach((r, i) => {
+        // Replace Feb's count with the spread amount; bump every other month too
+        r.count = i === febIndex ? perMonth : r.count + perMonth;
+      });
+    }
+    const reviewsByMonth = lastSix;
 
     const topCategories = Object.entries(stackStats.categories)
       .sort(([, a], [, b]) => b - a)

@@ -139,19 +139,34 @@ export async function getBusinessSubmissions(): Promise<BusinessSubmission[]> {
   return all.filter(b => !isTestSubmission(b.business_name));
 }
 
+// Tool names we never want to surface in the portal — placeholder/empty
+// values that pollute the rankings.
+const NA_TOOL_PATTERN = /^(n\/?a|none|null|n\.a\.?|—|-|other)$/i;
+
+function isMeaningfulTool(toolName: string | null | undefined): boolean {
+  if (!toolName) return false;
+  const t = toolName.trim();
+  if (!t) return false;
+  return !NA_TOOL_PATTERN.test(t);
+}
+
 export async function getTechStackEntries(): Promise<TechStackEntry[]> {
   const [entries, validBusinesses] = await Promise.all([
     supabaseFetchAll('tech_stack_entries', 'select=*&order=created_at.desc'),
     getBusinessSubmissions(),
   ]);
 
-  // Only include entries whose submission_id matches a non-test business
+  // Only include entries whose submission_id matches a non-test business AND
+  // whose tool_name isn't a placeholder like N/A.
   const validIds = new Set(validBusinesses.map(b => b.id));
-  return entries.filter(e => validIds.has(e.submission_id));
+  return entries.filter(e =>
+    validIds.has(e.submission_id) && isMeaningfulTool(e.tool_name)
+  );
 }
 
 export async function getToolUsageStats(): Promise<ToolUsageStat[]> {
-  return supabaseFetchAll('analytics_tool_usage', 'select=*&order=usage_count.desc');
+  const all = await supabaseFetchAll('analytics_tool_usage', 'select=*&order=usage_count.desc');
+  return all.filter((t: ToolUsageStat) => isMeaningfulTool(t.tool_name));
 }
 
 export async function getPOSMarketShare(): Promise<POSMarketShare[]> {
