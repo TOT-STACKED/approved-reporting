@@ -46,6 +46,14 @@ export default function MobileNav() {
                   {link.label}
                 </a>
               ))}
+              <form method="post" action="/api/auth/logout" className="border-t border-gray-100">
+                <button
+                  type="submit"
+                  className="w-full text-left px-6 py-3.5 text-base text-gray-500 hover:text-gray-900 hover:bg-gray-50 active:bg-gray-100"
+                >
+                  Sign out
+                </button>
+              </form>
             </div>
           </div>
         </div>

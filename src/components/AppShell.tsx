@@ -7,7 +7,7 @@ import MobileNav from '@/components/MobileNav';
 // no "Dashboard / Analytics / Leads" links leaking the rest of the admin).
 // Paths matching any of these prefixes get rendered bare — the page itself
 // is fully responsible for layout.
-const BARE_PREFIXES = ['/p/'];
+const BARE_PREFIXES = ['/p/', '/login'];
 
 function isBareRoute(pathname: string | null): boolean {
   if (!pathname) return false;
@@ -39,6 +39,9 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             <a href="/performance" className="text-sm text-gray-600 hover:text-gray-900">Performance</a>
             <a href="/community" className="text-sm text-gray-600 hover:text-gray-900">Community</a>
             <a href="/analytics" className="text-sm text-gray-600 hover:text-gray-900">Analytics</a>
+            <form method="post" action="/api/auth/logout">
+              <button type="submit" className="text-sm text-gray-500 hover:text-gray-900">Sign out</button>
+            </form>
           </div>
           {/* Mobile nav */}
           <MobileNav />
