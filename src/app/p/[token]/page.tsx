@@ -132,7 +132,7 @@ export default function SecurePartnerPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-brand-cream-soft flex items-center justify-center">
         <div className="text-gray-500 text-lg">Loading...</div>
       </div>
     );
@@ -140,7 +140,7 @@ export default function SecurePartnerPage() {
 
   if (unauthorized) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-brand-cream-soft flex items-center justify-center">
         <div className="bg-white rounded-xl border border-red-200 p-8 max-w-md text-center shadow-sm">
           <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <svg className="w-6 h-6 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -156,7 +156,7 @@ export default function SecurePartnerPage() {
 
   if (!partner) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-brand-cream-soft flex items-center justify-center">
         <div className="text-gray-500">Partner not found</div>
       </div>
     );
@@ -180,17 +180,24 @@ export default function SecurePartnerPage() {
   const totalEngagements = activities.reduce((s, a) => s + a.engagements, 0);
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-brand-cream-soft">
       {/* Standalone header */}
-      <nav className="bg-white border-b border-gray-200 px-4 sm:px-6 py-4">
+      <nav className="bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/80 border-b border-gray-200/80 px-4 sm:px-6 py-3 sticky top-0 z-30">
         <div className="max-w-5xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-2 sm:gap-3">
-            <div className="w-8 h-8 bg-orange-500 rounded-lg flex items-center justify-center text-white font-bold text-sm">
-              ToT
-            </div>
-            <span className="font-semibold text-gray-900 text-lg">{partner.name}</span>
+          <div className="flex items-center gap-3">
+            <img
+              src="/tech-on-toast-logo.svg"
+              alt="Tech on Toast"
+              className="h-9 w-auto text-brand-green"
+            />
+            <span className="flex flex-col leading-tight">
+              <span className="font-semibold text-brand-green text-sm sm:text-base">{partner.name}</span>
+              <span className="text-[10px] sm:text-xs text-gray-500 -mt-0.5">Partner Portal</span>
+            </span>
           </div>
-          <span className="text-xs text-gray-400">Partner Portal</span>
+          <span className="text-[10px] sm:text-xs uppercase tracking-[0.18em] text-brand-green-soft font-medium hidden sm:inline">
+            Tech on Toast
+          </span>
         </div>
       </nav>
 
@@ -198,13 +205,13 @@ export default function SecurePartnerPage() {
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
           <div>
-            <h1 className="text-xl sm:text-2xl font-bold text-gray-900">{partner.name} Dashboard</h1>
-            <p className="text-gray-500 text-sm">{partner.leadCount} total leads referred by Tech on Toast</p>
+            <h1 className="text-2xl sm:text-3xl font-bold text-brand-green">{partner.name} Dashboard</h1>
+            <p className="text-gray-500 text-sm mt-1">{partner.leadCount} total leads referred by Tech on Toast</p>
           </div>
           <button
             onClick={() => setShowNarrative(true)}
             disabled={generating}
-            className="bg-orange-500 hover:bg-orange-600 text-white px-5 py-2.5 rounded-lg font-medium text-sm transition-colors disabled:opacity-50 whitespace-nowrap"
+            className="bg-brand-green hover:bg-brand-green-soft text-white px-5 py-2.5 rounded-lg font-medium text-sm transition-colors disabled:opacity-50 whitespace-nowrap"
           >
             {generating ? 'Generating...' : 'Generate Report'}
           </button>
@@ -212,7 +219,7 @@ export default function SecurePartnerPage() {
 
         {/* Narrative Input */}
         {showNarrative && (
-          <div className="bg-white rounded-xl border-2 border-orange-200 p-5 sm:p-6 mb-8 shadow-sm">
+          <div className="bg-white rounded-xl border-2 border-brand-orange/40 p-5 sm:p-6 mb-8 shadow-sm">
             <h2 className="font-semibold text-gray-900 mb-2">Add context for the report summary</h2>
             <p className="text-sm text-gray-500 mb-4">Notes about this month — we&apos;ll write a professional narrative for the report.</p>
             <textarea
@@ -220,11 +227,11 @@ export default function SecurePartnerPage() {
               onChange={e => setNarrativeInput(e.target.value)}
               rows={3}
               placeholder="e.g. Great month — featured in 3 Spread editions, strong uptick in inbound leads..."
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 mb-4"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 focus:ring-2 focus:ring-brand-green focus:border-brand-green mb-4"
             />
             <div className="flex gap-3">
               <button onClick={generateReport} disabled={generating}
-                className="bg-orange-500 hover:bg-orange-600 text-white px-5 py-2 rounded-lg font-medium text-sm transition-colors disabled:opacity-50">
+                className="bg-brand-green hover:bg-brand-green-soft text-white px-5 py-2 rounded-lg font-medium text-sm transition-colors disabled:opacity-50">
                 {generating ? 'Generating...' : 'Generate Report'}
               </button>
               <button onClick={() => setShowNarrative(false)}
@@ -233,25 +240,25 @@ export default function SecurePartnerPage() {
           </div>
         )}
 
-        {/* KPI Cards — MQL, SQL, Closed Won + MAL */}
+        {/* KPI Cards — MAL → MQL → SQL → Won (pipeline progression) */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 mb-4">
-          <div className="bg-gradient-to-br from-amber-500 to-amber-600 rounded-xl p-4 sm:p-5 text-white" title={LEAD_STATUS_EXPLAINER.MQL}>
-            <p className="text-2xl sm:text-3xl font-bold">{mqlCount}</p>
-            <p className="text-xs sm:text-sm opacity-80 mt-1">MQL</p>
-          </div>
-          <div className="bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-xl p-4 sm:p-5 text-white" title={LEAD_STATUS_EXPLAINER.SQL}>
-            <p className="text-2xl sm:text-3xl font-bold">{sqlCount}</p>
-            <p className="text-xs sm:text-sm opacity-80 mt-1">SQL</p>
-          </div>
-          <div className="bg-gradient-to-br from-purple-600 to-purple-700 rounded-xl p-4 sm:p-5 text-white">
-            <p className="text-2xl sm:text-3xl font-bold">{closedWon}</p>
-            <p className="text-xs sm:text-sm opacity-80 mt-1">Closed Won</p>
-          </div>
-          <div className="bg-gradient-to-br from-blue-600 to-blue-700 rounded-xl p-4 sm:p-5 text-white" title={LEAD_STATUS_EXPLAINER.MAL}>
+          <div className="bg-brand-sky rounded-2xl p-4 sm:p-5 text-brand-green shadow-sm" title={LEAD_STATUS_EXPLAINER.MAL}>
             <p className="text-2xl sm:text-3xl font-bold">{partner.leadCount}</p>
-            <p className="text-xs sm:text-sm opacity-80 mt-1">MAL</p>
-            <p className="text-[10px] opacity-50 mt-0.5">Marketing Awareness Leads</p>
+            <p className="text-xs sm:text-sm font-medium opacity-75 mt-1">MAL</p>
+            <p className="text-[10px] opacity-60 mt-0.5">Marketing Awareness Leads</p>
             <p className="text-[10px] sm:text-xs opacity-60 mt-2">{partner.recentLeads.length} active last 90d</p>
+          </div>
+          <div className="bg-brand-yellow rounded-2xl p-4 sm:p-5 text-brand-green shadow-sm" title={LEAD_STATUS_EXPLAINER.MQL}>
+            <p className="text-2xl sm:text-3xl font-bold">{mqlCount}</p>
+            <p className="text-xs sm:text-sm font-medium opacity-75 mt-1">MQL</p>
+          </div>
+          <div className="bg-brand-orange rounded-2xl p-4 sm:p-5 text-white shadow-sm" title={LEAD_STATUS_EXPLAINER.SQL}>
+            <p className="text-2xl sm:text-3xl font-bold">{sqlCount}</p>
+            <p className="text-xs sm:text-sm font-medium opacity-90 mt-1">SQL</p>
+          </div>
+          <div className="bg-brand-green rounded-2xl p-4 sm:p-5 text-white shadow-sm">
+            <p className="text-2xl sm:text-3xl font-bold">{closedWon}</p>
+            <p className="text-xs sm:text-sm font-medium opacity-90 mt-1">Closed Won</p>
           </div>
         </div>
 
@@ -508,7 +515,7 @@ export default function SecurePartnerPage() {
               <h2 className="font-semibold text-gray-900 text-lg">Generated Report Preview</h2>
               <button onClick={() => setReportHtml(null)} className="text-sm text-gray-500 hover:text-gray-700">Close preview</button>
             </div>
-            <div className="bg-white rounded-xl border-2 border-orange-200 shadow-lg overflow-hidden">
+            <div className="bg-white rounded-xl border-2 border-brand-orange/40 shadow-lg overflow-hidden">
               <iframe srcDoc={reportHtml} className="w-full border-0" style={{ minHeight: '900px' }} title="Report Preview" />
             </div>
           </div>

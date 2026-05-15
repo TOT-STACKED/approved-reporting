@@ -215,22 +215,22 @@ export default function PerformancePage() {
 
       {/* KPI strip */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 mb-4">
-        <div className="bg-gradient-to-br from-blue-600 to-blue-700 rounded-xl p-4 sm:p-5 text-white" title={LEAD_STATUS_EXPLAINER.MAL}>
+        <div className="bg-brand-sky rounded-2xl p-4 sm:p-5 text-brand-green shadow-sm" title={LEAD_STATUS_EXPLAINER.MAL}>
           <p className="text-2xl sm:text-3xl font-bold">{totalLeads.toLocaleString()}</p>
-          <p className="text-xs sm:text-sm opacity-80 mt-1">MAL</p>
-          <p className="text-[10px] opacity-50 mt-0.5">Marketing Awareness Leads</p>
+          <p className="text-xs sm:text-sm font-medium opacity-75 mt-1">MAL</p>
+          <p className="text-[10px] opacity-60 mt-0.5">Marketing Awareness Leads</p>
         </div>
-        <div className="bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-xl p-4 sm:p-5 text-white" title={LEAD_STATUS_EXPLAINER.SQL}>
-          <p className="text-2xl sm:text-3xl font-bold">{totalSql.toLocaleString()}</p>
-          <p className="text-xs sm:text-sm opacity-80 mt-1">SQLs generated</p>
-        </div>
-        <div className="bg-gradient-to-br from-purple-600 to-purple-700 rounded-xl p-4 sm:p-5 text-white">
-          <p className="text-2xl sm:text-3xl font-bold">{totalWon.toLocaleString()}</p>
-          <p className="text-xs sm:text-sm opacity-80 mt-1">Closed Won</p>
-        </div>
-        <div className="bg-gradient-to-br from-amber-500 to-amber-600 rounded-xl p-4 sm:p-5 text-white" title={LEAD_STATUS_EXPLAINER.MQL}>
+        <div className="bg-brand-yellow rounded-2xl p-4 sm:p-5 text-brand-green shadow-sm" title={LEAD_STATUS_EXPLAINER.MQL}>
           <p className="text-2xl sm:text-3xl font-bold">{visible.reduce((s, r) => s + r.mqlCount, 0).toLocaleString()}</p>
-          <p className="text-xs sm:text-sm opacity-80 mt-1">MQLs in pipeline</p>
+          <p className="text-xs sm:text-sm font-medium opacity-75 mt-1">MQLs in pipeline</p>
+        </div>
+        <div className="bg-brand-orange rounded-2xl p-4 sm:p-5 text-white shadow-sm" title={LEAD_STATUS_EXPLAINER.SQL}>
+          <p className="text-2xl sm:text-3xl font-bold">{totalSql.toLocaleString()}</p>
+          <p className="text-xs sm:text-sm font-medium opacity-90 mt-1">SQLs generated</p>
+        </div>
+        <div className="bg-brand-green rounded-2xl p-4 sm:p-5 text-white shadow-sm">
+          <p className="text-2xl sm:text-3xl font-bold">{totalWon.toLocaleString()}</p>
+          <p className="text-xs sm:text-sm font-medium opacity-90 mt-1">Closed Won</p>
         </div>
       </div>
 
@@ -298,7 +298,7 @@ export default function PerformancePage() {
                   <td className="py-3 px-4 font-medium text-gray-900">
                     <span className="flex items-center gap-2">
                       {isPoor && <span className="text-base leading-none" aria-hidden>{badge.emoji}</span>}
-                      <a href={`/partners/${r.slug}`} className="hover:text-orange-600">{r.name}</a>
+                      <a href={`/partners/${r.slug}`} className="hover:text-brand-green">{r.name}</a>
                     </span>
                   </td>
                   <td className="py-3 px-3 text-center">

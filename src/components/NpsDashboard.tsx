@@ -190,7 +190,7 @@ export default function NpsDashboard() {
                 key={p}
                 onClick={() => setPeriod(p)}
                 className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
-                  period === p ? 'bg-orange-500 text-white shadow-sm' : 'text-gray-600 hover:text-gray-900'
+                  period === p ? 'bg-brand-green text-white shadow-sm' : 'text-gray-600 hover:text-gray-900'
                 }`}
               >
                 {PERIOD_LABELS[p]}

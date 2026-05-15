@@ -121,7 +121,7 @@ export default function Dashboard() {
   return (
     <div>
       <div className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-900">Partner Dashboard</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold text-brand-green">Partner Dashboard</h1>
         <p className="text-gray-500 mt-1">Performance snapshot across all approved partners</p>
       </div>
 
@@ -129,21 +129,21 @@ export default function Dashboard() {
 
       {/* Hero KPIs - Pipeline stages */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 mb-4">
-        <div className="bg-gradient-to-br from-blue-600 to-blue-700 rounded-xl p-4 sm:p-5 text-white" title={LEAD_STATUS_EXPLAINER.MAL}>
+        <div className="bg-brand-sky rounded-2xl p-4 sm:p-5 text-brand-green shadow-sm" title={LEAD_STATUS_EXPLAINER.MAL}>
           <p className="text-2xl sm:text-3xl font-bold">{malCount}</p>
-          <p className="text-xs sm:text-sm opacity-80 mt-1">MAL</p>
+          <p className="text-xs sm:text-sm font-medium opacity-75 mt-1">MAL</p>
         </div>
-        <div className="bg-gradient-to-br from-amber-500 to-amber-600 rounded-xl p-4 sm:p-5 text-white" title={LEAD_STATUS_EXPLAINER.MQL}>
+        <div className="bg-brand-yellow rounded-2xl p-4 sm:p-5 text-brand-green shadow-sm" title={LEAD_STATUS_EXPLAINER.MQL}>
           <p className="text-2xl sm:text-3xl font-bold">{mqlCount}</p>
-          <p className="text-xs sm:text-sm opacity-80 mt-1">MQL</p>
+          <p className="text-xs sm:text-sm font-medium opacity-75 mt-1">MQL</p>
         </div>
-        <div className="bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-xl p-4 sm:p-5 text-white" title={LEAD_STATUS_EXPLAINER.SQL}>
+        <div className="bg-brand-orange rounded-2xl p-4 sm:p-5 text-white shadow-sm" title={LEAD_STATUS_EXPLAINER.SQL}>
           <p className="text-2xl sm:text-3xl font-bold">{sqlCount}</p>
-          <p className="text-xs sm:text-sm opacity-80 mt-1">SQL</p>
+          <p className="text-xs sm:text-sm font-medium opacity-90 mt-1">SQL</p>
         </div>
-        <div className="bg-gradient-to-br from-purple-600 to-purple-700 rounded-xl p-4 sm:p-5 text-white">
+        <div className="bg-brand-green rounded-2xl p-4 sm:p-5 text-white shadow-sm">
           <p className="text-2xl sm:text-3xl font-bold">{closedWonCount}</p>
-          <p className="text-xs sm:text-sm opacity-80 mt-1">Closed Won</p>
+          <p className="text-xs sm:text-sm font-medium opacity-90 mt-1">Closed Won</p>
         </div>
       </div>
 
@@ -342,7 +342,7 @@ export default function Dashboard() {
               </button>
               <a href={`/partners/${partner.slug}`}>
                 <div className="flex items-center justify-between mb-3">
-                  <h3 className="font-semibold text-gray-900 group-hover:text-orange-600 transition-colors">
+                  <h3 className="font-semibold text-gray-900 group-hover:text-brand-green transition-colors">
                     {partner.name}
                   </h3>
                   <span className="text-xs text-gray-400 group-hover:text-orange-400 mr-5">View &rarr;</span>
@@ -383,7 +383,7 @@ export default function Dashboard() {
                 <button
                   key={p.slug}
                   onClick={() => toggleHide(p.slug)}
-                  className="text-xs bg-gray-100 text-gray-500 hover:bg-orange-50 hover:text-orange-600 px-3 py-1.5 rounded-full border border-gray-200 hover:border-orange-200 transition-colors flex items-center gap-1.5"
+                  className="text-xs bg-gray-100 text-gray-500 hover:bg-orange-50 hover:text-brand-green px-3 py-1.5 rounded-full border border-gray-200 hover:border-orange-200 transition-colors flex items-center gap-1.5"
                 >
                   <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />

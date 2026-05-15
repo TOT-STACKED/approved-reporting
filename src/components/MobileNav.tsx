@@ -17,7 +17,7 @@ export default function MobileNav() {
     <div className="md:hidden">
       <button
         onClick={() => setOpen(!open)}
-        className="p-2 text-gray-600 hover:text-gray-900"
+        className="p-2 text-brand-green hover:text-brand-green-soft"
         aria-label="Toggle menu"
       >
         {open ? (

@@ -79,7 +79,7 @@ export default function CommunityPage() {
   return (
     <div>
       {/* Hero */}
-      <div className="bg-gradient-to-br from-orange-500 via-orange-500 to-amber-500 rounded-2xl p-6 sm:p-8 text-white mb-6 sm:mb-8 shadow-lg">
+      <div className="bg-brand-green rounded-2xl p-6 sm:p-8 text-white mb-6 sm:mb-8 shadow-lg">
         <p className="text-xs sm:text-sm uppercase tracking-wider opacity-80 mb-2">Marketplace Community Update</p>
         <h1 className="text-2xl sm:text-3xl font-bold mb-2">What we&apos;re doing for our marketplace partners</h1>
         <p className="text-sm sm:text-base opacity-90 max-w-2xl">
@@ -97,22 +97,22 @@ export default function CommunityPage() {
           </div>
         </div>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
-          <div className="bg-gradient-to-br from-blue-600 to-blue-700 rounded-xl p-4 text-white" title={LEAD_STATUS_EXPLAINER.MAL}>
+          <div className="bg-brand-sky rounded-2xl p-4 text-brand-green shadow-sm" title={LEAD_STATUS_EXPLAINER.MAL}>
             <p className="text-2xl sm:text-3xl font-bold">{data.leadGen.malTotal.toLocaleString()}</p>
-            <p className="text-xs sm:text-sm opacity-80 mt-1">MAL</p>
-            <p className="text-[10px] opacity-50 mt-1">Marketing Awareness Leads</p>
+            <p className="text-xs sm:text-sm font-medium opacity-75 mt-1">MAL</p>
+            <p className="text-[10px] opacity-60 mt-1">Marketing Awareness Leads</p>
           </div>
-          <div className="bg-gradient-to-br from-amber-500 to-amber-600 rounded-xl p-4 text-white" title={LEAD_STATUS_EXPLAINER.MQL}>
+          <div className="bg-brand-yellow rounded-2xl p-4 text-brand-green shadow-sm" title={LEAD_STATUS_EXPLAINER.MQL}>
             <p className="text-2xl sm:text-3xl font-bold">{data.leadGen.mqlTotal.toLocaleString()}</p>
-            <p className="text-xs sm:text-sm opacity-80 mt-1">MQL</p>
+            <p className="text-xs sm:text-sm font-medium opacity-75 mt-1">MQL</p>
           </div>
-          <div className="bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-xl p-4 text-white" title={LEAD_STATUS_EXPLAINER.SQL}>
+          <div className="bg-brand-orange rounded-2xl p-4 text-white shadow-sm" title={LEAD_STATUS_EXPLAINER.SQL}>
             <p className="text-2xl sm:text-3xl font-bold">{data.leadGen.sqlTotal.toLocaleString()}</p>
-            <p className="text-xs sm:text-sm opacity-80 mt-1">SQL</p>
+            <p className="text-xs sm:text-sm font-medium opacity-90 mt-1">SQL</p>
           </div>
-          <div className="bg-gradient-to-br from-purple-600 to-purple-700 rounded-xl p-4 text-white">
+          <div className="bg-brand-green rounded-2xl p-4 text-white shadow-sm">
             <p className="text-2xl sm:text-3xl font-bold">{data.leadGen.wonTotal.toLocaleString()}</p>
-            <p className="text-xs sm:text-sm opacity-80 mt-1">Closed Won</p>
+            <p className="text-xs sm:text-sm font-medium opacity-90 mt-1">Closed Won</p>
           </div>
         </div>
         <LeadStatusGlossary className="mb-4" />
@@ -203,7 +203,7 @@ export default function CommunityPage() {
             <p className="text-xs text-gray-500">Where you can meet operators and other partners</p>
           </div>
           <a href="https://www.techontoast.community/events" target="_blank" rel="noopener noreferrer"
-            className="text-sm text-orange-600 hover:text-orange-700 font-medium">
+            className="text-sm text-brand-green hover:text-brand-green-soft font-medium">
             All events →
           </a>
         </div>
@@ -254,7 +254,7 @@ export default function CommunityPage() {
             <p className="text-xs text-gray-500">{data.podcast.showTitle || 'Tech on Toast — The Hospitality Tech Podcast'}</p>
           </div>
           <a href={data.podcast.showLink || 'https://anchor.fm/techontoast'} target="_blank" rel="noopener noreferrer"
-            className="text-sm text-orange-600 hover:text-orange-700 font-medium">
+            className="text-sm text-brand-green hover:text-brand-green-soft font-medium">
             All episodes →
           </a>
         </div>

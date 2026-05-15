@@ -81,7 +81,7 @@ export default function AskBox({ partnerSlug, partnerName, placeholder }: AskBox
         <button
           type="submit"
           disabled={loading || !question.trim()}
-          className="px-5 py-3 bg-orange-500 hover:bg-orange-600 disabled:bg-gray-300 text-white text-sm font-medium rounded-lg transition-colors whitespace-nowrap"
+          className="px-5 py-3 bg-brand-green hover:bg-brand-green-soft disabled:bg-gray-300 text-white text-sm font-medium rounded-lg transition-colors whitespace-nowrap"
         >
           {loading ? (
             <span className="flex items-center gap-2">

@@ -1,5 +1,21 @@
 @import "tailwindcss";
 
+/* Tech on Toast brand palette.
+   These tokens generate Tailwind utilities like bg-brand-green, text-brand-cream, etc.
+   Tweak the values here to retune the whole product. */
+@theme {
+  --color-brand-green: #1d3b1f;
+  --color-brand-green-soft: #2f5a33;
+  --color-brand-cream: #f7f2e3;
+  --color-brand-cream-soft: #fbf7ec;
+  --color-brand-orange: #e96333;
+  --color-brand-pink: #f78bb5;
+  --color-brand-lime: #c4f470;
+  --color-brand-yellow: #f5c44e;
+  --color-brand-lavender: #c5b2f5;
+  --color-brand-sky: #cee2f7;
+}
+
 body {
   font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
 }

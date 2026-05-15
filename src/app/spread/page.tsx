@@ -83,7 +83,7 @@ export default function SpreadPage() {
               onChange={e => setEditionTitle(e.target.value)}
               placeholder="e.g. Tech on Toast Weekly Spread #42"
               required
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-gray-900 focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-gray-900 focus:ring-2 focus:ring-brand-green focus:border-brand-green"
             />
           </div>
 
@@ -95,7 +95,7 @@ export default function SpreadPage() {
                 value={weekStarting}
                 onChange={e => setWeekStarting(e.target.value)}
                 required
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-gray-900 focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-gray-900 focus:ring-2 focus:ring-brand-green focus:border-brand-green"
               />
             </div>
             <div>
@@ -105,7 +105,7 @@ export default function SpreadPage() {
                 value={author}
                 onChange={e => setAuthor(e.target.value)}
                 placeholder="e.g. Chris"
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-gray-900 focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-gray-900 focus:ring-2 focus:ring-brand-green focus:border-brand-green"
               />
             </div>
           </div>
@@ -117,7 +117,7 @@ export default function SpreadPage() {
               onChange={e => setSummary(e.target.value)}
               rows={4}
               placeholder="Paste or write the main body of this week's spread..."
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-gray-900 focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-gray-900 focus:ring-2 focus:ring-brand-green focus:border-brand-green"
             />
           </div>
 
@@ -128,7 +128,7 @@ export default function SpreadPage() {
               onChange={e => setKeyHighlights(e.target.value)}
               rows={3}
               placeholder="Bullet points of key things that happened this week (one per line)&#10;- New partner onboarded&#10;- Event attended&#10;- Product update shipped"
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-gray-900 focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-gray-900 focus:ring-2 focus:ring-brand-green focus:border-brand-green"
             />
           </div>
 
@@ -139,14 +139,14 @@ export default function SpreadPage() {
               value={linkedinUrl}
               onChange={e => setLinkedinUrl(e.target.value)}
               placeholder="https://www.linkedin.com/pulse/..."
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-gray-900 focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-gray-900 focus:ring-2 focus:ring-brand-green focus:border-brand-green"
             />
           </div>
 
           <button
             type="submit"
             disabled={submitting}
-            className="w-full bg-orange-500 hover:bg-orange-600 text-white py-3 rounded-lg font-medium transition-colors disabled:opacity-50"
+            className="w-full bg-brand-green hover:bg-brand-green-soft text-white py-3 rounded-lg font-medium transition-colors disabled:opacity-50"
           >
             {submitting ? 'Saving...' : 'Save Spread Entry'}
           </button>
@@ -167,7 +167,7 @@ export default function SpreadPage() {
                   <p className="text-xs text-gray-600 mt-2 line-clamp-2">{s.summary}</p>
                 )}
                 {s.linkedinUrl && (
-                  <a href={s.linkedinUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-orange-500 hover:text-orange-600 mt-2 inline-block">
+                  <a href={s.linkedinUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-brand-green hover:text-brand-green-soft mt-2 inline-block">
                     View on LinkedIn &rarr;
                   </a>
                 )}

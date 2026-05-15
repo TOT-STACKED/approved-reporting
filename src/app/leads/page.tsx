@@ -173,25 +173,25 @@ export default function LeadsPage() {
             value={search}
             onChange={e => setSearch(e.target.value)}
             placeholder="Search business name or location..."
-            className="border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+            className="border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 focus:ring-2 focus:ring-brand-green focus:border-brand-green"
           />
           <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
-            className="border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 focus:ring-2 focus:ring-orange-500 focus:border-orange-500">
+            className="border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 focus:ring-2 focus:ring-brand-green focus:border-brand-green">
             <option value="">All Statuses</option>
             {statuses.map(s => <option key={s} value={s}>{s}</option>)}
           </select>
           <select value={ownerFilter} onChange={e => setOwnerFilter(e.target.value)}
-            className="border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 focus:ring-2 focus:ring-orange-500 focus:border-orange-500">
+            className="border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 focus:ring-2 focus:ring-brand-green focus:border-brand-green">
             <option value="">All Owners</option>
             {owners.map(o => <option key={o} value={o}>{o}</option>)}
           </select>
           <select value={partnerFilter} onChange={e => setPartnerFilter(e.target.value)}
-            className="border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 focus:ring-2 focus:ring-orange-500 focus:border-orange-500">
+            className="border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 focus:ring-2 focus:ring-brand-green focus:border-brand-green">
             <option value="">All Partners</option>
             {partners.map(p => <option key={p} value={p}>{p}</option>)}
           </select>
           <select value={priorityFilter} onChange={e => setPriorityFilter(e.target.value as '' | LeadPriority)}
-            className="border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 focus:ring-2 focus:ring-orange-500 focus:border-orange-500">
+            className="border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 focus:ring-2 focus:ring-brand-green focus:border-brand-green">
             <option value="">All Priorities</option>
             <option value="hot">🔥 Hot ({scoredLeads.filter(l => l.priority === 'hot').length})</option>
             <option value="high">⭐ High ({scoredLeads.filter(l => l.priority === 'high').length})</option>
@@ -203,7 +203,7 @@ export default function LeadsPage() {
           Showing {sorted.length.toLocaleString()} of {total.toLocaleString()} leads
           {(search || statusFilter || ownerFilter || partnerFilter || priorityFilter) && (
             <button onClick={() => { setSearch(''); setStatusFilter(''); setOwnerFilter(''); setPartnerFilter(''); setPriorityFilter(''); }}
-              className="ml-3 text-orange-500 hover:text-orange-600">
+              className="ml-3 text-brand-green hover:text-brand-green-soft">
               Clear filters
             </button>
           )}

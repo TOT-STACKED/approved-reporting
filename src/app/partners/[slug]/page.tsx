@@ -149,7 +149,7 @@ export default function PartnerPage() {
         <button
           onClick={() => setShowNarrative(true)}
           disabled={generating}
-          className="bg-orange-500 hover:bg-orange-600 text-white px-6 py-3 rounded-lg font-medium transition-colors disabled:opacity-50"
+          className="bg-brand-green hover:bg-brand-green-soft text-white px-6 py-3 rounded-lg font-medium transition-colors disabled:opacity-50"
         >
           {generating ? 'Generating...' : 'Generate Report'}
         </button>
@@ -157,7 +157,7 @@ export default function PartnerPage() {
 
       {/* Narrative Input */}
       {showNarrative && (
-        <div className="bg-white rounded-xl border-2 border-orange-200 p-6 mb-8 shadow-sm">
+        <div className="bg-white rounded-xl border-2 border-brand-orange/40 p-6 mb-8 shadow-sm">
           <h2 className="font-semibold text-gray-900 mb-2">Add context for the report summary</h2>
           <p className="text-sm text-gray-500 mb-4">Give some notes about what happened this month and AI will write a professional narrative summary for the report. Leave blank to skip.</p>
           <textarea
@@ -165,13 +165,13 @@ export default function PartnerPage() {
             onChange={e => setNarrativeInput(e.target.value)}
             rows={4}
             placeholder={"e.g. Great month for SKY - featured in 3 Spread editions, podcast interview with their CEO went live, strong uptick in inbound leads from the hospitality sector. Launched new partner page which drove solid traffic..."}
-            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-gray-900 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 mb-4"
+            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-gray-900 focus:ring-2 focus:ring-brand-green focus:border-brand-green mb-4"
           />
           <div className="flex gap-3">
             <button
               onClick={generateReport}
               disabled={generating}
-              className="bg-orange-500 hover:bg-orange-600 text-white px-6 py-2.5 rounded-lg font-medium transition-colors disabled:opacity-50"
+              className="bg-brand-green hover:bg-brand-green-soft text-white px-6 py-2.5 rounded-lg font-medium transition-colors disabled:opacity-50"
             >
               {generating ? 'Generating...' : 'Generate Report'}
             </button>
@@ -185,24 +185,24 @@ export default function PartnerPage() {
         </div>
       )}
 
-      {/* KPI Cards — MQL, SQL, Closed Won + Traffic */}
+      {/* KPI Cards — MAL → MQL → SQL → Won */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-        <div className="bg-gradient-to-br from-amber-500 to-amber-600 rounded-xl p-5 text-white" title={LEAD_STATUS_EXPLAINER.MQL}>
+        <div className="bg-brand-yellow rounded-2xl p-5 text-brand-green shadow-sm" title={LEAD_STATUS_EXPLAINER.MQL}>
           <p className="text-3xl font-bold">{mqlCount}</p>
-          <p className="text-sm opacity-80 mt-1">MQL</p>
+          <p className="text-sm font-medium opacity-75 mt-1">MQL</p>
         </div>
-        <div className="bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-xl p-5 text-white" title={LEAD_STATUS_EXPLAINER.SQL}>
+        <div className="bg-brand-orange rounded-2xl p-5 text-white shadow-sm" title={LEAD_STATUS_EXPLAINER.SQL}>
           <p className="text-3xl font-bold">{sqlCount}</p>
-          <p className="text-sm opacity-80 mt-1">SQL</p>
+          <p className="text-sm font-medium opacity-90 mt-1">SQL</p>
         </div>
-        <div className="bg-gradient-to-br from-purple-600 to-purple-700 rounded-xl p-5 text-white">
+        <div className="bg-brand-green rounded-2xl p-5 text-white shadow-sm">
           <p className="text-3xl font-bold">{closedWon}</p>
-          <p className="text-sm opacity-80 mt-1">Closed Won</p>
+          <p className="text-sm font-medium opacity-90 mt-1">Closed Won</p>
         </div>
-        <div className="bg-gradient-to-br from-blue-600 to-blue-700 rounded-xl p-5 text-white" title={LEAD_STATUS_EXPLAINER.MAL}>
+        <div className="bg-brand-sky rounded-2xl p-5 text-brand-green shadow-sm" title={LEAD_STATUS_EXPLAINER.MAL}>
           <p className="text-3xl font-bold">{partner.leadCount}</p>
-          <p className="text-sm opacity-80 mt-1">MAL</p>
-          <p className="text-[10px] opacity-50 mt-0.5">Marketing Awareness Leads</p>
+          <p className="text-sm font-medium opacity-75 mt-1">MAL</p>
+          <p className="text-[10px] opacity-60 mt-0.5">Marketing Awareness Leads</p>
           <p className="text-xs opacity-60 mt-2">{partner.recentLeads.length} active last 90d</p>
         </div>
       </div>
@@ -437,7 +437,7 @@ export default function PartnerPage() {
               Close preview
             </button>
           </div>
-          <div className="bg-white rounded-xl border-2 border-orange-200 shadow-lg overflow-hidden">
+          <div className="bg-white rounded-xl border-2 border-brand-orange/40 shadow-lg overflow-hidden">
             <iframe
               srcDoc={reportHtml}
               className="w-full border-0"
