@@ -1,12 +1,24 @@
 import { NextResponse } from 'next/server';
 import OpenAI from 'openai';
 import { getPartnerList } from '@/lib/airtable';
+import { getAllLeads } from '@/lib/leads';
 import { getTechStackEntries, getBusinessSubmissions, getToolUsageStats, getPOSMarketShare } from '@/lib/stackcollect';
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+// Lazy-init so a missing/misconfigured OPENAI_API_KEY surfaces as a clean
+// JSON error from the handler rather than crashing the whole route module on
+// import (which Next serves as an opaque HTML 500).
+let _openai: OpenAI | null = null;
+function getOpenAI(): OpenAI {
+  if (!_openai) _openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+  return _openai;
+}
 
 export async function POST(request: Request) {
   try {
+    if (!process.env.OPENAI_API_KEY) {
+      return NextResponse.json({ error: 'AI is not configured' }, { status: 503 });
+    }
+
     const { question, partnerSlug } = await request.json();
 
     if (!question || typeof question !== 'string') {
@@ -14,16 +26,14 @@ export async function POST(request: Request) {
     }
 
     // Fetch all portal data in parallel (including individual leads + stack data)
-    const [partners, leadsRes, stackEntries, businesses, toolUsage, posMarketShare] = await Promise.all([
+    const [partners, allLeadsRaw, stackEntries, businesses, toolUsage, posMarketShare] = await Promise.all([
       getPartnerList(),
-      fetch(new URL('/api/leads', request.url)).then(r => r.json()),
+      getAllLeads(),
       getTechStackEntries(),
       getBusinessSubmissions(),
       getToolUsageStats(),
       getPOSMarketShare(),
     ]);
-
-    const allLeadsRaw = leadsRes.leads || [];
 
     // Resolve partner from slug (if provided) — used to scope answers
     let scopedPartner: { name: string; slug: string } | null = null;
@@ -142,7 +152,7 @@ export async function POST(request: Request) {
       })),
     });
 
-    const completion = await openai.chat.completions.create({
+    const completion = await getOpenAI().chat.completions.create({
       model: 'gpt-4o-mini',
       messages: [
         {
