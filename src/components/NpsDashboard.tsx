@@ -176,7 +176,7 @@ export default function NpsDashboard() {
                 key={s}
                 onClick={() => setSource(s)}
                 className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
-                  source === s ? 'bg-indigo-500 text-white shadow-sm' : 'text-gray-600 hover:text-gray-900'
+                  source === s ? 'bg-brand-green text-white shadow-sm' : 'text-gray-600 hover:text-gray-900'
                 }`}
               >
                 {s === 'all' ? 'All' : SOURCE_LABELS[s]}
@@ -202,21 +202,21 @@ export default function NpsDashboard() {
 
       {/* KPI row */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
-        <div className={`bg-gradient-to-br ${npsColor(npsScore)} rounded-xl p-4 text-white text-center`}>
+        <div className={`bg-gradient-to-br ${npsColor(npsScore)} rounded-2xl p-4 text-white text-center shadow-sm`}>
           <p className="text-2xl sm:text-3xl font-bold">{npsScore ?? '—'}</p>
-          <p className="text-xs opacity-80 mt-1">NPS Score</p>
+          <p className="text-xs font-medium opacity-90 mt-1">NPS Score</p>
         </div>
-        <div className="bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-xl p-4 text-white text-center">
+        <div className="bg-brand-lavender rounded-2xl p-4 text-brand-green text-center shadow-sm">
           <p className="text-2xl sm:text-3xl font-bold">{stats.avg ?? '—'}</p>
-          <p className="text-xs opacity-80 mt-1">Avg / 10</p>
+          <p className="text-xs font-medium opacity-75 mt-1">Avg / 10</p>
         </div>
-        <div className="bg-gradient-to-br from-teal-500 to-teal-600 rounded-xl p-4 text-white text-center">
+        <div className="bg-brand-sky rounded-2xl p-4 text-brand-green text-center shadow-sm">
           <p className="text-2xl sm:text-3xl font-bold">{filteredRecent.length}</p>
-          <p className="text-xs opacity-80 mt-1">Responses</p>
+          <p className="text-xs font-medium opacity-75 mt-1">Responses</p>
         </div>
-        <div className="bg-gradient-to-br from-rose-500 to-rose-600 rounded-xl p-4 text-white text-center">
+        <div className="bg-rose-500 rounded-2xl p-4 text-white text-center shadow-sm">
           <p className="text-2xl sm:text-3xl font-bold">{stats.detractors}</p>
-          <p className="text-xs opacity-80 mt-1">Detractors</p>
+          <p className="text-xs font-medium opacity-90 mt-1">Detractors</p>
         </div>
       </div>
 

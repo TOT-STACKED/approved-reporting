@@ -294,16 +294,16 @@ export default function PartnerPage() {
             <span className="text-gray-400 font-normal ml-2 text-sm">from techontoast.community</span>
           </h2>
           <div className="grid grid-cols-3 gap-4 mb-5">
-            <div className="bg-indigo-50 rounded-lg p-4 text-center">
-              <p className="text-2xl font-bold text-indigo-600">{stackCollect.mentions}</p>
+            <div className="bg-brand-cream rounded-lg p-4 text-center">
+              <p className="text-2xl font-bold text-brand-green">{stackCollect.mentions}</p>
               <p className="text-xs text-gray-500 mt-1">Times selected by operators</p>
             </div>
-            <div className="bg-indigo-50 rounded-lg p-4 text-center">
-              <p className="text-2xl font-bold text-indigo-600">{stackCollect.marketShare}%</p>
+            <div className="bg-brand-cream rounded-lg p-4 text-center">
+              <p className="text-2xl font-bold text-brand-green">{stackCollect.marketShare}%</p>
               <p className="text-xs text-gray-500 mt-1">Market share (of reviews)</p>
             </div>
-            <div className="bg-indigo-50 rounded-lg p-4 text-center">
-              <p className="text-2xl font-bold text-indigo-600">{stackCollect.totalReviews}</p>
+            <div className="bg-brand-cream rounded-lg p-4 text-center">
+              <p className="text-2xl font-bold text-brand-green">{stackCollect.totalReviews}</p>
               <p className="text-xs text-gray-500 mt-1">Total tech stack reviews</p>
             </div>
           </div>
@@ -312,7 +312,7 @@ export default function PartnerPage() {
               <p className="text-sm font-medium text-gray-700 mb-2">Selected in categories:</p>
               <div className="flex flex-wrap gap-2">
                 {stackCollect.categories.map(c => (
-                  <span key={c.category} className="text-xs bg-indigo-100 text-indigo-700 px-2.5 py-1 rounded-full">
+                  <span key={c.category} className="text-xs bg-brand-sky text-brand-green px-2.5 py-1 rounded-full">
                     {c.category} ({c.count})
                   </span>
                 ))}

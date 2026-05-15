@@ -55,7 +55,7 @@ export default function AskBox({ partnerSlug, partnerName, placeholder }: AskBox
     <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-5 mb-4 sm:mb-6">
       {isPartnerScoped && (
         <div className="mb-3 flex items-center gap-2">
-          <span className="inline-flex items-center justify-center w-5 h-5 rounded bg-orange-100 text-orange-600">
+          <span className="inline-flex items-center justify-center w-5 h-5 rounded bg-brand-cream text-brand-green">
             <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
             </svg>
@@ -71,7 +71,7 @@ export default function AskBox({ partnerSlug, partnerName, placeholder }: AskBox
             value={question}
             onChange={e => setQuestion(e.target.value)}
             placeholder={placeholder || defaultPlaceholder}
-            className="w-full px-4 py-3 pr-10 rounded-lg border border-gray-200 focus:border-orange-400 focus:ring-2 focus:ring-orange-100 outline-none text-sm text-gray-800 placeholder-gray-400"
+            className="w-full px-4 py-3 pr-10 rounded-lg border border-gray-200 focus:border-brand-green focus:ring-2 focus:ring-brand-green/20 outline-none text-sm text-gray-800 placeholder-gray-400"
             disabled={loading}
           />
           <svg className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -96,8 +96,8 @@ export default function AskBox({ partnerSlug, partnerName, placeholder }: AskBox
       </form>
 
       {answer && (
-        <div className="mt-4 bg-orange-50 border border-orange-100 rounded-lg p-4">
-          <p className="text-xs font-medium text-orange-600 mb-2">AI Answer</p>
+        <div className="mt-4 bg-brand-cream border border-brand-green/15 rounded-lg p-4">
+          <p className="text-xs font-medium text-brand-green mb-2">AI Answer</p>
           <p className="text-sm text-gray-800 leading-relaxed whitespace-pre-line">{answer}</p>
         </div>
       )}

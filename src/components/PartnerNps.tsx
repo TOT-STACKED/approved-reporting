@@ -71,16 +71,16 @@ export default function PartnerNps({ data, partnerName }: { data: PartnerNpsData
 
       {/* KPI row */}
       <div className="grid grid-cols-3 gap-3 sm:gap-4 mb-5">
-        <div className="bg-indigo-50 rounded-lg p-3 sm:p-4 text-center">
+        <div className="bg-brand-cream rounded-lg p-3 sm:p-4 text-center">
           <p className={`text-2xl font-bold ${npsTone(data.nps)}`}>{data.nps ?? '—'}</p>
           <p className="text-xs text-gray-500 mt-1">NPS Score</p>
         </div>
-        <div className="bg-indigo-50 rounded-lg p-3 sm:p-4 text-center">
-          <p className="text-2xl font-bold text-indigo-600">{data.avg ?? '—'}</p>
+        <div className="bg-brand-cream rounded-lg p-3 sm:p-4 text-center">
+          <p className="text-2xl font-bold text-brand-green">{data.avg ?? '—'}</p>
           <p className="text-xs text-gray-500 mt-1">Avg / 10</p>
         </div>
-        <div className="bg-indigo-50 rounded-lg p-3 sm:p-4 text-center">
-          <p className="text-2xl font-bold text-indigo-600">{data.count}</p>
+        <div className="bg-brand-cream rounded-lg p-3 sm:p-4 text-center">
+          <p className="text-2xl font-bold text-brand-green">{data.count}</p>
           <p className="text-xs text-gray-500 mt-1">Responses</p>
         </div>
       </div>

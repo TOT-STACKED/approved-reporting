@@ -380,23 +380,23 @@ export default function SecurePartnerPage() {
           <div className="bg-white rounded-xl border border-gray-200 p-5 sm:p-6 mb-6 sm:mb-8">
             <h2 className="font-semibold text-gray-900 mb-4">StackCollect - Tech Stack Reviews</h2>
             <div className="grid grid-cols-3 gap-3 sm:gap-4 mb-5">
-              <div className="bg-indigo-50 rounded-lg p-3 sm:p-4 text-center">
-                <p className="text-xl sm:text-2xl font-bold text-indigo-600">{stackCollect.mentions}</p>
+              <div className="bg-brand-cream rounded-lg p-3 sm:p-4 text-center">
+                <p className="text-xl sm:text-2xl font-bold text-brand-green">{stackCollect.mentions}</p>
                 <p className="text-[10px] sm:text-xs text-gray-500 mt-1">Times selected</p>
               </div>
-              <div className="bg-indigo-50 rounded-lg p-3 sm:p-4 text-center">
-                <p className="text-xl sm:text-2xl font-bold text-indigo-600">{stackCollect.marketShare}%</p>
+              <div className="bg-brand-cream rounded-lg p-3 sm:p-4 text-center">
+                <p className="text-xl sm:text-2xl font-bold text-brand-green">{stackCollect.marketShare}%</p>
                 <p className="text-[10px] sm:text-xs text-gray-500 mt-1">Market share</p>
               </div>
-              <div className="bg-indigo-50 rounded-lg p-3 sm:p-4 text-center">
-                <p className="text-xl sm:text-2xl font-bold text-indigo-600">{stackCollect.totalReviews}</p>
+              <div className="bg-brand-cream rounded-lg p-3 sm:p-4 text-center">
+                <p className="text-xl sm:text-2xl font-bold text-brand-green">{stackCollect.totalReviews}</p>
                 <p className="text-[10px] sm:text-xs text-gray-500 mt-1">Total reviews</p>
               </div>
             </div>
             {stackCollect.categories.length > 0 && (
               <div className="flex flex-wrap gap-2">
                 {stackCollect.categories.map(c => (
-                  <span key={c.category} className="text-xs bg-indigo-100 text-indigo-700 px-2.5 py-1 rounded-full">
+                  <span key={c.category} className="text-xs bg-brand-sky text-brand-green px-2.5 py-1 rounded-full">
                     {c.category} ({c.count})
                   </span>
                 ))}

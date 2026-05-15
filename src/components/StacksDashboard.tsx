@@ -154,17 +154,17 @@ export default function StacksDashboard({ hideRecentReviews = false }: StacksDas
 
       {/* KPI row */}
       <div className="grid grid-cols-3 gap-3 mb-4">
-        <div className="bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-xl p-4 text-white text-center">
+        <div className="bg-brand-lavender rounded-2xl p-4 text-brand-green text-center shadow-sm">
           <p className="text-2xl sm:text-3xl font-bold">{filtered.length}</p>
-          <p className="text-xs opacity-80 mt-1">Reviews</p>
+          <p className="text-xs font-medium opacity-75 mt-1">Reviews</p>
         </div>
-        <div className="bg-gradient-to-br from-teal-500 to-teal-600 rounded-xl p-4 text-white text-center">
+        <div className="bg-brand-sky rounded-2xl p-4 text-brand-green text-center shadow-sm">
           <p className="text-2xl sm:text-3xl font-bold">{stats.totalEntries.toLocaleString()}</p>
-          <p className="text-xs opacity-80 mt-1">Tool Selections</p>
+          <p className="text-xs font-medium opacity-75 mt-1">Tool Selections</p>
         </div>
-        <div className="bg-gradient-to-br from-amber-500 to-amber-600 rounded-xl p-4 text-white text-center">
+        <div className="bg-brand-yellow rounded-2xl p-4 text-brand-green text-center shadow-sm">
           <p className="text-2xl sm:text-3xl font-bold">{stats.categories.length}</p>
-          <p className="text-xs opacity-80 mt-1">Categories</p>
+          <p className="text-xs font-medium opacity-75 mt-1">Categories</p>
         </div>
       </div>
 
@@ -189,7 +189,7 @@ export default function StacksDashboard({ hideRecentReviews = false }: StacksDas
                       </div>
                       <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
                         <div
-                          className="h-full bg-teal-500 rounded-full"
+                          className="h-full bg-brand-green rounded-full"
                           style={{ width: `${(tool.count / maxCount) * 100}%` }}
                         />
                       </div>
@@ -219,7 +219,7 @@ export default function StacksDashboard({ hideRecentReviews = false }: StacksDas
                       </div>
                       <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
                         <div
-                          className="h-full bg-purple-500 rounded-full"
+                          className="h-full bg-brand-orange rounded-full"
                           style={{ width: `${(cat.count / maxCount) * 100}%` }}
                         />
                       </div>
