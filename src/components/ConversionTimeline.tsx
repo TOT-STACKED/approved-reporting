@@ -1,5 +1,7 @@
 'use client';
 
+import { LEAD_STATUS_EXPLAINER } from '@/lib/lead-status';
+
 interface LeadStages {
   MAL?: string[];
   MQL?: string[];
@@ -101,7 +103,7 @@ export default function ConversionTimeline({
       <div className="flex items-center gap-1 sm:gap-2 overflow-x-auto">
         {/* MAL */}
         <div className="flex flex-col items-center min-w-[64px]">
-          <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gray-200 text-gray-700 flex items-center justify-center text-xs font-bold">MAL</div>
+          <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gray-200 text-gray-700 flex items-center justify-center text-xs font-bold" title={LEAD_STATUS_EXPLAINER.MAL}>MAL</div>
           <div className="text-[10px] text-gray-400 mt-1.5">Day 0</div>
           <div className="text-[10px] text-gray-500 mt-0.5">{mal} leads</div>
         </div>
@@ -117,7 +119,7 @@ export default function ConversionTimeline({
 
         {/* MQL */}
         <div className="flex flex-col items-center min-w-[64px]">
-          <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-amber-500 text-white flex items-center justify-center text-xs font-bold">MQL</div>
+          <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-amber-500 text-white flex items-center justify-center text-xs font-bold" title={LEAD_STATUS_EXPLAINER.MQL}>MQL</div>
           <div className="text-[10px] text-gray-400 mt-1.5">{tMql.median !== null ? `~${tMql.median}d total` : '—'}</div>
           <div className="text-[10px] text-gray-500 mt-0.5">{mql} leads</div>
         </div>
@@ -133,7 +135,7 @@ export default function ConversionTimeline({
 
         {/* SQL */}
         <div className="flex flex-col items-center min-w-[64px]">
-          <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-emerald-500 text-white flex items-center justify-center text-xs font-bold">SQL</div>
+          <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-emerald-500 text-white flex items-center justify-center text-xs font-bold" title={LEAD_STATUS_EXPLAINER.SQL}>SQL</div>
           <div className="text-[10px] text-gray-400 mt-1.5">{tSql.median !== null ? `~${tSql.median}d total` : '—'}</div>
           <div className="text-[10px] text-gray-500 mt-0.5">{sql} leads</div>
         </div>

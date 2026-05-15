@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
 } from 'recharts';
+import LeadStatusGlossary from '@/components/LeadStatusGlossary';
+import { LEAD_STATUS_EXPLAINER } from '@/lib/lead-status';
 
 interface CommunityData {
   leadGen: {
@@ -95,16 +97,16 @@ export default function CommunityPage() {
           </div>
         </div>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
-          <div className="bg-gradient-to-br from-blue-600 to-blue-700 rounded-xl p-4 text-white">
+          <div className="bg-gradient-to-br from-blue-600 to-blue-700 rounded-xl p-4 text-white" title={LEAD_STATUS_EXPLAINER.MAL}>
             <p className="text-2xl sm:text-3xl font-bold">{data.leadGen.malTotal.toLocaleString()}</p>
             <p className="text-xs sm:text-sm opacity-80 mt-1">MAL</p>
             <p className="text-[10px] opacity-50 mt-1">Marketing Awareness Leads</p>
           </div>
-          <div className="bg-gradient-to-br from-amber-500 to-amber-600 rounded-xl p-4 text-white">
+          <div className="bg-gradient-to-br from-amber-500 to-amber-600 rounded-xl p-4 text-white" title={LEAD_STATUS_EXPLAINER.MQL}>
             <p className="text-2xl sm:text-3xl font-bold">{data.leadGen.mqlTotal.toLocaleString()}</p>
             <p className="text-xs sm:text-sm opacity-80 mt-1">MQL</p>
           </div>
-          <div className="bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-xl p-4 text-white">
+          <div className="bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-xl p-4 text-white" title={LEAD_STATUS_EXPLAINER.SQL}>
             <p className="text-2xl sm:text-3xl font-bold">{data.leadGen.sqlTotal.toLocaleString()}</p>
             <p className="text-xs sm:text-sm opacity-80 mt-1">SQL</p>
           </div>
@@ -113,6 +115,7 @@ export default function CommunityPage() {
             <p className="text-xs sm:text-sm opacity-80 mt-1">Closed Won</p>
           </div>
         </div>
+        <LeadStatusGlossary className="mb-4" />
         <div className="grid grid-cols-2 gap-3">
           <div className="bg-white rounded-xl border border-gray-200 p-4">
             <p className="text-xs text-gray-500 uppercase tracking-wide">Last 30 days</p>

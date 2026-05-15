@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { scoreLead, PRIORITY_LABEL, PRIORITY_CLASS, type LeadPriority } from '@/lib/scoring';
 import { toCsv, downloadCsv } from '@/lib/csv';
+import LeadStatusGlossary from '@/components/LeadStatusGlossary';
+import { LEAD_STATUS_EXPLAINER } from '@/lib/lead-status';
 
 interface Lead {
   id: string;
@@ -133,6 +135,8 @@ export default function LeadsPage() {
     return colors[status] || 'bg-gray-100 text-gray-700';
   };
 
+  const STATUS_EXPLAINER: Record<string, string> = LEAD_STATUS_EXPLAINER;
+
   if (loading) {
     return <div className="flex items-center justify-center py-20 text-gray-500">Loading all leads...</div>;
   }
@@ -158,6 +162,8 @@ export default function LeadsPage() {
           ↓ Export CSV{sorted.length !== leads.length ? ` (${sorted.length})` : ''}
         </button>
       </div>
+
+      <LeadStatusGlossary className="mb-4" />
 
       {/* Filters */}
       <div className="bg-white rounded-xl border border-gray-200 p-4 mb-6">
@@ -248,7 +254,10 @@ export default function LeadsPage() {
                   <td className="py-3 px-4 font-medium text-gray-900">{lead.businessName}</td>
                   <td className="py-3 px-4">
                     {lead.status && (
-                      <span className={`inline-block text-xs px-2 py-1 rounded-full ${statusColor(lead.status)}`}>
+                      <span
+                        className={`inline-block text-xs px-2 py-1 rounded-full ${statusColor(lead.status)}`}
+                        title={STATUS_EXPLAINER[lead.status] || lead.status}
+                      >
                         {lead.status}
                       </span>
                     )}

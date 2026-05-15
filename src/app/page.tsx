@@ -3,6 +3,8 @@
 import { useEffect, useState } from 'react';
 import AskBox from '@/components/AskBox';
 import StacksDashboard from '@/components/StacksDashboard';
+import LeadStatusGlossary from '@/components/LeadStatusGlossary';
+import { LEAD_STATUS_EXPLAINER } from '@/lib/lead-status';
 import ConversionTimeline from '@/components/ConversionTimeline';
 import NpsDashboard from '@/components/NpsDashboard';
 
@@ -127,15 +129,15 @@ export default function Dashboard() {
 
       {/* Hero KPIs - Pipeline stages */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 mb-4">
-        <div className="bg-gradient-to-br from-blue-600 to-blue-700 rounded-xl p-4 sm:p-5 text-white">
+        <div className="bg-gradient-to-br from-blue-600 to-blue-700 rounded-xl p-4 sm:p-5 text-white" title={LEAD_STATUS_EXPLAINER.MAL}>
           <p className="text-2xl sm:text-3xl font-bold">{malCount}</p>
           <p className="text-xs sm:text-sm opacity-80 mt-1">MAL</p>
         </div>
-        <div className="bg-gradient-to-br from-amber-500 to-amber-600 rounded-xl p-4 sm:p-5 text-white">
+        <div className="bg-gradient-to-br from-amber-500 to-amber-600 rounded-xl p-4 sm:p-5 text-white" title={LEAD_STATUS_EXPLAINER.MQL}>
           <p className="text-2xl sm:text-3xl font-bold">{mqlCount}</p>
           <p className="text-xs sm:text-sm opacity-80 mt-1">MQL</p>
         </div>
-        <div className="bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-xl p-4 sm:p-5 text-white">
+        <div className="bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-xl p-4 sm:p-5 text-white" title={LEAD_STATUS_EXPLAINER.SQL}>
           <p className="text-2xl sm:text-3xl font-bold">{sqlCount}</p>
           <p className="text-xs sm:text-sm opacity-80 mt-1">SQL</p>
         </div>
@@ -144,6 +146,8 @@ export default function Dashboard() {
           <p className="text-xs sm:text-sm opacity-80 mt-1">Closed Won</p>
         </div>
       </div>
+
+      <LeadStatusGlossary className="mb-4" />
 
       <div className="mb-4">
         <ConversionTimeline

@@ -10,6 +10,8 @@ import ConversionTimeline from '@/components/ConversionTimeline';
 import PartnerNps, { type PartnerNpsData } from '@/components/PartnerNps';
 import StacksDashboard from '@/components/StacksDashboard';
 import AskBox from '@/components/AskBox';
+import LeadStatusGlossary from '@/components/LeadStatusGlossary';
+import { LEAD_STATUS_EXPLAINER } from '@/lib/lead-status';
 
 const STATUS_COLORS: Record<string, string> = {
   MAL: '#94a3b8',
@@ -184,12 +186,12 @@ export default function PartnerPage() {
       )}
 
       {/* KPI Cards — MQL, SQL, Closed Won + Traffic */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-        <div className="bg-gradient-to-br from-amber-500 to-amber-600 rounded-xl p-5 text-white">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+        <div className="bg-gradient-to-br from-amber-500 to-amber-600 rounded-xl p-5 text-white" title={LEAD_STATUS_EXPLAINER.MQL}>
           <p className="text-3xl font-bold">{mqlCount}</p>
           <p className="text-sm opacity-80 mt-1">MQL</p>
         </div>
-        <div className="bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-xl p-5 text-white">
+        <div className="bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-xl p-5 text-white" title={LEAD_STATUS_EXPLAINER.SQL}>
           <p className="text-3xl font-bold">{sqlCount}</p>
           <p className="text-sm opacity-80 mt-1">SQL</p>
         </div>
@@ -197,13 +199,15 @@ export default function PartnerPage() {
           <p className="text-3xl font-bold">{closedWon}</p>
           <p className="text-sm opacity-80 mt-1">Closed Won</p>
         </div>
-        <div className="bg-gradient-to-br from-blue-600 to-blue-700 rounded-xl p-5 text-white">
+        <div className="bg-gradient-to-br from-blue-600 to-blue-700 rounded-xl p-5 text-white" title={LEAD_STATUS_EXPLAINER.MAL}>
           <p className="text-3xl font-bold">{partner.leadCount}</p>
           <p className="text-sm opacity-80 mt-1">MAL</p>
           <p className="text-[10px] opacity-50 mt-0.5">Marketing Awareness Leads</p>
           <p className="text-xs opacity-60 mt-2">{partner.recentLeads.length} active last 90d</p>
         </div>
       </div>
+
+      <LeadStatusGlossary className="mb-8" />
 
       {/* Partner-scoped AI query box */}
       <AskBox partnerSlug={partner.slug} partnerName={partner.name} />

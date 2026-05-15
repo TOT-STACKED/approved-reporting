@@ -5,6 +5,8 @@ import {
   LineChart, Line, BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
 } from 'recharts';
+import LeadStatusGlossary from '@/components/LeadStatusGlossary';
+import { LEAD_STATUS_EXPLAINER, type LeadStatusCode } from '@/lib/lead-status';
 
 const COLORS = {
   orange: '#e67e22',
@@ -103,7 +105,7 @@ export default function AnalyticsPage() {
       </div>
 
       {/* Summary KPIs — match the main dashboard */}
-      <div className="grid grid-cols-3 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-3 mb-6 sm:mb-8">
+      <div className="grid grid-cols-3 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-3 mb-4">
         {[
           { label: 'MAL', value: data.summary.totalLeads.toLocaleString(), color: 'from-blue-600 to-blue-700' },
           { label: 'MQL', value: data.summary.mqlCount.toLocaleString(), color: 'from-amber-500 to-amber-600' },
@@ -111,13 +113,18 @@ export default function AnalyticsPage() {
           { label: 'Closed Won', value: data.summary.closedWon.toLocaleString(), color: 'from-purple-600 to-purple-700' },
           { label: 'Stack Reviews', value: data.summary.totalReviews.toLocaleString(), color: 'from-teal-500 to-teal-600' },
           { label: 'Tool Entries', value: data.summary.totalToolEntries.toLocaleString(), color: 'from-red-500 to-red-600' },
-        ].map(kpi => (
-          <div key={kpi.label} className={`bg-gradient-to-br ${kpi.color} rounded-xl p-3 sm:p-4 text-white text-center`}>
-            <p className="text-lg sm:text-2xl font-bold">{kpi.value}</p>
-            <p className="text-[10px] sm:text-xs opacity-80 mt-1">{kpi.label}</p>
-          </div>
-        ))}
+        ].map(kpi => {
+          const tooltip = LEAD_STATUS_EXPLAINER[kpi.label as LeadStatusCode];
+          return (
+            <div key={kpi.label} className={`bg-gradient-to-br ${kpi.color} rounded-xl p-3 sm:p-4 text-white text-center`} title={tooltip}>
+              <p className="text-lg sm:text-2xl font-bold">{kpi.value}</p>
+              <p className="text-[10px] sm:text-xs opacity-80 mt-1">{kpi.label}</p>
+            </div>
+          );
+        })}
       </div>
+
+      <LeadStatusGlossary className="mb-6 sm:mb-8" />
 
       {/* Charts Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">

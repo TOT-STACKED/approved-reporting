@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { toCsv, downloadCsv } from '@/lib/csv';
+import LeadStatusGlossary from '@/components/LeadStatusGlossary';
+import { LEAD_STATUS_EXPLAINER } from '@/lib/lead-status';
 
 interface PartnerPerformance {
   name: string;
@@ -212,13 +214,13 @@ export default function PerformancePage() {
       </div>
 
       {/* KPI strip */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 mb-6">
-        <div className="bg-gradient-to-br from-blue-600 to-blue-700 rounded-xl p-4 sm:p-5 text-white">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 mb-4">
+        <div className="bg-gradient-to-br from-blue-600 to-blue-700 rounded-xl p-4 sm:p-5 text-white" title={LEAD_STATUS_EXPLAINER.MAL}>
           <p className="text-2xl sm:text-3xl font-bold">{totalLeads.toLocaleString()}</p>
           <p className="text-xs sm:text-sm opacity-80 mt-1">MAL</p>
           <p className="text-[10px] opacity-50 mt-0.5">Marketing Awareness Leads</p>
         </div>
-        <div className="bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-xl p-4 sm:p-5 text-white">
+        <div className="bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-xl p-4 sm:p-5 text-white" title={LEAD_STATUS_EXPLAINER.SQL}>
           <p className="text-2xl sm:text-3xl font-bold">{totalSql.toLocaleString()}</p>
           <p className="text-xs sm:text-sm opacity-80 mt-1">SQLs generated</p>
         </div>
@@ -226,11 +228,13 @@ export default function PerformancePage() {
           <p className="text-2xl sm:text-3xl font-bold">{totalWon.toLocaleString()}</p>
           <p className="text-xs sm:text-sm opacity-80 mt-1">Closed Won</p>
         </div>
-        <div className="bg-gradient-to-br from-amber-500 to-amber-600 rounded-xl p-4 sm:p-5 text-white">
+        <div className="bg-gradient-to-br from-amber-500 to-amber-600 rounded-xl p-4 sm:p-5 text-white" title={LEAD_STATUS_EXPLAINER.MQL}>
           <p className="text-2xl sm:text-3xl font-bold">{visible.reduce((s, r) => s + r.mqlCount, 0).toLocaleString()}</p>
           <p className="text-xs sm:text-sm opacity-80 mt-1">MQLs in pipeline</p>
         </div>
       </div>
+
+      <LeadStatusGlossary className="mb-6" />
 
       {/* Attention legend / heat-map summary */}
       <div className="flex flex-wrap gap-2 mb-4">
@@ -258,9 +262,11 @@ export default function PerformancePage() {
                     onClick={() => toggleSort('name')}>Partner {sortIcon('name')}</th>
                 <th className="text-center py-3 px-3 font-medium text-gray-700">Attention</th>
                 <th className="text-right py-3 px-3 font-medium text-gray-700 cursor-pointer select-none"
+                    title={LEAD_STATUS_EXPLAINER.MAL}
                     onClick={() => toggleSort('leadCount')}>MAL {sortIcon('leadCount')}</th>
-                <th className="text-right py-3 px-3 font-medium text-gray-700">MQL</th>
+                <th className="text-right py-3 px-3 font-medium text-gray-700" title={LEAD_STATUS_EXPLAINER.MQL}>MQL</th>
                 <th className="text-right py-3 px-3 font-medium text-gray-700 cursor-pointer select-none"
+                    title={LEAD_STATUS_EXPLAINER.SQL}
                     onClick={() => toggleSort('sqlCount')}>SQL {sortIcon('sqlCount')}</th>
                 <th className="text-right py-3 px-3 font-medium text-gray-700 cursor-pointer select-none"
                     onClick={() => toggleSort('leadToSqlPct')}>
