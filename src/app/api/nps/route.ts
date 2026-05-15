@@ -28,8 +28,11 @@ export async function GET() {
       ? Number((all.reduce((a, b) => a + b, 0) / all.length).toFixed(1))
       : null;
 
-    // Trim to a lightweight payload for the recent-responses list.
-    const recent = clean.slice(0, 20).map(s => ({
+    // Send every row so the client can filter by period accurately. The UI
+    // caps the visible table at 20 rows separately — this just lets the
+    // period buttons and KPI cards reflect the right slice instead of always
+    // operating on the newest 20 records.
+    const recent = clean.map(s => ({
       id: s.id,
       created_at: s.created_at,
       source: s.source,
