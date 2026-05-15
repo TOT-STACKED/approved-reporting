@@ -6,7 +6,9 @@ import { SESSION_COOKIE, verifySessionToken } from '@/lib/session';
 // - /api/auth/*   : login / logout endpoints
 // - /p/<token>    : partner pages already use unguessable 16-char tokens
 // - /api/p/<token>: partner-page data endpoint, same token check applies upstream
-const PUBLIC_PREFIXES = ['/login', '/api/auth/', '/p/', '/api/p/'];
+// - /api/ask      : partner-scoped AI box lives on token-gated partner pages
+// - /api/report   : "Generate Report" button on token-gated partner pages
+const PUBLIC_PREFIXES = ['/login', '/api/auth/', '/p/', '/api/p/', '/api/ask', '/api/report'];
 
 function isPublic(pathname: string): boolean {
   return PUBLIC_PREFIXES.some((p) => pathname === p || pathname.startsWith(p));
