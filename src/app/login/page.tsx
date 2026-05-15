@@ -39,13 +39,10 @@ export default async function LoginPage({
           <img
             src="/tech-on-toast-logo.svg"
             alt="Tech on Toast"
-            className="h-24 w-auto mb-4"
+            className="h-24 w-auto mb-5"
           />
-          <p className="text-xs uppercase tracking-[0.22em] text-brand-green-soft font-semibold mb-2">
+          <h1 className="text-3xl sm:text-4xl font-bold text-brand-green leading-tight">
             Approved Partner Portal
-          </p>
-          <h1 className="text-3xl sm:text-4xl font-bold text-brand-green leading-tight max-w-2xl">
-            Tech on Toast Approved Partner Portal
           </h1>
           <p className="text-sm sm:text-base text-gray-600 mt-4 max-w-xl leading-relaxed">
             The single hub for measuring what we&apos;re doing for our approved
