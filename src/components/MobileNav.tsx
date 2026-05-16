@@ -8,6 +8,7 @@ const links = [
   { href: '/performance', label: 'Performance' },
   { href: '/community', label: 'Community' },
   { href: '/analytics', label: 'Analytics' },
+  { href: '/knowledge', label: 'Knowledge' },
 ];
 
 export default function MobileNav() {

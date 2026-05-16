@@ -13,6 +13,7 @@ const NAV_LINKS = [
   { href: '/performance', label: 'Performance' },
   { href: '/community', label: 'Community' },
   { href: '/analytics', label: 'Analytics' },
+  { href: '/knowledge', label: 'Knowledge' },
 ];
 
 function isBareRoute(pathname: string | null): boolean {
