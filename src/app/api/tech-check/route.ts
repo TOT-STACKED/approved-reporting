@@ -86,13 +86,19 @@ export async function GET() {
       }
     );
 
-    // Pin priority categories first (HR, Learning, WhatsApp / Communication),
-    // then everything else by volume. Match is case/whitespace-insensitive
-    // and accepts a few common variants.
-    const PRIORITY: string[] = ['hr', 'learning', 'whatsapp', 'comms', 'communication'];
+    // Pin the lead-gen priority cluster first: the people/team & learning
+    // categories that map to partner pitches. Everything else sorts by volume.
+    // Order here = display order at the top of the dashboard section.
+    const PRIORITY: string[] = [
+      'people management',
+      'learning & development',
+      'payroll',
+      'time & attendance',
+      'applicant tracking system',
+    ];
     const priorityRank = (cat: string) => {
       const c = cat.trim().toLowerCase();
-      const i = PRIORITY.findIndex(p => c === p || c.includes(p));
+      const i = PRIORITY.indexOf(c);
       return i === -1 ? Number.MAX_SAFE_INTEGER : i;
     };
     categories.sort((a, b) => {
