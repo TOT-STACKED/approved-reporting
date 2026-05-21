@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import AskBox from '@/components/AskBox';
 import StacksDashboard from '@/components/StacksDashboard';
+import TechCheckSummary from '@/components/TechCheckSummary';
 import LeadStatusGlossary from '@/components/LeadStatusGlossary';
 import { LEAD_STATUS_EXPLAINER } from '@/lib/lead-status';
 import ConversionTimeline from '@/components/ConversionTimeline';
@@ -313,6 +314,11 @@ export default function Dashboard() {
       {/* Stacks Section */}
       <div className="mb-8">
         <StacksDashboard />
+      </div>
+
+      {/* Tech Check Insights — answers per category, drill into venues for lead follow-up */}
+      <div className="mb-8">
+        <TechCheckSummary />
       </div>
 
       {/* NPS Section */}
