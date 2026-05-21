@@ -1,16 +1,19 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 interface Venue {
   submissionId: string;
   businessName: string;
   contactName: string | null;
   contactEmail: string;
+  phoneNumber: string | null;
   role: string | null;
   location: string | null;
   size: string | null;
   numberOfLocations: string | null;
+  industry: string | null;
+  vertical: string | null;
   biggestChallenge: string | null;
   createdAt: string;
 }
@@ -85,6 +88,12 @@ export default function TechCheckSummary() {
   const [openTool, setOpenTool] = useState<string | null>(null);
   const [openWhatsapp, setOpenWhatsapp] = useState<'yes' | 'no' | null>(null);
   const [search, setSearch] = useState('');
+  const categoryRefs = useRef<Map<string, HTMLDivElement>>(new Map());
+
+  function jumpToCategory(cat: string) {
+    const el = categoryRefs.current.get(cat);
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
 
   useEffect(() => {
     fetch('/api/tech-check')
@@ -112,7 +121,10 @@ export default function TechCheckSummary() {
                 v.businessName.toLowerCase().includes(q) ||
                 (v.location || '').toLowerCase().includes(q) ||
                 (v.contactName || '').toLowerCase().includes(q) ||
-                (v.contactEmail || '').toLowerCase().includes(q)
+                (v.contactEmail || '').toLowerCase().includes(q) ||
+                (v.phoneNumber || '').toLowerCase().includes(q) ||
+                (v.industry || '').toLowerCase().includes(q) ||
+                (v.vertical || '').toLowerCase().includes(q)
             );
             if (catMatch || toolMatch) return t; // show all venues under the matched tool
             if (venues.length > 0) return { ...t, venues, count: venues.length };
@@ -160,34 +172,36 @@ export default function TechCheckSummary() {
       tool,
       v.businessName,
       v.contactName || '',
-      v.contactEmail || '',
       v.role || '',
+      v.contactEmail || '',
+      v.phoneNumber || '',
       v.location || '',
       v.size || '',
       v.numberOfLocations || '',
+      v.industry || '',
+      v.vertical || '',
       v.biggestChallenge || '',
       v.createdAt?.slice(0, 10) || '',
     ]);
   }
 
+  const VENUE_CSV_HEADER = [
+    'Category', 'Tool', 'Business', 'Contact', 'Role', 'Email', 'Phone',
+    'Location', 'Size', 'Locations', 'Industry', 'Vertical',
+    'Biggest challenge', 'Submitted',
+  ];
+
   function exportToolCsv(category: string, tool: string, venues: Venue[]) {
-    const header = [
-      'Category', 'Tool', 'Business', 'Contact', 'Email', 'Role',
-      'Location', 'Size', 'Locations', 'Biggest challenge', 'Submitted',
-    ];
     const date = new Date().toISOString().slice(0, 10);
     const safe = (s: string) => s.replace(/[^a-z0-9]+/gi, '-');
     downloadCsv(`tech-check-${safe(category)}-${safe(tool)}-${date}.csv`, [
-      header,
+      VENUE_CSV_HEADER,
       ...venueRows(category, tool, venues),
     ]);
   }
 
   function exportCategoryCsv(c: Category) {
-    const header = [
-      'Category', 'Tool', 'Business', 'Contact', 'Email', 'Role',
-      'Location', 'Size', 'Locations', 'Biggest challenge', 'Submitted',
-    ];
+    const header = VENUE_CSV_HEADER;
     const all = c.tools.flatMap(t => venueRows(c.category, t.tool, t.venues));
     const date = new Date().toISOString().slice(0, 10);
     const safe = (s: string) => s.replace(/[^a-z0-9]+/gi, '-');
@@ -211,10 +225,27 @@ export default function TechCheckSummary() {
           type="text"
           value={search}
           onChange={e => setSearch(e.target.value)}
-          placeholder="Search venue, tool, category…"
-          className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-brand-green focus:border-brand-green sm:w-72"
+          placeholder="Search venue, tool, category, email, phone…"
+          className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-brand-green focus:border-brand-green sm:w-80"
         />
       </div>
+
+      {/* Category jump pills — quick nav to any category */}
+      {!search && data.categories.length > 4 && (
+        <div className="mb-3 flex flex-wrap gap-1.5">
+          {data.categories.map(c => (
+            <button
+              key={c.category}
+              onClick={() => jumpToCategory(c.category)}
+              className="text-[11px] px-2 py-1 rounded-full bg-white border border-gray-200 text-gray-700 hover:border-brand-green hover:text-brand-green transition-colors"
+              title={`Jump to ${c.category} (${c.totalAnswers} answers)`}
+            >
+              {c.category}
+              <span className="ml-1 text-gray-400">{c.totalAnswers}</span>
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* WhatsApp yes/no panel — pinned above the categories */}
       {data.whatsapp && data.whatsapp.totalAnswered > 0 && (() => {
@@ -324,7 +355,11 @@ export default function TechCheckSummary() {
           const visibleTools = open ? c.tools : c.tools.slice(0, 5);
           const maxCount = c.tools[0]?.count || 1;
           return (
-            <div key={c.category} className="bg-white rounded-xl border border-gray-200 p-4">
+            <div
+              key={c.category}
+              ref={el => { if (el) categoryRefs.current.set(c.category, el); else categoryRefs.current.delete(c.category); }}
+              className="bg-white rounded-xl border border-gray-200 p-4 scroll-mt-20"
+            >
               <div className="flex items-start justify-between gap-3 mb-3">
                 <div>
                   <h3 className="font-semibold text-gray-900">{c.category}</h3>
@@ -387,25 +422,40 @@ export default function TechCheckSummary() {
                               ↓ CSV
                             </button>
                           </div>
-                          <ul className="space-y-2 max-h-72 overflow-y-auto pr-1">
-                            {t.venues.map(v => (
-                              <li key={v.submissionId} className="text-xs">
-                                <div className="font-medium text-gray-900">{v.businessName}</div>
-                                <div className="text-gray-500 flex flex-wrap gap-x-3 gap-y-0.5">
-                                  {v.contactName && <span>{v.contactName}{v.role ? ` · ${v.role}` : ''}</span>}
-                                  {v.contactEmail && (
-                                    <a href={`mailto:${v.contactEmail}`} className="text-brand-green hover:text-brand-green-soft underline">
-                                      {v.contactEmail}
-                                    </a>
+                          <ul className="space-y-2.5 max-h-80 overflow-y-auto pr-1">
+                            {t.venues.map(v => {
+                              const verticalChip = v.vertical || v.industry;
+                              return (
+                                <li key={v.submissionId} className="text-xs">
+                                  <div className="flex items-baseline justify-between gap-2">
+                                    <span className="font-medium text-gray-900">{v.businessName}</span>
+                                    {verticalChip && (
+                                      <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-brand-sky/60 text-brand-green whitespace-nowrap">
+                                        {verticalChip}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <div className="text-gray-500 flex flex-wrap gap-x-3 gap-y-0.5 mt-0.5">
+                                    {v.contactName && <span>{v.contactName}{v.role ? ` · ${v.role}` : ''}</span>}
+                                    {v.contactEmail && (
+                                      <a href={`mailto:${v.contactEmail}`} className="text-brand-green hover:text-brand-green-soft underline">
+                                        {v.contactEmail}
+                                      </a>
+                                    )}
+                                    {v.phoneNumber && (
+                                      <a href={`tel:${v.phoneNumber.replace(/\s+/g, '')}`} className="text-brand-green hover:text-brand-green-soft underline">
+                                        {v.phoneNumber}
+                                      </a>
+                                    )}
+                                    {v.location && <span>{v.location}</span>}
+                                    {v.numberOfLocations && <span>{v.numberOfLocations} site{v.numberOfLocations === '1' ? '' : 's'}</span>}
+                                  </div>
+                                  {v.biggestChallenge && (
+                                    <p className="text-gray-600 mt-0.5 italic">“{v.biggestChallenge}”</p>
                                   )}
-                                  {v.location && <span>{v.location}</span>}
-                                  {v.numberOfLocations && <span>{v.numberOfLocations} site{v.numberOfLocations === '1' ? '' : 's'}</span>}
-                                </div>
-                                {v.biggestChallenge && (
-                                  <p className="text-gray-600 mt-0.5 italic">“{v.biggestChallenge}”</p>
-                                )}
-                              </li>
-                            ))}
+                                </li>
+                              );
+                            })}
                           </ul>
                         </div>
                       )}

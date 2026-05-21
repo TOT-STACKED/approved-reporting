@@ -13,10 +13,13 @@ export interface TechCheckVenue {
   businessName: string;
   contactName: string | null;
   contactEmail: string;
+  phoneNumber: string | null;
   role: string | null;
   location: string | null;
   size: string | null;
   numberOfLocations: string | null;
+  industry: string | null;
+  vertical: string | null;
   biggestChallenge: string | null;
   createdAt: string;
 }
@@ -62,10 +65,13 @@ export async function GET() {
         businessName: biz.business_name,
         contactName: biz.contact_name,
         contactEmail: biz.contact_email,
+        phoneNumber: biz.phone_number,
         role: biz.role,
         location: biz.location,
         size: biz.size,
         numberOfLocations: biz.number_of_locations,
+        industry: biz.industry,
+        vertical: biz.vertical,
         biggestChallenge: biz.biggest_challenge,
         createdAt: e.created_at,
       });

@@ -20,6 +20,7 @@ export const NAV: NavNode[] = [
     type: 'group',
     label: 'Insights',
     items: [
+      { href: '/tech-check', label: 'Tech Check' },
       { href: '/analytics', label: 'Analytics' },
       { href: '/community', label: 'Community' },
     ],
