@@ -35,14 +35,14 @@ interface WhatsAppVenue {
   id: string;
   created_at: string;
   uses_whatsapp: boolean;
-  first_name: string | null;
-  last_name: string | null;
-  email: string | null;
-  company: string | null;
-  phone_number: string | null;
+  businessName: string;
+  contactName: string | null;
+  contactEmail: string | null;
+  phoneNumber: string | null;
   location: string | null;
-  sites: string | null;
-  segment: string | null;
+  numberOfLocations: string | null;
+  vertical: string | null;
+  industry: string | null;
 }
 
 interface WhatsAppSummary {
@@ -253,17 +253,18 @@ export default function TechCheckSummary() {
         const exportWhatsappCsv = (label: 'Yes' | 'No', venues: WhatsAppVenue[]) => {
           const header = [
             'Answer', 'Business', 'Contact', 'Email', 'Phone',
-            'Location', 'Sites', 'Segment', 'Submitted',
+            'Location', 'Locations', 'Vertical', 'Industry', 'Submitted',
           ];
           const rows = venues.map(v => [
             label,
-            v.company || '',
-            [v.first_name, v.last_name].filter(Boolean).join(' '),
-            v.email || '',
-            v.phone_number || '',
+            v.businessName || '',
+            v.contactName || '',
+            v.contactEmail || '',
+            v.phoneNumber || '',
             v.location || '',
-            v.sites || '',
-            v.segment || '',
+            v.numberOfLocations || '',
+            v.vertical || '',
+            v.industry || '',
             v.created_at?.slice(0, 10) || '',
           ]);
           const date = new Date().toISOString().slice(0, 10);
@@ -305,25 +306,36 @@ export default function TechCheckSummary() {
                     </button>
                   </div>
                   <ul className="space-y-2 max-h-72 overflow-y-auto pr-1">
-                    {venues.map(v => (
-                      <li key={v.id} className="text-xs">
-                        <div className="font-medium text-gray-900">{v.company || '—'}</div>
-                        <div className="text-gray-500 flex flex-wrap gap-x-3 gap-y-0.5">
-                          {(v.first_name || v.last_name) && (
-                            <span>{[v.first_name, v.last_name].filter(Boolean).join(' ')}</span>
-                          )}
-                          {v.email && (
-                            <a href={`mailto:${v.email}`} className="text-brand-green hover:text-brand-green-soft underline">
-                              {v.email}
-                            </a>
-                          )}
-                          {v.phone_number && <span>{v.phone_number}</span>}
-                          {v.location && <span>{v.location}</span>}
-                          {v.sites && <span>{v.sites} site{v.sites === '1' ? '' : 's'}</span>}
-                          {v.segment && <span>{v.segment}</span>}
-                        </div>
-                      </li>
-                    ))}
+                    {venues.map(v => {
+                      const verticalChip = v.vertical || v.industry;
+                      return (
+                        <li key={v.id} className="text-xs">
+                          <div className="flex items-baseline justify-between gap-2">
+                            <span className="font-medium text-gray-900">{v.businessName || '—'}</span>
+                            {verticalChip && (
+                              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-white/80 text-brand-green whitespace-nowrap">
+                                {verticalChip}
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-gray-500 flex flex-wrap gap-x-3 gap-y-0.5 mt-0.5">
+                            {v.contactName && <span>{v.contactName}</span>}
+                            {v.contactEmail && (
+                              <a href={`mailto:${v.contactEmail}`} className="text-brand-green hover:text-brand-green-soft underline">
+                                {v.contactEmail}
+                              </a>
+                            )}
+                            {v.phoneNumber && (
+                              <a href={`tel:${v.phoneNumber.replace(/\s+/g, '')}`} className="text-brand-green hover:text-brand-green-soft underline">
+                                {v.phoneNumber}
+                              </a>
+                            )}
+                            {v.location && <span>{v.location}</span>}
+                            {v.numberOfLocations && <span>{v.numberOfLocations} site{v.numberOfLocations === '1' ? '' : 's'}</span>}
+                          </div>
+                        </li>
+                      );
+                    })}
                   </ul>
                 </div>
               )}

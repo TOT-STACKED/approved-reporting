@@ -33,20 +33,24 @@ async function supabaseFetchAll(table: string, params: string = '') {
   return allRows;
 }
 
-// --- WhatsApp answers (techstackreview submissions table) ---
+// --- WhatsApp answers (mirrored into business_submissions by the
+// techstackreview slack-notify edge function). The source-of-truth column
+// lives on the techstackreview project's `submissions` table, but it gets
+// copied into `business_submissions.uses_whatsapp` at insert time so the
+// portal only ever needs one Supabase connection.
 
 export interface WhatsAppResponse {
   id: string;
   created_at: string;
   uses_whatsapp: boolean;
-  first_name: string | null;
-  last_name: string | null;
-  email: string | null;
-  company: string | null;
-  phone_number: string | null;
+  businessName: string;
+  contactName: string | null;
+  contactEmail: string | null;
+  phoneNumber: string | null;
   location: string | null;
-  sites: string | null;
-  segment: string | null;
+  numberOfLocations: string | null;
+  vertical: string | null;
+  industry: string | null;
 }
 
 export interface WhatsAppSummary {
@@ -58,28 +62,27 @@ export interface WhatsAppSummary {
 }
 
 export async function getWhatsappResponses(): Promise<WhatsAppSummary> {
-  // Read directly from `submissions` (the techstackreview source-of-truth
-  // table) — `uses_whatsapp` was added there in migration 008.
   const rows: any[] = await supabaseFetchAll(
-    'submissions',
-    'select=id,created_at,uses_whatsapp,first_name,last_name,email,company,phone_number,location,sites,segment&uses_whatsapp=not.is.null&order=created_at.desc'
+    'business_submissions',
+    'select=id,created_at,uses_whatsapp,business_name,contact_name,contact_email,phone_number,location,number_of_locations,vertical,industry&uses_whatsapp=not.is.null&order=created_at.desc'
   );
 
   const yes: WhatsAppResponse[] = [];
   const no: WhatsAppResponse[] = [];
   for (const r of rows) {
+    if (isTestSubmission(r.business_name)) continue;
     const v: WhatsAppResponse = {
       id: r.id,
       created_at: r.created_at,
       uses_whatsapp: r.uses_whatsapp === true,
-      first_name: r.first_name ?? null,
-      last_name: r.last_name ?? null,
-      email: r.email ?? null,
-      company: r.company ?? null,
-      phone_number: r.phone_number ?? null,
+      businessName: r.business_name ?? '',
+      contactName: r.contact_name ?? null,
+      contactEmail: r.contact_email ?? null,
+      phoneNumber: r.phone_number ?? null,
       location: r.location ?? null,
-      sites: r.sites ?? null,
-      segment: r.segment ?? null,
+      numberOfLocations: r.number_of_locations ?? null,
+      vertical: r.vertical ?? null,
+      industry: r.industry ?? null,
     };
     (r.uses_whatsapp === true ? yes : no).push(v);
   }
