@@ -28,7 +28,30 @@ interface Category {
   tools: Tool[];
 }
 
+interface WhatsAppVenue {
+  id: string;
+  created_at: string;
+  uses_whatsapp: boolean;
+  first_name: string | null;
+  last_name: string | null;
+  email: string | null;
+  company: string | null;
+  phone_number: string | null;
+  location: string | null;
+  sites: string | null;
+  segment: string | null;
+}
+
+interface WhatsAppSummary {
+  yes: WhatsAppVenue[];
+  no: WhatsAppVenue[];
+  yesCount: number;
+  noCount: number;
+  totalAnswered: number;
+}
+
 interface TechCheckData {
+  whatsapp?: WhatsAppSummary;
   categories: Category[];
   totalAnswers: number;
   totalVenues: number;
@@ -60,6 +83,7 @@ export default function TechCheckSummary() {
   const [error, setError] = useState('');
   const [openCategory, setOpenCategory] = useState<string | null>(null);
   const [openTool, setOpenTool] = useState<string | null>(null);
+  const [openWhatsapp, setOpenWhatsapp] = useState<'yes' | 'no' | null>(null);
   const [search, setSearch] = useState('');
 
   useEffect(() => {
@@ -191,6 +215,108 @@ export default function TechCheckSummary() {
           className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-brand-green focus:border-brand-green sm:w-72"
         />
       </div>
+
+      {/* WhatsApp yes/no panel — pinned above the categories */}
+      {data.whatsapp && data.whatsapp.totalAnswered > 0 && (() => {
+        const w = data.whatsapp;
+        const exportWhatsappCsv = (label: 'Yes' | 'No', venues: WhatsAppVenue[]) => {
+          const header = [
+            'Answer', 'Business', 'Contact', 'Email', 'Phone',
+            'Location', 'Sites', 'Segment', 'Submitted',
+          ];
+          const rows = venues.map(v => [
+            label,
+            v.company || '',
+            [v.first_name, v.last_name].filter(Boolean).join(' '),
+            v.email || '',
+            v.phone_number || '',
+            v.location || '',
+            v.sites || '',
+            v.segment || '',
+            v.created_at?.slice(0, 10) || '',
+          ]);
+          const date = new Date().toISOString().slice(0, 10);
+          downloadCsv(`whatsapp-${label.toLowerCase()}-${date}.csv`, [header, ...rows]);
+        };
+
+        const Panel = ({ side, label, venues, color }: {
+          side: 'yes' | 'no'; label: string; venues: WhatsAppVenue[]; color: string;
+        }) => {
+          const open = openWhatsapp === side;
+          const pct = w.totalAnswered ? Math.round((venues.length / w.totalAnswered) * 100) : 0;
+          return (
+            <div className={`${color} rounded-xl p-4`}>
+              <button
+                onClick={() => setOpenWhatsapp(open ? null : side)}
+                className="w-full text-left"
+              >
+                <div className="flex items-baseline justify-between gap-2">
+                  <span className="text-sm font-semibold text-brand-green">{label}</span>
+                  <span className="text-[11px] text-brand-green/70">{pct}%</span>
+                </div>
+                <p className="text-3xl font-bold text-brand-green mt-1">{venues.length}</p>
+                <p className="text-[11px] text-brand-green/70 mt-0.5">
+                  {venues.length === 1 ? 'venue' : 'venues'} · {open ? 'hide' : 'show'} list
+                </p>
+              </button>
+              {open && (
+                <div className="mt-3 bg-white/60 rounded-md p-3 border border-brand-green/10">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-[11px] font-medium text-brand-green">
+                      {venues.length} {venues.length === 1 ? 'venue' : 'venues'} answered “{label}”
+                    </p>
+                    <button
+                      onClick={() => exportWhatsappCsv(label as 'Yes' | 'No', venues)}
+                      className="text-[11px] text-gray-500 hover:text-brand-green"
+                      title={`Export these ${venues.length} venues as CSV`}
+                    >
+                      ↓ CSV
+                    </button>
+                  </div>
+                  <ul className="space-y-2 max-h-72 overflow-y-auto pr-1">
+                    {venues.map(v => (
+                      <li key={v.id} className="text-xs">
+                        <div className="font-medium text-gray-900">{v.company || '—'}</div>
+                        <div className="text-gray-500 flex flex-wrap gap-x-3 gap-y-0.5">
+                          {(v.first_name || v.last_name) && (
+                            <span>{[v.first_name, v.last_name].filter(Boolean).join(' ')}</span>
+                          )}
+                          {v.email && (
+                            <a href={`mailto:${v.email}`} className="text-brand-green hover:text-brand-green-soft underline">
+                              {v.email}
+                            </a>
+                          )}
+                          {v.phone_number && <span>{v.phone_number}</span>}
+                          {v.location && <span>{v.location}</span>}
+                          {v.sites && <span>{v.sites} site{v.sites === '1' ? '' : 's'}</span>}
+                          {v.segment && <span>{v.segment}</span>}
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          );
+        };
+
+        return (
+          <div className="bg-white rounded-xl border border-gray-200 p-4 mb-3">
+            <div className="mb-3">
+              <h3 className="font-semibold text-gray-900">WhatsApp for team comms</h3>
+              <p className="text-[11px] text-gray-500">
+                Yes vs no — click either to see the venue list (= leads for comms-tool pitches).
+                {' '}
+                <span className="text-gray-400">({w.totalAnswered} answered)</span>
+              </p>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <Panel side="yes" label="Yes" venues={w.yes} color="bg-brand-lime/30" />
+              <Panel side="no" label="No" venues={w.no} color="bg-brand-sky" />
+            </div>
+          </div>
+        );
+      })()}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         {filtered.map(c => {

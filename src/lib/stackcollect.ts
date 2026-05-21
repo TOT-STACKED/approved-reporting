@@ -33,6 +33,65 @@ async function supabaseFetchAll(table: string, params: string = '') {
   return allRows;
 }
 
+// --- WhatsApp answers (techstackreview submissions table) ---
+
+export interface WhatsAppResponse {
+  id: string;
+  created_at: string;
+  uses_whatsapp: boolean;
+  first_name: string | null;
+  last_name: string | null;
+  email: string | null;
+  company: string | null;
+  phone_number: string | null;
+  location: string | null;
+  sites: string | null;
+  segment: string | null;
+}
+
+export interface WhatsAppSummary {
+  yes: WhatsAppResponse[];
+  no: WhatsAppResponse[];
+  yesCount: number;
+  noCount: number;
+  totalAnswered: number;
+}
+
+export async function getWhatsappResponses(): Promise<WhatsAppSummary> {
+  // Read directly from `submissions` (the techstackreview source-of-truth
+  // table) — `uses_whatsapp` was added there in migration 008.
+  const rows: any[] = await supabaseFetchAll(
+    'submissions',
+    'select=id,created_at,uses_whatsapp,first_name,last_name,email,company,phone_number,location,sites,segment&uses_whatsapp=not.is.null&order=created_at.desc'
+  );
+
+  const yes: WhatsAppResponse[] = [];
+  const no: WhatsAppResponse[] = [];
+  for (const r of rows) {
+    const v: WhatsAppResponse = {
+      id: r.id,
+      created_at: r.created_at,
+      uses_whatsapp: r.uses_whatsapp === true,
+      first_name: r.first_name ?? null,
+      last_name: r.last_name ?? null,
+      email: r.email ?? null,
+      company: r.company ?? null,
+      phone_number: r.phone_number ?? null,
+      location: r.location ?? null,
+      sites: r.sites ?? null,
+      segment: r.segment ?? null,
+    };
+    (r.uses_whatsapp === true ? yes : no).push(v);
+  }
+  return {
+    yes,
+    no,
+    yesCount: yes.length,
+    noCount: no.length,
+    totalAnswered: yes.length + no.length,
+  };
+}
+
 // --- Types ---
 
 export interface TechStackEntry {
