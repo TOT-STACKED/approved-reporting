@@ -248,7 +248,7 @@ export default function TechCheckSummary() {
       )}
 
       {/* WhatsApp yes/no panel — pinned above the categories */}
-      {data.whatsapp && data.whatsapp.totalAnswered > 0 && (() => {
+      {data.whatsapp && (() => {
         const w = data.whatsapp;
         const exportWhatsappCsv = (label: 'Yes' | 'No', venues: WhatsAppVenue[]) => {
           const header = [
@@ -345,6 +345,13 @@ export default function TechCheckSummary() {
               <Panel side="yes" label="Yes" venues={w.yes} color="bg-brand-lime/30" />
               <Panel side="no" label="No" venues={w.no} color="bg-brand-sky" />
             </div>
+            {w.totalAnswered === 0 && (
+              <p className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-3 py-2 mt-3">
+                No answers showing yet. If you know venues have answered this on the tech review,
+                the portal likely can&apos;t read the <code>submissions</code> table — RLS in
+                Supabase may need a SELECT policy for it (same fix we did for the other reporting tables).
+              </p>
+            )}
           </div>
         );
       })()}
