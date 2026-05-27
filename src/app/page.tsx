@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import AskBox from '@/components/AskBox';
 import StacksDashboard from '@/components/StacksDashboard';
 import SosLeagueTable from '@/components/SosLeagueTable';
+import PartnerHeatMap from '@/components/PartnerHeatMap';
 import LeadStatusGlossary from '@/components/LeadStatusGlossary';
 import { LEAD_STATUS_EXPLAINER } from '@/lib/lead-status';
 import ConversionTimeline from '@/components/ConversionTimeline';
@@ -371,6 +372,11 @@ export default function Dashboard() {
           )}
         </div>
       )}
+
+      {/* Partner health heat map — green/amber/red by lead activity */}
+      <div className="mt-10">
+        <PartnerHeatMap />
+      </div>
     </div>
   );
 }
