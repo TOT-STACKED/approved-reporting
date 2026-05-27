@@ -43,5 +43,7 @@ redeploy, then add a row here.
 | Toast | `toast` | https://approvedreporting.netlify.app/p/aad7a4555fcb298c |
 | Monotree | `monotree` | https://approvedreporting.netlify.app/p/19275b94bf9e68bb |
 | Rye Energy | `rye-energy` | https://approvedreporting.netlify.app/p/549eb735b4754e83 |
+| Stream | `stream` | https://approvedreporting.netlify.app/p/18182c4eb3b5bf9d |
+| Zenzap | `zenzap` | https://approvedreporting.netlify.app/p/17e1a852064fb790 |
 
-_27 partners. Last updated: 2026-05-15 (added Rye Energy)._
+_29 partners. Last updated: 2026-05-18 (added Stream, Zenzap)._
