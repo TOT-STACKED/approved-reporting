@@ -96,61 +96,89 @@ export async function POST(request: Request) {
       });
     });
 
-    // Slim lead representation — keep only fields the AI actually needs
-    const slimLeads = leads.map((l: any) => ({
-      name: l.businessName,
-      status: l.status,
-      ...(scopedPartner ? {} : { partners: l.partners }),
-      source: l.source,
-      location: l.location,
-      lastModified: l.lastModified ? l.lastModified.split('T')[0] : '',
-    }));
+    // Slim lead representation — keep only fields the AI actually needs.
+    // Sort so that, if we have to trim to fit the token budget, we keep the
+    // most useful leads: active pipeline stages first, then most recent.
+    const STAGE_RANK: Record<string, number> = {
+      'Closed Won': 0, SQL: 1, MQL: 2, 'Closed Lost': 3, MAL: 4,
+    };
+    const slimLeads = leads
+      .slice()
+      .sort((a: any, b: any) => {
+        const ra = STAGE_RANK[a.status] ?? 5;
+        const rb = STAGE_RANK[b.status] ?? 5;
+        if (ra !== rb) return ra - rb;
+        return (b.lastModified || '').localeCompare(a.lastModified || '');
+      })
+      .map((l: any) => ({
+        name: l.businessName,
+        status: l.status,
+        ...(scopedPartner ? {} : { partners: l.partners }),
+        source: l.source,
+        location: l.location,
+        lastModified: l.lastModified ? l.lastModified.split('T')[0] : '',
+      }));
 
-    const dataContext = JSON.stringify({
-      // Only include the partner roster when NOT scoped (saves tokens)
-      ...(scopedPartner ? {} : {
-        partners: partners.map(p => ({
-          name: p.name,
-          leadCount: p.leadCount,
-          statusBreakdown: p.statusBreakdown,
+    // GPT-4o-mini caps at 128k tokens. Keep the data context well under that
+    // (the system-prompt wrapper, the question and the response also count).
+    // Rough heuristic: ~4 chars per token. Trim the leads array — by far the
+    // biggest contributor — until the serialised context fits.
+    const MAX_CONTEXT_CHARS = 90_000 * 4; // ~90k tokens of data
+
+    const buildContext = (leadSlice: typeof slimLeads) =>
+      JSON.stringify({
+        ...(scopedPartner ? {} : {
+          partners: partners.map(p => ({
+            name: p.name,
+            leadCount: p.leadCount,
+            statusBreakdown: p.statusBreakdown,
+          })),
+          overallStatusTotals: allStatuses,
+          totalPartners: partners.length,
+        }),
+        ...(scopedPartner ? {
+          scopedPartner: scopedPartner.name,
+          partnerLeadCount: leads.length,
+        } : {}),
+        leads: leadSlice,
+        totalLeads: leads.length,
+        ...(leadSlice.length < slimLeads.length
+          ? { leadsNote: `Showing the ${leadSlice.length} highest-priority leads of ${leads.length} total (trimmed to fit). Counts/totals above still reflect ALL leads.` }
+          : {}),
+        stackCollect: {
+          totalReviews: stackReviews.length,
+          totalToolEntries: stackEntries.length,
+          topTools: stackTopTools.slice(0, 15),
+          categories: stackCategories.slice(0, 15),
+        },
+        ...(scopedPartner ? {} : {
+          recentSubmissions: businesses.slice(0, 50).map((b: any) => ({
+            name: b.business_name,
+            industry: b.industry,
+            location: b.location,
+            locations: b.number_of_locations,
+            date: b.created_at?.split('T')[0],
+          })),
+          totalBusinessSubmissions: businesses.length,
+        }),
+        toolUsageAnalytics: toolUsage.slice(0, 20).map((t: any) => ({
+          tool: t.tool_name,
+          category: t.category,
+          usageCount: t.usage_count,
         })),
-        overallStatusTotals: allStatuses,
-        totalPartners: partners.length,
-      }),
-      ...(scopedPartner ? {
-        scopedPartner: scopedPartner.name,
-        partnerLeadCount: leads.length,
-      } : {}),
-      leads: slimLeads,
-      totalLeads: leads.length,
-      stackCollect: {
-        totalReviews: stackReviews.length,
-        totalToolEntries: stackEntries.length,
-        topTools: stackTopTools.slice(0, 15),
-        categories: stackCategories.slice(0, 15),
-      },
-      // Only include detailed business submissions for global queries
-      ...(scopedPartner ? {} : {
-        recentSubmissions: businesses.slice(0, 50).map((b: any) => ({
-          name: b.business_name,
-          industry: b.industry,
-          location: b.location,
-          locations: b.number_of_locations,
-          date: b.created_at?.split('T')[0],
+        posMarketShare: posMarketShare.map((p: any) => ({
+          tool: p.tool_name,
+          usageCount: p.usage_count,
+          marketShare: p.market_share_percentage,
         })),
-        totalBusinessSubmissions: businesses.length,
-      }),
-      toolUsageAnalytics: toolUsage.slice(0, 20).map((t: any) => ({
-        tool: t.tool_name,
-        category: t.category,
-        usageCount: t.usage_count,
-      })),
-      posMarketShare: posMarketShare.map((p: any) => ({
-        tool: p.tool_name,
-        usageCount: p.usage_count,
-        marketShare: p.market_share_percentage,
-      })),
-    });
+      });
+
+    let leadCap = slimLeads.length;
+    let dataContext = buildContext(slimLeads);
+    while (dataContext.length > MAX_CONTEXT_CHARS && leadCap > 50) {
+      leadCap = Math.floor(leadCap * 0.7);
+      dataContext = buildContext(slimLeads.slice(0, leadCap));
+    }
 
     const completion = await getOpenAI().chat.completions.create({
       model: 'gpt-4o-mini',
