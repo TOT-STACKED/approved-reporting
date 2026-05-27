@@ -45,7 +45,12 @@ function daysLabel(d: number | null): string {
   return `${Math.round(d / 365)}y ago`;
 }
 
-export default function PartnerHeatMap() {
+interface PartnerHeatMapProps {
+  hiddenSlugs?: string[];
+  onHide?: (slug: string) => void;
+}
+
+export default function PartnerHeatMap({ hiddenSlugs = [], onHide }: PartnerHeatMapProps = {}) {
   const [rows, setRows] = useState<PerfRow[] | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -57,8 +62,12 @@ export default function PartnerHeatMap() {
       .finally(() => setLoading(false));
   }, []);
 
+  const hidden = useMemo(() => new Set(hiddenSlugs), [hiddenSlugs]);
+
   const { sorted, counts } = useMemo(() => {
-    const withHealth = (rows || []).map(r => ({ ...r, health: healthOf(r) }));
+    const withHealth = (rows || [])
+      .filter(r => !hidden.has(r.slug))
+      .map(r => ({ ...r, health: healthOf(r) }));
     const sorted = withHealth.sort((a, b) => {
       const o = ORDER[a.health] - ORDER[b.health];
       if (o !== 0) return o;
@@ -67,7 +76,7 @@ export default function PartnerHeatMap() {
     const counts: Record<Health, number> = { healthy: 0, watch: 0, urgent: 0, quiet: 0 };
     for (const r of withHealth) counts[r.health]++;
     return { sorted, counts };
-  }, [rows]);
+  }, [rows, hidden]);
 
   if (loading) {
     return (
@@ -102,23 +111,36 @@ export default function PartnerHeatMap() {
         {sorted.map(r => {
           const s = STYLE[r.health];
           return (
-            <a
+            <div
               key={r.slug || r.name}
-              href={`/partners/${r.slug}`}
-              className={`block rounded-xl border p-3 transition-shadow hover:shadow-sm ${s.tile}`}
+              className={`relative rounded-xl border p-3 transition-shadow hover:shadow-sm group ${s.tile}`}
               title={`${r.name} — ${s.label}`}
             >
-              <div className="flex items-start justify-between gap-2">
-                <span className="text-sm font-semibold text-gray-900 truncate">{r.name}</span>
-                <span className={`w-2.5 h-2.5 rounded-full shrink-0 mt-1 ${s.dot}`} />
-              </div>
-              <div className="text-[11px] text-gray-600 mt-1.5">
-                {r.mqlCount} MQL · {r.sqlCount} SQL
-              </div>
-              <div className="text-[10px] text-gray-400 mt-0.5">
-                last lead {daysLabel(r.daysSinceLastLead)}
-              </div>
-            </a>
+              {onHide && r.slug && (
+                <button
+                  onClick={(e) => { e.preventDefault(); onHide(r.slug); }}
+                  className="absolute top-2 right-2 text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                  title="Hide partner"
+                  aria-label={`Hide ${r.name}`}
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              )}
+              <a href={`/partners/${r.slug}`} className="block">
+                <div className="flex items-start justify-between gap-2 pr-4">
+                  <span className="text-sm font-semibold text-gray-900 truncate">{r.name}</span>
+                  <span className={`w-2.5 h-2.5 rounded-full shrink-0 mt-1 ${s.dot}`} />
+                </div>
+                <div className="text-[11px] text-gray-600 mt-1.5">
+                  {r.mqlCount} MQL · {r.sqlCount} SQL
+                </div>
+                <div className="text-[10px] text-gray-400 mt-0.5">
+                  last lead {daysLabel(r.daysSinceLastLead)}
+                </div>
+              </a>
+            </div>
           );
         })}
       </div>

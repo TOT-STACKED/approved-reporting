@@ -72,7 +72,6 @@ export default function Dashboard() {
     });
   };
 
-  const visiblePartners = partners.filter(p => !hiddenPartners.includes(p.slug));
   const hiddenList = partners.filter(p => hiddenPartners.includes(p.slug));
 
   const totalLeads = allLeads.length;
@@ -296,50 +295,8 @@ export default function Dashboard() {
         <SosLeagueTable />
       </div>
 
-      {/* Partner Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {visiblePartners.map(partner => {
-          // Show top 2 non-N/A statuses dynamically
-          const partnerStatuses = Object.entries(partner.statusBreakdown)
-            .map(([s, c]) => [s.trim(), c] as [string, number])
-            .filter(([s]) => s && s !== 'N/A' && s !== 'Closed Lost')
-            .sort(([, a], [, b]) => b - a);
-
-          return (
-            <div key={partner.slug} className="bg-white rounded-xl border border-gray-200 p-5 hover:border-orange-300 hover:shadow-md transition-all group relative">
-              <button
-                onClick={() => toggleHide(partner.slug)}
-                className="absolute top-3 right-3 text-gray-300 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100"
-                title="Hide partner"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L6.05 6.05m3.828 3.828L6.05 6.05M6.05 6.05l-3 -3m14.95 14.95L21 21" />
-                </svg>
-              </button>
-              <a href={`/partners/${partner.slug}`}>
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="font-semibold text-gray-900 group-hover:text-brand-green transition-colors">
-                    {partner.name}
-                  </h3>
-                  <span className="text-xs text-gray-400 group-hover:text-orange-400 mr-5">View &rarr;</span>
-                </div>
-                <div className="flex items-center gap-5">
-                  <div>
-                    <p className="text-2xl font-bold text-blue-600">{partner.leadCount}</p>
-                    <p className="text-xs text-gray-500">leads</p>
-                  </div>
-                  {partnerStatuses.slice(0, 2).map(([status, count]) => (
-                    <div key={status}>
-                      <p className="text-lg font-bold text-gray-700">{count}</p>
-                      <p className="text-xs text-gray-500">{status}</p>
-                    </div>
-                  ))}
-                </div>
-              </a>
-            </div>
-          );
-        })}
-      </div>
+      {/* Partner health heat map — replaces the old white partner tiles */}
+      <PartnerHeatMap hiddenSlugs={hiddenPartners} onHide={toggleHide} />
 
       {/* Hidden Partners */}
       {hiddenList.length > 0 && (
@@ -372,11 +329,6 @@ export default function Dashboard() {
           )}
         </div>
       )}
-
-      {/* Partner health heat map — green/amber/red by lead activity */}
-      <div className="mt-10">
-        <PartnerHeatMap />
-      </div>
     </div>
   );
 }
