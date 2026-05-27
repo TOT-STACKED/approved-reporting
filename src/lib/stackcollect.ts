@@ -264,16 +264,23 @@ export async function getNpsScores(params: { source?: NpsScore['source']; limit?
 }
 
 // Roll scores up per vendor into NPS (%promoters − %detractors × 100).
+// Grouping is case/whitespace-insensitive so "Dojo", "dojo" and "DOJO " all
+// fold into one vendor. The display name uses the most common original casing.
 export function rollupNpsByVendor(scores: NpsScore[]): NpsVendorRollup[] {
-  const byVendor = new Map<string, number[]>();
+  const byVendor = new Map<string, { casings: Map<string, number>; scores: number[] }>();
   for (const s of scores) {
-    const v = (s.vendor ?? '').trim();
-    if (!v) continue;
-    if (!byVendor.has(v)) byVendor.set(v, []);
-    byVendor.get(v)!.push(s.score);
+    const raw = (s.vendor ?? '').trim();
+    if (!raw) continue;
+    const key = raw.toLowerCase();
+    if (!byVendor.has(key)) byVendor.set(key, { casings: new Map(), scores: [] });
+    const entry = byVendor.get(key)!;
+    entry.scores.push(s.score);
+    entry.casings.set(raw, (entry.casings.get(raw) || 0) + 1);
   }
-  return Array.from(byVendor.entries())
-    .map(([vendor, arr]) => {
+  return Array.from(byVendor.values())
+    .map(({ casings, scores: arr }) => {
+      // Pick the most frequently seen original casing as the display name.
+      const vendor = Array.from(casings.entries()).sort((a, b) => b[1] - a[1])[0][0];
       const promoters  = arr.filter(s => s >= 9).length;
       const passives   = arr.filter(s => s === 7 || s === 8).length;
       const detractors = arr.filter(s => s <= 6).length;
