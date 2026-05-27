@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import OpenAI from 'openai';
 import { getPartnerList } from '@/lib/airtable';
 import { getAllLeads } from '@/lib/leads';
-import { getTechStackEntries, getBusinessSubmissions, getToolUsageStats, getPOSMarketShare } from '@/lib/stackcollect';
+import { getTechStackEntries, getBusinessSubmissions, getToolUsageStats, getPOSMarketShare, getNpsScores, rollupNpsByVendor, matchTermsForPartner } from '@/lib/stackcollect';
 
 // Lazy-init so a missing/misconfigured OPENAI_API_KEY surfaces as a clean
 // JSON error from the handler rather than crashing the whole route module on
@@ -26,13 +26,14 @@ export async function POST(request: Request) {
     }
 
     // Fetch all portal data in parallel (including individual leads + stack data)
-    const [partners, allLeadsRaw, stackEntries, businesses, toolUsage, posMarketShare] = await Promise.all([
+    const [partners, allLeadsRaw, stackEntries, businesses, toolUsage, posMarketShare, npsScores] = await Promise.all([
       getPartnerList(),
       getAllLeads(),
       getTechStackEntries(),
       getBusinessSubmissions(),
       getToolUsageStats(),
       getPOSMarketShare(),
+      getNpsScores(),
     ]);
 
     // Resolve partner from slug (if provided) — used to scope answers
@@ -119,6 +120,25 @@ export async function POST(request: Request) {
         lastModified: l.lastModified ? l.lastModified.split('T')[0] : '',
       }));
 
+    // NPS — compact per-vendor rollup (one row per vendor, cheap on tokens).
+    // When scoped to a partner, only include that partner's vendor(s).
+    const allVendorNps = rollupNpsByVendor(npsScores);
+    const npsForContext = scopedPartner
+      ? (() => {
+          const terms = matchTermsForPartner(scopedPartner.name).map(t => t.toLowerCase());
+          return allVendorNps.filter(v => {
+            const vn = v.vendor.toLowerCase();
+            return terms.some(t => vn.includes(t) || t.includes(vn));
+          });
+        })()
+      : allVendorNps;
+    const npsScoreVals = npsScores.map(s => s.score);
+    const overallPromoters = npsScoreVals.filter(s => s >= 9).length;
+    const overallDetractors = npsScoreVals.filter(s => s <= 6).length;
+    const overallNps = npsScoreVals.length
+      ? Math.round(((overallPromoters - overallDetractors) / npsScoreVals.length) * 100)
+      : null;
+
     // GPT-4o-mini caps at 128k tokens. Keep the data context well under that
     // (the system-prompt wrapper, the question and the response also count).
     // Rough heuristic: ~4 chars per token. Trim the leads array — by far the
@@ -150,6 +170,14 @@ export async function POST(request: Request) {
           totalToolEntries: stackEntries.length,
           topTools: stackTopTools.slice(0, 15),
           categories: stackCategories.slice(0, 15),
+        },
+        nps: {
+          ...(scopedPartner ? {} : { overall: overallNps }),
+          totalResponses: scopedPartner
+            ? npsForContext.reduce((s, v) => s + v.count, 0)
+            : npsScores.length,
+          // Per-vendor: nps is -100..100, avg is mean score /10, count is #responses
+          byVendor: npsForContext,
         },
         ...(scopedPartner ? {} : {
           recentSubmissions: businesses.slice(0, 50).map((b: any) => ({
@@ -194,6 +222,8 @@ Be concise, specific, and use actual numbers from the data. Use bullet points fo
 
 Pipeline stages: MAL → MQL → SQL → Closed Won / Closed Lost.
 
+The data also includes ${scopedPartner.name}'s NPS under "nps": byVendor lists each matching vendor with nps (-100 to 100), avg (mean score out of 10), and count (number of responses). When asked about NPS, quote the nps value and the response count.
+
 Here is ${scopedPartner.name}'s lead data and the marketplace context:
 ${dataContext}`
             : `You are a helpful data assistant for Tech on Toast, a hospitality tech community. You answer questions about partner performance, leads, marketing activities, and metrics based on the data provided.
@@ -207,6 +237,8 @@ Lead statuses in the pipeline: MAL (Marketing Accepted Lead) → MQL → SQL →
 "Partners" are the tech companies (e.g. Lightspeed, Sona, Square). "Leads" are the hospitality businesses/restaurants/clients being referred to those partners.
 
 The data also includes StackCollect tech stack review data. Each "review" or "stack" is a submission from a hospitality venue showing which tech tools they use. The businessSubmissions array contains every venue that submitted a review — with their business name, industry, location, size, and number of locations. You can answer questions about specific venues, the most popular tools, POS market share, categories, and review counts. The toolUsageAnalytics and posMarketShare arrays contain pre-aggregated usage statistics.
+
+The "nps" object holds Net Promoter Score data: "overall" is the blended NPS across all touchpoints, "totalResponses" the response count, and "byVendor" lists each product/vendor with its nps (-100 to 100), avg (mean score out of 10), and count (number of responses). When asked something like "what is <vendor>'s NPS?", find that vendor in nps.byVendor and quote its nps value and response count. If a vendor isn't listed, say there are no NPS responses for it yet.
 
 Here is the current portal data:
 ${dataContext}`,
