@@ -112,6 +112,7 @@ export default function NpsDashboard() {
   const [loading, setLoading] = useState(true);
   const [period, setPeriod] = useState<Period>('month');
   const [source, setSource] = useState<SourceFilter>('all');
+  const [showRecent, setShowRecent] = useState(false);
 
   useEffect(() => {
     fetch('/api/nps')
@@ -292,14 +293,27 @@ export default function NpsDashboard() {
         </div>
       </div>
 
-      {/* Recent responses */}
+      {/* Recent responses — collapsed by default; the detail isn't needed unless you look */}
       {filteredRecent.length > 0 && (
         <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-5 mt-4">
-          <h3 className="text-sm font-semibold text-gray-700 mb-3">
-            Recent Responses
-            <span className="text-xs font-normal text-gray-400 ml-2">({filteredRecent.length})</span>
-          </h3>
-          <div className="overflow-x-auto -mx-4 sm:-mx-5">
+          <button
+            onClick={() => setShowRecent(s => !s)}
+            className="w-full flex items-center justify-between text-left"
+            aria-expanded={showRecent}
+          >
+            <h3 className="text-sm font-semibold text-gray-700">
+              Recent Responses
+              <span className="text-xs font-normal text-gray-400 ml-2">({filteredRecent.length})</span>
+            </h3>
+            <span className="text-xs text-gray-500 flex items-center gap-1">
+              {showRecent ? 'Hide' : 'Show latest 10'}
+              <svg className={`w-3.5 h-3.5 transition-transform ${showRecent ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
+              </svg>
+            </span>
+          </button>
+          {showRecent && (
+          <div className="overflow-x-auto -mx-4 sm:-mx-5 mt-3">
             <table className="w-full text-xs min-w-[640px]">
               <thead>
                 <tr className="border-b border-gray-100">
@@ -312,7 +326,7 @@ export default function NpsDashboard() {
                 </tr>
               </thead>
               <tbody>
-                {filteredRecent.slice(0, 20).map(r => {
+                {filteredRecent.slice(0, 10).map(r => {
                   const tone = r.score >= 9 ? 'bg-emerald-100 text-emerald-700'
                              : r.score >= 7 ? 'bg-amber-100 text-amber-700'
                              : 'bg-rose-100 text-rose-700';
@@ -336,6 +350,7 @@ export default function NpsDashboard() {
               </tbody>
             </table>
           </div>
+          )}
         </div>
       )}
     </div>

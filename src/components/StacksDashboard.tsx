@@ -91,6 +91,7 @@ export default function StacksDashboard({ hideRecentReviews = false }: StacksDas
   const [period, setPeriod] = useState<Period>('all');
   const [loading, setLoading] = useState(true);
   const [followedUp, setFollowedUp] = useState<Record<string, boolean>>({});
+  const [showReviews, setShowReviews] = useState(false);
 
   useEffect(() => {
     fetch('/api/stacks')
@@ -234,12 +235,16 @@ export default function StacksDashboard({ hideRecentReviews = false }: StacksDas
 
       {/* Recent Reviews */}
       {!hideRecentReviews && filtered.length > 0 && (() => {
-        const slice = filtered.slice(0, 20);
+        const slice = filtered.slice(0, 10);
         const followedUpInView = slice.filter(r => followedUp[r.id]).length;
         const pending = slice.length - followedUpInView;
         return (
           <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-5 mt-4">
-            <h3 className="text-sm font-semibold text-gray-700 mb-3 flex flex-wrap items-center gap-2">
+            <button
+              onClick={() => setShowReviews(s => !s)}
+              className="w-full text-sm font-semibold text-gray-700 flex flex-wrap items-center gap-2 text-left"
+              aria-expanded={showReviews}
+            >
               Recent Reviews
               <span className="text-xs font-normal text-gray-400">({filtered.length} total)</span>
               <span className="ml-auto inline-flex items-center gap-2">
@@ -251,9 +256,16 @@ export default function StacksDashboard({ hideRecentReviews = false }: StacksDas
                 <span className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 bg-emerald-50 text-emerald-700 rounded-full">
                   ✓ {followedUpInView} done
                 </span>
+                <span className="text-xs text-gray-500 inline-flex items-center gap-1">
+                  {showReviews ? 'Hide' : 'Show latest 10'}
+                  <svg className={`w-3.5 h-3.5 transition-transform ${showReviews ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </span>
               </span>
-            </h3>
-            <div className="overflow-x-auto -mx-4 sm:-mx-5">
+            </button>
+            {showReviews && (
+            <div className="overflow-x-auto -mx-4 sm:-mx-5 mt-3">
               <table className="w-full text-xs min-w-[700px]">
                 <thead>
                   <tr className="border-b border-gray-100">
@@ -307,6 +319,7 @@ export default function StacksDashboard({ hideRecentReviews = false }: StacksDas
                 </tbody>
               </table>
             </div>
+            )}
           </div>
         );
       })()}
