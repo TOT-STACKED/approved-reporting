@@ -18,7 +18,7 @@ interface VendorRollup {
   detractors: number;
 }
 
-const MIN_RESPONSES = 5;
+const MIN_RESPONSES = 2;
 
 function sosFromAvg(avg: number): number {
   return Math.round((avg / 2) * 10) / 10; // one decimal, 0–5
