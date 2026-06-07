@@ -467,7 +467,7 @@ export default function SecurePartnerPage() {
                     <th className="text-left py-3 px-3 text-gray-500 font-medium">Business</th>
                     <th className="text-left py-3 px-3 text-gray-500 font-medium">Status</th>
                     <th className="text-left py-3 px-3 text-gray-500 font-medium">Source</th>
-                    <th className="text-left py-3 px-3 text-gray-500 font-medium">Last Modified</th>
+                    <th className="text-left py-3 px-3 text-gray-500 font-medium">Date Added</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -476,7 +476,7 @@ export default function SecurePartnerPage() {
                       const s = (l.status || '').trim().toLowerCase();
                       return s === 'mql' || s === 'sql';
                     })
-                    .sort((a, b) => (b.lastModified || '').localeCompare(a.lastModified || ''))
+                    .sort((a, b) => (b.date || '').localeCompare(a.date || ''))
                     .slice(0, 20)
                     .map(lead => (
                     <tr key={lead.id} className="border-b border-gray-100">
@@ -485,7 +485,7 @@ export default function SecurePartnerPage() {
                         <span className="inline-block bg-gray-100 text-gray-700 text-xs px-2 py-1 rounded-full">{lead.status}</span>
                       </td>
                       <td className="py-3 px-3 text-gray-600">{lead.source}</td>
-                      <td className="py-3 px-3 text-gray-600">{lead.lastModified?.split('T')[0] || 'N/A'}</td>
+                      <td className="py-3 px-3 text-gray-600">{lead.date?.split('T')[0] || 'N/A'}</td>
                     </tr>
                   ))}
                 </tbody>

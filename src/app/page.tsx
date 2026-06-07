@@ -194,8 +194,8 @@ export default function Dashboard() {
       <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-5 mb-8">
         <div className="flex items-center justify-between mb-3">
           <div>
-            <h2 className="text-sm font-semibold text-gray-700">Recently Active Leads</h2>
-            <p className="text-[11px] text-gray-400 mt-0.5">Most recently updated MQL and SQL leads (max 20)</p>
+            <h2 className="text-sm font-semibold text-gray-700">Recently Added Leads</h2>
+            <p className="text-[11px] text-gray-400 mt-0.5">Newest MQL and SQL leads by date added (max 20)</p>
           </div>
         </div>
         {(() => {
@@ -204,7 +204,7 @@ export default function Dashboard() {
               const s = (l.status || '').trim().toLowerCase();
               return s === 'mql' || s === 'sql';
             })
-            .sort((a, b) => (b.lastModified || '').localeCompare(a.lastModified || ''))
+            .sort((a, b) => (b.date || '').localeCompare(a.date || ''))
             .slice(0, 20);
 
           if (filtered.length === 0) {
@@ -220,7 +220,7 @@ export default function Dashboard() {
                     <th className="text-left py-2 px-3 text-gray-500 font-medium">Status</th>
                     <th className="text-left py-2 px-3 text-gray-500 font-medium">Partners</th>
                     <th className="text-left py-2 px-3 text-gray-500 font-medium">Source</th>
-                    <th className="text-left py-2 px-4 sm:px-5 text-gray-500 font-medium whitespace-nowrap">Last Updated</th>
+                    <th className="text-left py-2 px-4 sm:px-5 text-gray-500 font-medium whitespace-nowrap">Date Added</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -256,7 +256,7 @@ export default function Dashboard() {
                         </td>
                         <td className="py-2 px-3 text-gray-500 text-xs">{lead.source || '—'}</td>
                         <td className="py-2 px-4 sm:px-5 text-gray-500 text-xs whitespace-nowrap">
-                          {lead.lastModified ? lead.lastModified.split('T')[0] : '—'}
+                          {lead.date ? lead.date.split('T')[0] : '—'}
                         </td>
                       </tr>
                     );
