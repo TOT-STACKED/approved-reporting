@@ -391,22 +391,10 @@ export default function PartnerPage() {
                 {[...partner.recentLeads]
                   .filter(l => {
                     const s = (l.status || '').trim().toLowerCase();
-                    return s === 'mql' || s === 'sql' || s === 'demo' || s === 'closed won';
+                    return s === 'mql' || s === 'sql';
                   })
-                  .sort((a, b) => {
-                    const priority = (s: string) => {
-                      const k = (s || '').trim().toLowerCase();
-                      if (k === 'closed won') return 0;
-                      if (k === 'sql') return 1;
-                      if (k === 'demo') return 2;
-                      if (k === 'mql') return 3;
-                      return 4;
-                    };
-                    const pa = priority(a.status), pb = priority(b.status);
-                    if (pa !== pb) return pa - pb;
-                    return (b.lastModified || '').localeCompare(a.lastModified || '');
-                  })
-                  .slice(0, 10)
+                  .sort((a, b) => (b.lastModified || '').localeCompare(a.lastModified || ''))
+                  .slice(0, 20)
                   .map((lead) => (
                   <tr key={lead.id} className="border-b border-gray-100">
                     <td className="py-3 px-3 text-gray-900">{lead.businessName}</td>
