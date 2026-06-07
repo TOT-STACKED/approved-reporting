@@ -190,37 +190,25 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Recent Activity — MQL+ leads only, max 10 */}
+      {/* Recently Active Leads — MQL + SQL, strict chronological, max 20 */}
       <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-5 mb-8">
         <div className="flex items-center justify-between mb-3">
           <div>
-            <h2 className="text-sm font-semibold text-gray-700">Recent Activity</h2>
-            <p className="text-[11px] text-gray-400 mt-0.5">Most recently updated leads at MQL stage or above</p>
+            <h2 className="text-sm font-semibold text-gray-700">Recently Active Leads</h2>
+            <p className="text-[11px] text-gray-400 mt-0.5">Most recently updated MQL and SQL leads (max 20)</p>
           </div>
         </div>
         {(() => {
           const filtered = allLeads
             .filter(l => {
               const s = (l.status || '').trim().toLowerCase();
-              return s === 'mql' || s === 'sql' || s === 'demo' || s === 'closed won';
+              return s === 'mql' || s === 'sql';
             })
-            .sort((a, b) => {
-              const priority = (s: string) => {
-                const k = (s || '').trim().toLowerCase();
-                if (k === 'closed won') return 0;
-                if (k === 'sql') return 1;
-                if (k === 'demo') return 2;
-                if (k === 'mql') return 3;
-                return 4;
-              };
-              const pa = priority(a.status), pb = priority(b.status);
-              if (pa !== pb) return pa - pb;
-              return (b.lastModified || '').localeCompare(a.lastModified || '');
-            })
-            .slice(0, 10);
+            .sort((a, b) => (b.lastModified || '').localeCompare(a.lastModified || ''))
+            .slice(0, 20);
 
           if (filtered.length === 0) {
-            return <p className="text-sm text-gray-400 italic">No recent MQL+ leads to show.</p>;
+            return <p className="text-sm text-gray-400 italic">No recent MQL or SQL leads to show.</p>;
           }
 
           return (
