@@ -45,5 +45,7 @@ redeploy, then add a row here.
 | Rye Energy | `rye-energy` | https://approvedreporting.netlify.app/p/549eb735b4754e83 |
 | Stream | `stream` | https://approvedreporting.netlify.app/p/18182c4eb3b5bf9d |
 | Zenzap | `zenzap` | https://approvedreporting.netlify.app/p/17e1a852064fb790 |
+| Tevalis | `tevalis` | https://approvedreporting.netlify.app/p/83ee0415c9646338 |
+| Lloyds | `lloyds` | https://approvedreporting.netlify.app/p/c42fabf94155617a |
 
-_29 partners. Last updated: 2026-05-18 (added Stream, Zenzap)._
+_31 partners. Last updated: 2026-05-18 (added Tevalis, Lloyds)._
