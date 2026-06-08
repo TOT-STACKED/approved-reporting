@@ -9,6 +9,11 @@ const SUPABASE_KEY = process.env.STACKCOLLECT_SUPABASE_KEY!;
 const PODCAST_RSS = process.env.PODCAST_RSS_URL || 'https://anchor.fm/s/dbfe4940/podcast/rss';
 const TABLE = 'podcast_episodes';
 
+// Scope: most recent 50 episodes only. Keeps Whisper costs predictable and
+// focuses on the freshest insights. Older episodes simply never enter the
+// table — change this number if you want a deeper backfill later.
+const MAX_EPISODES = 50;
+
 // Whisper file-size cap (OpenAI limit is 25 MB). Anything over this we skip
 // with an error message rather than failing the whole ingest run.
 const WHISPER_MAX_BYTES = 25 * 1024 * 1024;
@@ -99,7 +104,10 @@ export async function fetchRssEpisodes(): Promise<RssItem[]> {
     });
   }
 
-  return items;
+  // Newest first (RSS is usually already in this order, but don't trust it),
+  // then cap to MAX_EPISODES so we only ingest the latest N.
+  items.sort((a, b) => (b.pubDate || '').localeCompare(a.pubDate || ''));
+  return items.slice(0, MAX_EPISODES);
 }
 
 // --- Supabase ---
