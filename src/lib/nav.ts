@@ -23,6 +23,7 @@ export const NAV: NavNode[] = [
       { href: '/tech-check', label: 'Tech Check' },
       { href: '/analytics', label: 'Analytics' },
       { href: '/community', label: 'Community' },
+      { href: '/podcast', label: 'Podcast' },
     ],
   },
   { type: 'link', href: '/knowledge', label: 'Knowledge' },
