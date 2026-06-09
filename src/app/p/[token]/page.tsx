@@ -169,6 +169,7 @@ export default function SecurePartnerPage() {
     ? (metrics.reduce((s, m) => s + m.bounceRate, 0) / metrics.length * 100).toFixed(1)
     : 'N/A';
 
+  const malCount = partner.statusBreakdown['MAL'] || 0;
   const mqlCount = partner.statusBreakdown['MQL'] || 0;
   const sqlCount = partner.statusBreakdown['SQL'] || 0;
   const closedWon = (partner.statusBreakdown['Closed Won'] || 0) +
@@ -243,10 +244,10 @@ export default function SecurePartnerPage() {
         {/* KPI Cards — MAL → MQL → SQL → Won (pipeline progression) */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 mb-4">
           <div className="bg-brand-sky rounded-2xl p-4 sm:p-5 text-brand-green shadow-sm" title={LEAD_STATUS_EXPLAINER.MAL}>
-            <p className="text-2xl sm:text-3xl font-bold">{partner.leadCount}</p>
+            <p className="text-2xl sm:text-3xl font-bold">{malCount}</p>
             <p className="text-xs sm:text-sm font-medium opacity-75 mt-1">MAL</p>
             <p className="text-[10px] opacity-60 mt-0.5">Marketing Awareness Leads</p>
-            <p className="text-[10px] sm:text-xs opacity-60 mt-2">{partner.recentLeads.length} active last 90d</p>
+            <p className="text-[10px] sm:text-xs opacity-60 mt-2">{partner.leadCount} total referred · {partner.recentLeads.length} active last 90d</p>
           </div>
           <div className="bg-brand-yellow rounded-2xl p-4 sm:p-5 text-brand-green shadow-sm" title={LEAD_STATUS_EXPLAINER.MQL}>
             <p className="text-2xl sm:text-3xl font-bold">{mqlCount}</p>

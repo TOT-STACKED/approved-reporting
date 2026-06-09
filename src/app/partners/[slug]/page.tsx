@@ -131,6 +131,7 @@ export default function PartnerPage() {
     : 'N/A';
 
   // Pipeline KPIs aligned with main dashboard
+  const malCount = partner.statusBreakdown['MAL'] || 0;
   const mqlCount = partner.statusBreakdown['MQL'] || 0;
   const sqlCount = partner.statusBreakdown['SQL'] || 0;
   const closedWon = (partner.statusBreakdown['Closed Won'] || 0) +
@@ -200,10 +201,10 @@ export default function PartnerPage() {
           <p className="text-sm font-medium opacity-90 mt-1">Closed Won</p>
         </div>
         <div className="bg-brand-sky rounded-2xl p-5 text-brand-green shadow-sm" title={LEAD_STATUS_EXPLAINER.MAL}>
-          <p className="text-3xl font-bold">{partner.leadCount}</p>
+          <p className="text-3xl font-bold">{malCount}</p>
           <p className="text-sm font-medium opacity-75 mt-1">MAL</p>
           <p className="text-[10px] opacity-60 mt-0.5">Marketing Awareness Leads</p>
-          <p className="text-xs opacity-60 mt-2">{partner.recentLeads.length} active last 90d</p>
+          <p className="text-xs opacity-60 mt-2">{partner.leadCount} total referred · {partner.recentLeads.length} active last 90d</p>
         </div>
       </div>
 
