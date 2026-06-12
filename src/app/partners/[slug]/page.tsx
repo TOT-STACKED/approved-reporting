@@ -86,6 +86,22 @@ export default function PartnerPage() {
   const [showNarrative, setShowNarrative] = useState(false);
   const [narrativeInput, setNarrativeInput] = useState('');
 
+  // Partner-submitted lead feedback (from the /p/<token> "Update status" button)
+  interface LeadFeedback {
+    id: string;
+    created_at: string;
+    lead_business_name: string | null;
+    reported_status: string;
+    comment: string | null;
+  }
+  const [feedback, setFeedback] = useState<LeadFeedback[]>([]);
+  useEffect(() => {
+    fetch(`/api/partners/${slug}/feedback`, { credentials: 'include' })
+      .then(r => r.json())
+      .then(d => setFeedback(d.feedback || []))
+      .catch(() => setFeedback([]));
+  }, [slug]);
+
   const generateReport = async () => {
     if (!partner) return;
     setGenerating(true);
@@ -368,6 +384,36 @@ export default function PartnerPage() {
               </tbody>
             </table>
           </div>
+        </div>
+      )}
+
+      {/* Partner-submitted feedback (from the /p/<token> "Update status" button) */}
+      {feedback.length > 0 && (
+        <div className="bg-white rounded-xl border border-brand-green/20 p-6 mb-6">
+          <h2 className="font-semibold text-brand-green mb-1">Recent partner feedback</h2>
+          <p className="text-xs text-gray-500 mb-4">
+            Status updates submitted by {partner.name} via their private dashboard.
+          </p>
+          <ul className="space-y-3 max-h-80 overflow-y-auto pr-1">
+            {feedback.slice(0, 30).map(f => (
+              <li key={f.id} className="text-sm border-b border-gray-100 last:border-b-0 pb-3 last:pb-0">
+                <div className="flex items-baseline justify-between gap-2">
+                  <span className="font-medium text-gray-900">{f.lead_business_name || '(no business name)'}</span>
+                  <span className="text-[10px] text-gray-400 shrink-0">
+                    {new Date(f.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                  </span>
+                </div>
+                <div className="mt-1">
+                  <span className="inline-block bg-brand-cream text-brand-green text-xs px-2 py-0.5 rounded-full font-medium">
+                    {f.reported_status}
+                  </span>
+                </div>
+                {f.comment && (
+                  <p className="text-xs text-gray-600 mt-1.5 italic">&ldquo;{f.comment}&rdquo;</p>
+                )}
+              </li>
+            ))}
+          </ul>
         </div>
       )}
 

@@ -82,6 +82,53 @@ export default function SecurePartnerPage() {
   const [showNarrative, setShowNarrative] = useState(false);
   const [narrativeInput, setNarrativeInput] = useState('');
 
+  // Per-lead feedback modal state
+  const FEEDBACK_OPTIONS = ['MQL', 'SQL', 'Demo booked', 'Closed Won', 'Closed Lost', 'On hold / nurture', 'Other'] as const;
+  type FeedbackOption = typeof FEEDBACK_OPTIONS[number];
+  const [feedbackFor, setFeedbackFor] = useState<{ id: string; businessName: string } | null>(null);
+  const [feedbackStatus, setFeedbackStatus] = useState<FeedbackOption>('SQL');
+  const [feedbackComment, setFeedbackComment] = useState('');
+  const [feedbackSubmitting, setFeedbackSubmitting] = useState(false);
+  const [feedbackSent, setFeedbackSent] = useState(false);
+  const [feedbackError, setFeedbackError] = useState('');
+
+  function openFeedback(lead: { id: string; businessName: string }) {
+    setFeedbackFor(lead);
+    setFeedbackStatus('SQL');
+    setFeedbackComment('');
+    setFeedbackSent(false);
+    setFeedbackError('');
+  }
+  function closeFeedback() {
+    setFeedbackFor(null);
+  }
+  async function submitFeedback() {
+    if (!feedbackFor) return;
+    setFeedbackSubmitting(true);
+    setFeedbackError('');
+    try {
+      const r = await fetch(`/api/p/${token}/feedback`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          leadId: feedbackFor.id,
+          leadBusinessName: feedbackFor.businessName,
+          reportedStatus: feedbackStatus,
+          comment: feedbackComment.trim() || undefined,
+        }),
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || 'Submit failed');
+      setFeedbackSent(true);
+      // auto-close after a moment
+      setTimeout(() => setFeedbackFor(null), 1800);
+    } catch (e: unknown) {
+      setFeedbackError(e instanceof Error ? e.message : 'Submit failed');
+    } finally {
+      setFeedbackSubmitting(false);
+    }
+  }
+
   useEffect(() => {
     fetch(`/api/p/${token}`)
       .then(r => {
@@ -469,6 +516,7 @@ export default function SecurePartnerPage() {
                     <th className="text-left py-3 px-3 text-gray-500 font-medium">Status</th>
                     <th className="text-left py-3 px-3 text-gray-500 font-medium">Source</th>
                     <th className="text-left py-3 px-3 text-gray-500 font-medium">Date Added</th>
+                    <th className="text-right py-3 px-3 text-gray-500 font-medium">Update</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -487,6 +535,15 @@ export default function SecurePartnerPage() {
                       </td>
                       <td className="py-3 px-3 text-gray-600">{lead.source}</td>
                       <td className="py-3 px-3 text-gray-600">{lead.date?.split('T')[0] || 'N/A'}</td>
+                      <td className="py-3 px-3 text-right">
+                        <button
+                          onClick={() => openFeedback({ id: lead.id, businessName: lead.businessName })}
+                          className="text-xs text-brand-green hover:text-brand-green-soft underline"
+                          title="Tell Tech on Toast where this lead actually is"
+                        >
+                          Update status
+                        </button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -515,6 +572,79 @@ export default function SecurePartnerPage() {
           <p className="text-xs text-gray-400">Tech on Toast Partner Portal</p>
         </div>
       </main>
+
+      {/* Feedback modal */}
+      {feedbackFor && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+          <div className="absolute inset-0 bg-brand-green/30" onClick={closeFeedback} />
+          <div className="relative bg-white rounded-2xl border border-gray-200 shadow-lg w-full max-w-md p-6">
+            {feedbackSent ? (
+              <div className="text-center py-4">
+                <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-brand-lime/40 text-brand-green mb-3">
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                  </svg>
+                </div>
+                <p className="text-sm font-medium text-brand-green">Thanks — we&apos;ll get this update across to the team.</p>
+              </div>
+            ) : (
+              <>
+                <div className="mb-4">
+                  <h3 className="text-lg font-semibold text-brand-green">Update lead status</h3>
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    Tell Tech on Toast where <span className="font-medium text-gray-800">{feedbackFor.businessName}</span> actually is.
+                  </p>
+                </div>
+
+                <label className="block mb-3">
+                  <span className="block text-xs font-medium text-gray-700 mb-1.5 uppercase tracking-wide">Real status</span>
+                  <select
+                    value={feedbackStatus}
+                    onChange={e => setFeedbackStatus(e.target.value as FeedbackOption)}
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-green focus:border-brand-green"
+                  >
+                    {FEEDBACK_OPTIONS.map(s => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                </label>
+
+                <label className="block mb-4">
+                  <span className="block text-xs font-medium text-gray-700 mb-1.5 uppercase tracking-wide">Notes (optional)</span>
+                  <textarea
+                    value={feedbackComment}
+                    onChange={e => setFeedbackComment(e.target.value)}
+                    rows={3}
+                    placeholder="e.g. demo booked 24 May · contract sent · budget pushed to Q4"
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-green focus:border-brand-green resize-none"
+                  />
+                </label>
+
+                {feedbackError && (
+                  <div className="mb-3 bg-red-50 border border-red-200 rounded-md px-3 py-2 text-sm text-red-700">
+                    {feedbackError}
+                  </div>
+                )}
+
+                <div className="flex items-center justify-end gap-2">
+                  <button
+                    onClick={closeFeedback}
+                    className="text-sm text-gray-500 hover:text-gray-700 px-3 py-2"
+                    disabled={feedbackSubmitting}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={submitFeedback}
+                    disabled={feedbackSubmitting}
+                    className="bg-brand-green hover:bg-brand-green-soft disabled:bg-gray-300 text-white text-sm font-medium px-4 py-2 rounded-md transition-colors"
+                  >
+                    {feedbackSubmitting ? 'Sending…' : 'Send to Tech on Toast'}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
