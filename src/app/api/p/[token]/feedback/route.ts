@@ -52,10 +52,13 @@ export async function POST(
       token,
     });
 
-    // Fire-and-forget Slack ping. Failures don't bubble back to the partner —
-    // the row is already persisted in Supabase.
+    // AWAIT the Slack ping. In serverless functions the runtime is killed the
+    // moment we send the response, so any in-flight fetch (incl. fire-and-
+    // forget) gets cancelled and the webhook never lands. The row is already
+    // saved in Supabase regardless, and postFeedbackToSlack swallows its own
+    // errors, so awaiting only costs ~150ms latency.
     const origin = new URL(request.url).origin;
-    void postFeedbackToSlack({
+    await postFeedbackToSlack({
       partnerSlug,
       leadBusinessName: body.leadBusinessName ?? null,
       reportedStatus: body.reportedStatus,
