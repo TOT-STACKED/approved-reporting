@@ -47,5 +47,6 @@ redeploy, then add a row here.
 | Zenzap | `zenzap` | https://approvedreporting.netlify.app/p/17e1a852064fb790 |
 | Tevalis | `tevalis` | https://approvedreporting.netlify.app/p/83ee0415c9646338 |
 | Lloyds | `lloyds` | https://approvedreporting.netlify.app/p/c42fabf94155617a |
+| Clearcourse | `clearcourse` | https://approvedreporting.netlify.app/p/258aca68a47006ec |
 
-_31 partners. Last updated: 2026-05-18 (added Tevalis, Lloyds)._
+_32 partners. Last updated: 2026-05-18 (added standalone Clearcourse; the bundled `clearcourse---giftpro---tissl` slug never resolved because partner-name slug derivation only ever produces single dashes between words — kept the entry in PARTNER_TOKENS for safety but it doesn't resolve)._
