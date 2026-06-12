@@ -239,6 +239,21 @@ export async function getPartnerList(): Promise<Partner[]> {
     .sort((a, b) => b.leadCount - a.leadCount);
 }
 
+// Parent-company groupings. A request for the parent slug pulls in leads
+// tagged with any of the sub-brand names too, and the page renders as the
+// parent regardless of which sub-brand the first matched lead happened to
+// use. Add a new entry here when a partner acquires/owns another partner.
+interface PartnerAliasGroup {
+  displayName: string;
+  slugs: string[]; // accepted partner-name slugs (lowercase + hyphens)
+}
+const PARTNER_ALIAS_GROUPS: Record<string, PartnerAliasGroup> = {
+  clearcourse: {
+    displayName: 'Clearcourse',
+    slugs: ['clearcourse', 'tissl', 'giftpro', 'rezcontrol'],
+  },
+};
+
 export async function getPartnerDetail(slug: string): Promise<PartnerDetail | null> {
   const records = await fetchAllRecords(
     TABLES.masterView,
@@ -247,6 +262,11 @@ export async function getPartnerDetail(slug: string): Promise<PartnerDetail | nu
       ...Object.values(STAGE_FIELDS),
     ]
   );
+
+  // Resolve the requested slug to its accepted partner-name slugs. For a
+  // standalone partner (no alias group), this is just the slug itself.
+  const aliasGroup = PARTNER_ALIAS_GROUPS[slug];
+  const acceptedSlugs = new Set(aliasGroup ? aliasGroup.slugs : [slug]);
 
   const partnerLeads: Lead[] = [];
   let partnerName: string | null = null;
@@ -259,9 +279,10 @@ export async function getPartnerDetail(slug: string): Promise<PartnerDetail | nu
     let matchedName: string | null = null;
     for (const s of STAGE_ORDER) {
       const partners = extractMultiValues(fields[STAGE_FIELDS[s]]);
-      const match = partners.find(p =>
-        normalizePartnerName(p).replace(/[^a-z0-9]+/g, '-').replace(/-+$/, '') === slug
-      );
+      const match = partners.find(p => {
+        const partnerSlug = normalizePartnerName(p).replace(/[^a-z0-9]+/g, '-').replace(/-+$/, '');
+        return acceptedSlugs.has(partnerSlug);
+      });
       if (match) {
         matchedName = match.trim();
         break;
@@ -311,7 +332,9 @@ export async function getPartnerDetail(slug: string): Promise<PartnerDetail | nu
     .sort((a, b) => b.lastModified.localeCompare(a.lastModified));
 
   return {
-    name: partnerName || slug,
+    // For an alias group, always render the parent's display name even if the
+    // first matched lead was tagged with a sub-brand.
+    name: aliasGroup?.displayName || partnerName || slug,
     slug,
     leadCount: partnerLeads.length,
     statusBreakdown,
