@@ -22,7 +22,6 @@ redeploy, then add a row here.
 | Square | `square` | https://approvedreporting.netlify.app/p/f074b577c4b8e13f |
 | Lightspeed | `lightspeed` | https://approvedreporting.netlify.app/p/0d4309316d6c25e4 |
 | WRS | `wrs` | https://approvedreporting.netlify.app/p/e597414a81b05a57 |
-| Clearcourse / Giftpro / Tissl | `clearcourse---giftpro---tissl` | https://approvedreporting.netlify.app/p/1133e044a2db4d05 |
 | Sona | `sona` | https://approvedreporting.netlify.app/p/0c2d2e245c13d685 |
 | Deputy | `deputy` | https://approvedreporting.netlify.app/p/6871a8b66627e9a1 |
 | Nory | `nory` | https://approvedreporting.netlify.app/p/85ea2ea260cae75c |
@@ -49,4 +48,4 @@ redeploy, then add a row here.
 | Lloyds | `lloyds` | https://approvedreporting.netlify.app/p/c42fabf94155617a |
 | Clearcourse | `clearcourse` | https://approvedreporting.netlify.app/p/258aca68a47006ec |
 
-_32 partners. Last updated: 2026-05-18 (added standalone Clearcourse; the bundled `clearcourse---giftpro---tissl` slug never resolved because partner-name slug derivation only ever produces single dashes between words — kept the entry in PARTNER_TOKENS for safety but it doesn't resolve)._
+_31 partners. Last updated: 2026-05-18 (Clearcourse now standalone; removed the broken bundled `clearcourse---giftpro---tissl` entry — it never resolved because slug derivation produces single dashes, not triple)._
