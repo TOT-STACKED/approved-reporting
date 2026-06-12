@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from 'next/server';
-import { FEEDBACK_STATUS_OPTIONS, insertFeedback } from '@/lib/feedback';
+import { FEEDBACK_STATUS_OPTIONS, insertFeedback, postFeedbackToSlack } from '@/lib/feedback';
 
 // Partner-facing. The token in the URL is the credential; we resolve it to
 // a partner_slug via PARTNER_TOKENS before writing.
@@ -50,6 +50,17 @@ export async function POST(
       reportedStatus: body.reportedStatus,
       comment: body.comment ?? null,
       token,
+    });
+
+    // Fire-and-forget Slack ping. Failures don't bubble back to the partner —
+    // the row is already persisted in Supabase.
+    const origin = new URL(request.url).origin;
+    void postFeedbackToSlack({
+      partnerSlug,
+      leadBusinessName: body.leadBusinessName ?? null,
+      reportedStatus: body.reportedStatus,
+      comment: body.comment ?? null,
+      portalBaseUrl: origin,
     });
 
     return NextResponse.json({ ok: true, id: saved.id });
