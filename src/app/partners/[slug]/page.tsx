@@ -187,10 +187,11 @@ export default function PartnerPage() {
   const malCount = partner.statusBreakdown['MAL'] || 0;
   const mqlCount = partner.statusBreakdown['MQL'] || 0;
   const sqlCount = partner.statusBreakdown['SQL'] || 0;
+  // Count Closed Won from statusBreakdown only. status and stage are derived
+  // from the same per-partner value upstream, so adding stageBreakdown too
+  // double-counts every won lead (e.g. Tenzo's single BAO win showing as 2).
   const closedWon = (partner.statusBreakdown['Closed Won'] || 0) +
-    (partner.statusBreakdown['Closed Won '] || 0) +
-    (partner.stageBreakdown['Closed Won'] || 0) +
-    (partner.stageBreakdown['Closed Won '] || 0);
+    (partner.statusBreakdown['Closed Won '] || 0);
 
   return (
     <div>
