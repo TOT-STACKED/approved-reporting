@@ -82,6 +82,11 @@ export default function SecurePartnerPage() {
   const [showNarrative, setShowNarrative] = useState(false);
   const [narrativeInput, setNarrativeInput] = useState('');
 
+  // Which stage the Lead Progress table is showing. MAL not selectable —
+  // 998 MAL rows would drown the table. MQL is the natural default.
+  type StageFilter = 'MQL' | 'SQL' | 'Closed Won';
+  const [stageFilter, setStageFilter] = useState<StageFilter>('MQL');
+
   // Per-lead feedback modal state
   const FEEDBACK_OPTIONS = ['MQL', 'SQL', 'Demo booked', 'Closed Won', 'Closed Lost', 'On hold / nurture', 'Other'] as const;
   type FeedbackOption = typeof FEEDBACK_OPTIONS[number];
@@ -288,7 +293,8 @@ export default function SecurePartnerPage() {
           </div>
         )}
 
-        {/* KPI Cards — MAL → MQL → SQL → Won (pipeline progression) */}
+        {/* KPI Cards — MAL → MQL → SQL → Won. MQL/SQL/Won are click-to-filter
+            the Lead Progress table below; active card gets a brand-green ring. */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 mb-4">
           <div className="bg-brand-sky rounded-2xl p-4 sm:p-5 text-brand-green shadow-sm" title={LEAD_STATUS_EXPLAINER.MAL}>
             <p className="text-2xl sm:text-3xl font-bold">{malCount}</p>
@@ -296,18 +302,93 @@ export default function SecurePartnerPage() {
             <p className="text-[10px] opacity-60 mt-0.5">Marketing Awareness Leads</p>
             <p className="text-[10px] sm:text-xs opacity-60 mt-2">{partner.leadCount} total referred · {partner.recentLeads.length} active last 90d</p>
           </div>
-          <div className="bg-brand-yellow rounded-2xl p-4 sm:p-5 text-brand-green shadow-sm" title={LEAD_STATUS_EXPLAINER.MQL}>
+          <button
+            type="button"
+            onClick={() => setStageFilter('MQL')}
+            aria-pressed={stageFilter === 'MQL'}
+            title={`${LEAD_STATUS_EXPLAINER.MQL} — click to see MQL leads below`}
+            className={`bg-brand-yellow rounded-2xl p-4 sm:p-5 text-brand-green shadow-sm text-left transition-all hover:shadow-md ${stageFilter === 'MQL' ? 'ring-4 ring-brand-green/40' : ''}`}
+          >
             <p className="text-2xl sm:text-3xl font-bold">{mqlCount}</p>
             <p className="text-xs sm:text-sm font-medium opacity-75 mt-1">MQL</p>
-          </div>
-          <div className="bg-brand-orange rounded-2xl p-4 sm:p-5 text-white shadow-sm" title={LEAD_STATUS_EXPLAINER.SQL}>
+            <p className="text-[10px] opacity-60 mt-0.5">{stageFilter === 'MQL' ? 'Showing below' : 'Click to show'}</p>
+          </button>
+          <button
+            type="button"
+            onClick={() => setStageFilter('SQL')}
+            aria-pressed={stageFilter === 'SQL'}
+            title={`${LEAD_STATUS_EXPLAINER.SQL} — click to see SQL leads below`}
+            className={`bg-brand-orange rounded-2xl p-4 sm:p-5 text-white shadow-sm text-left transition-all hover:shadow-md ${stageFilter === 'SQL' ? 'ring-4 ring-brand-green/40' : ''}`}
+          >
             <p className="text-2xl sm:text-3xl font-bold">{sqlCount}</p>
             <p className="text-xs sm:text-sm font-medium opacity-90 mt-1">SQL</p>
-          </div>
-          <div className="bg-brand-green rounded-2xl p-4 sm:p-5 text-white shadow-sm">
+            <p className="text-[10px] opacity-75 mt-0.5">{stageFilter === 'SQL' ? 'Showing below' : 'Click to show'}</p>
+          </button>
+          <button
+            type="button"
+            onClick={() => setStageFilter('Closed Won')}
+            aria-pressed={stageFilter === 'Closed Won'}
+            title="Click to see Closed Won leads below"
+            className={`bg-brand-green rounded-2xl p-4 sm:p-5 text-white shadow-sm text-left transition-all hover:shadow-md ${stageFilter === 'Closed Won' ? 'ring-4 ring-brand-lime/60' : ''}`}
+          >
             <p className="text-2xl sm:text-3xl font-bold">{closedWon}</p>
             <p className="text-xs sm:text-sm font-medium opacity-90 mt-1">Closed Won</p>
-          </div>
+            <p className="text-[10px] opacity-75 mt-0.5">{stageFilter === 'Closed Won' ? 'Showing below' : 'Click to show'}</p>
+          </button>
+        </div>
+
+        {/* Lead Progress — the interactive table, scoped to whichever stage
+            the team clicked above. Sits directly under the KPI cards. */}
+        <div className="bg-white rounded-xl border border-gray-200 p-5 sm:p-6 mb-6 sm:mb-8">
+          <h2 className="font-semibold text-gray-900 mb-4">
+            Lead Progress
+            <span className="text-gray-400 font-normal ml-2 text-sm">{stageFilter} · newest 20</span>
+          </h2>
+          {(() => {
+            const rows = [...partner.recentLeads]
+              .filter(l => (l.status || '').trim().toLowerCase() === stageFilter.toLowerCase())
+              .sort((a, b) => (b.date || '').localeCompare(a.date || ''))
+              .slice(0, 20);
+            if (rows.length === 0) {
+              return <p className="text-sm text-gray-500">No {stageFilter} leads in the last 90 days.</p>;
+            }
+            return (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-gray-200">
+                      <th className="text-left py-3 px-3 text-gray-500 font-medium">Business</th>
+                      <th className="text-left py-3 px-3 text-gray-500 font-medium">Status</th>
+                      <th className="text-left py-3 px-3 text-gray-500 font-medium">Source</th>
+                      <th className="text-left py-3 px-3 text-gray-500 font-medium">Date Added</th>
+                      <th className="text-right py-3 px-3 text-gray-500 font-medium">Update</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {rows.map(lead => (
+                      <tr key={lead.id} className="border-b border-gray-100">
+                        <td className="py-3 px-3 text-gray-900">{lead.businessName}</td>
+                        <td className="py-3 px-3">
+                          <span className="inline-block bg-gray-100 text-gray-700 text-xs px-2 py-1 rounded-full">{lead.status}</span>
+                        </td>
+                        <td className="py-3 px-3 text-gray-600">{lead.source}</td>
+                        <td className="py-3 px-3 text-gray-600">{lead.date?.split('T')[0] || 'N/A'}</td>
+                        <td className="py-3 px-3 text-right">
+                          <button
+                            onClick={() => openFeedback({ id: lead.id, businessName: lead.businessName })}
+                            className="text-xs text-brand-green hover:text-brand-green-soft underline"
+                            title="Tell Tech on Toast where this lead actually is"
+                          >
+                            Update status
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            );
+          })()}
         </div>
 
         <LeadStatusGlossary className="mb-6 sm:mb-8" />
@@ -500,59 +581,6 @@ export default function SecurePartnerPage() {
             </div>
           </div>
         )}
-
-        {/* Recent Leads */}
-        <div className="bg-white rounded-xl border border-gray-200 p-5 sm:p-6">
-          <h2 className="font-semibold text-gray-900 mb-4">
-            Recently Active Leads
-            <span className="text-gray-400 font-normal ml-2 text-sm">Last 90 days</span>
-          </h2>
-          {partner.recentLeads.length > 0 ? (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-gray-200">
-                    <th className="text-left py-3 px-3 text-gray-500 font-medium">Business</th>
-                    <th className="text-left py-3 px-3 text-gray-500 font-medium">Status</th>
-                    <th className="text-left py-3 px-3 text-gray-500 font-medium">Source</th>
-                    <th className="text-left py-3 px-3 text-gray-500 font-medium">Date Added</th>
-                    <th className="text-right py-3 px-3 text-gray-500 font-medium">Update</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {[...partner.recentLeads]
-                    .filter(l => {
-                      const s = (l.status || '').trim().toLowerCase();
-                      return s === 'mql' || s === 'sql';
-                    })
-                    .sort((a, b) => (b.date || '').localeCompare(a.date || ''))
-                    .slice(0, 20)
-                    .map(lead => (
-                    <tr key={lead.id} className="border-b border-gray-100">
-                      <td className="py-3 px-3 text-gray-900">{lead.businessName}</td>
-                      <td className="py-3 px-3">
-                        <span className="inline-block bg-gray-100 text-gray-700 text-xs px-2 py-1 rounded-full">{lead.status}</span>
-                      </td>
-                      <td className="py-3 px-3 text-gray-600">{lead.source}</td>
-                      <td className="py-3 px-3 text-gray-600">{lead.date?.split('T')[0] || 'N/A'}</td>
-                      <td className="py-3 px-3 text-right">
-                        <button
-                          onClick={() => openFeedback({ id: lead.id, businessName: lead.businessName })}
-                          className="text-xs text-brand-green hover:text-brand-green-soft underline"
-                          title="Tell Tech on Toast where this lead actually is"
-                        >
-                          Update status
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : (
-            <p className="text-gray-500 text-sm">No leads modified in the last 90 days</p>
-          )}
-        </div>
 
         {/* Inline Report Preview */}
         {reportHtml && (
