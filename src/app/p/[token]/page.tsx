@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import PartnerNps, { type PartnerNpsData } from '@/components/PartnerNps';
 import ConversionTimeline from '@/components/ConversionTimeline';
+import ConversionFunnelStrip from '@/components/ConversionFunnelStrip';
 import StacksDashboard from '@/components/StacksDashboard';
 import AskBox from '@/components/AskBox';
 import LeadStatusGlossary from '@/components/LeadStatusGlossary';
@@ -62,6 +63,28 @@ interface PartnerDetail {
   recentLeads: Lead[];
 }
 
+type SortCol = 'businessName' | 'source' | 'date';
+
+function SortableTh({
+  col, cur, onClick, children,
+}: {
+  col: SortCol;
+  cur: { col: SortCol; dir: 'asc' | 'desc' };
+  onClick: (col: SortCol) => void;
+  children: React.ReactNode;
+}) {
+  const active = cur.col === col;
+  const arrow = !active ? '↕' : cur.dir === 'asc' ? '↑' : '↓';
+  return (
+    <th
+      onClick={() => onClick(col)}
+      className={`text-left py-3 px-3 font-medium cursor-pointer select-none transition-colors ${active ? 'text-brand-green' : 'text-gray-500 hover:text-gray-700'}`}
+    >
+      {children} <span className="text-[10px] opacity-60">{arrow}</span>
+    </th>
+  );
+}
+
 export default function SecurePartnerPage() {
   const params = useParams();
   const token = params.token as string;
@@ -86,6 +109,16 @@ export default function SecurePartnerPage() {
   // 998 MAL rows would drown the table. MQL is the natural default.
   type StageFilter = 'MQL' | 'SQL' | 'Closed Won';
   const [stageFilter, setStageFilter] = useState<StageFilter>('MQL');
+  // Lead Progress search + sort + "stuck only" toggle
+  const [leadSearch, setLeadSearch] = useState('');
+  const [leadSort, setLeadSort] = useState<{ col: SortCol; dir: 'asc' | 'desc' }>({ col: 'date', dir: 'desc' });
+  const [staleOnly, setStaleOnly] = useState(false);
+  const STALE_DAYS = 30;
+  function toggleSort(col: SortCol) {
+    setLeadSort(prev => prev.col === col
+      ? { col, dir: prev.dir === 'asc' ? 'desc' : 'asc' }
+      : { col, dir: col === 'date' ? 'desc' : 'asc' });
+  }
 
   // Per-lead feedback modal state
   const FEEDBACK_OPTIONS = ['MQL', 'SQL', 'Demo booked', 'Closed Won', 'Closed Lost', 'On hold / nurture', 'Other'] as const;
@@ -337,60 +370,126 @@ export default function SecurePartnerPage() {
           </button>
         </div>
 
+        {/* Pipeline conversion rates — under the KPI cards, above the table. */}
+        <ConversionFunnelStrip leadCount={partner.leadCount} statusBreakdown={partner.statusBreakdown} />
+
         {/* Lead Progress — the interactive table, scoped to whichever stage
             the team clicked above. Sits directly under the KPI cards. */}
         <div className="bg-white rounded-xl border border-gray-200 p-5 sm:p-6 mb-6 sm:mb-8">
-          <h2 className="font-semibold text-gray-900 mb-4">
-            Lead Progress
-            <span className="text-gray-400 font-normal ml-2 text-sm">All {stageFilter} leads</span>
-          </h2>
           {(() => {
             // Use the full partner.leads (all-time), not partner.recentLeads
             // (last-90-day window) — partners want to see every lead at the
             // selected stage, not just recent ones.
-            const rows = [...partner.leads]
-              .filter(l => (l.status || '').trim().toLowerCase() === stageFilter.toLowerCase())
-              .sort((a, b) => (b.date || '').localeCompare(a.date || ''));
-            if (rows.length === 0) {
-              return <p className="text-sm text-gray-500">No {stageFilter} leads yet.</p>;
-            }
+            const stageRows = partner.leads.filter(
+              l => (l.status || '').trim().toLowerCase() === stageFilter.toLowerCase()
+            );
+            // Stale = currently at MQL/SQL with no modification in 30+ days.
+            // Closed Won leads are terminal so a "stale" flag isn't useful.
+            const now = Date.now();
+            const isStale = (l: { lastModified?: string }) => {
+              if (stageFilter === 'Closed Won') return false;
+              if (!l.lastModified) return false;
+              const days = (now - new Date(l.lastModified).getTime()) / 86_400_000;
+              return days > STALE_DAYS;
+            };
+            const staleCount = stageRows.filter(isStale).length;
+
+            // Apply search + stale filter
+            const q = leadSearch.trim().toLowerCase();
+            const filtered = stageRows.filter(l => {
+              if (staleOnly && !isStale(l)) return false;
+              if (q && !(l.businessName || '').toLowerCase().includes(q) && !(l.source || '').toLowerCase().includes(q)) return false;
+              return true;
+            });
+
+            // Sort
+            const sorted = [...filtered].sort((a, b) => {
+              const dir = leadSort.dir === 'asc' ? 1 : -1;
+              if (leadSort.col === 'businessName') return (a.businessName || '').localeCompare(b.businessName || '') * dir;
+              if (leadSort.col === 'source')       return (a.source || '').localeCompare(b.source || '') * dir;
+              return (a.date || '').localeCompare(b.date || '') * dir;
+            });
+
             return (
               <>
-                <p className="text-xs text-gray-400 -mt-2 mb-3">{rows.length} {stageFilter} lead{rows.length === 1 ? '' : 's'}</p>
-                <div className="overflow-auto max-h-[600px] border border-gray-100 rounded-lg">
-                  <table className="w-full text-sm">
-                    <thead className="bg-gray-50/80 sticky top-0">
-                      <tr className="border-b border-gray-200">
-                        <th className="text-left py-3 px-3 text-gray-500 font-medium">Business</th>
-                        <th className="text-left py-3 px-3 text-gray-500 font-medium">Status</th>
-                        <th className="text-left py-3 px-3 text-gray-500 font-medium">Source</th>
-                        <th className="text-left py-3 px-3 text-gray-500 font-medium">Date Added</th>
-                        <th className="text-right py-3 px-3 text-gray-500 font-medium">Update</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {rows.map(lead => (
-                        <tr key={lead.id} className="border-b border-gray-100">
-                          <td className="py-3 px-3 text-gray-900">{lead.businessName}</td>
-                          <td className="py-3 px-3">
-                            <span className="inline-block bg-gray-100 text-gray-700 text-xs px-2 py-1 rounded-full">{lead.status}</span>
-                          </td>
-                          <td className="py-3 px-3 text-gray-600">{lead.source}</td>
-                          <td className="py-3 px-3 text-gray-600">{lead.date?.split('T')[0] || 'N/A'}</td>
-                          <td className="py-3 px-3 text-right">
-                            <button
-                              onClick={() => openFeedback({ id: lead.id, businessName: lead.businessName })}
-                              className="text-xs text-brand-green hover:text-brand-green-soft underline"
-                              title="Tell Tech on Toast where this lead actually is"
-                            >
-                              Update status
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
+                  <div>
+                    <h2 className="font-semibold text-gray-900">
+                      Lead Progress
+                      <span className="text-gray-400 font-normal ml-2 text-sm">All {stageFilter} leads</span>
+                    </h2>
+                    <p className="text-xs text-gray-400 mt-0.5">
+                      Showing {sorted.length} of {stageRows.length} {stageFilter} lead{stageRows.length === 1 ? '' : 's'}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      value={leadSearch}
+                      onChange={e => setLeadSearch(e.target.value)}
+                      placeholder="Search venue or source…"
+                      className="border border-gray-300 rounded-md px-3 py-1.5 text-xs sm:w-56 focus:outline-none focus:ring-2 focus:ring-brand-green focus:border-brand-green"
+                    />
+                    {staleCount > 0 && (
+                      <button
+                        onClick={() => setStaleOnly(s => !s)}
+                        className={`text-xs px-3 py-1.5 rounded-md border transition-colors whitespace-nowrap ${staleOnly ? 'bg-amber-500 text-white border-amber-500' : 'bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100'}`}
+                        title={`${staleCount} ${stageFilter} lead${staleCount === 1 ? '' : 's'} with no activity in 30+ days`}
+                      >
+                        ⚠ {staleCount} stale {staleOnly ? '· clear' : ''}
+                      </button>
+                    )}
+                  </div>
                 </div>
+
+                {sorted.length === 0 ? (
+                  <p className="text-sm text-gray-500">
+                    {stageRows.length === 0
+                      ? `No ${stageFilter} leads yet.`
+                      : 'No leads match this filter.'}
+                  </p>
+                ) : (
+                  <div className="overflow-auto max-h-[600px] border border-gray-100 rounded-lg">
+                    <table className="w-full text-sm">
+                      <thead className="bg-gray-50/80 sticky top-0">
+                        <tr className="border-b border-gray-200">
+                          <SortableTh col="businessName" cur={leadSort} onClick={toggleSort}>Business</SortableTh>
+                          <th className="text-left py-3 px-3 text-gray-500 font-medium">Status</th>
+                          <SortableTh col="source" cur={leadSort} onClick={toggleSort}>Source</SortableTh>
+                          <SortableTh col="date" cur={leadSort} onClick={toggleSort}>Date Added</SortableTh>
+                          <th className="text-right py-3 px-3 text-gray-500 font-medium">Update</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {sorted.map(lead => {
+                          const stale = isStale(lead);
+                          return (
+                            <tr key={lead.id} className={`border-b border-gray-100 ${stale ? 'bg-amber-50/40' : ''}`}>
+                              <td className="py-3 px-3 text-gray-900">
+                                {lead.businessName}
+                                {stale && <span className="ml-2 text-[10px] text-amber-700">⚠ stale</span>}
+                              </td>
+                              <td className="py-3 px-3">
+                                <span className="inline-block bg-gray-100 text-gray-700 text-xs px-2 py-1 rounded-full">{lead.status}</span>
+                              </td>
+                              <td className="py-3 px-3 text-gray-600">{lead.source}</td>
+                              <td className="py-3 px-3 text-gray-600">{lead.date?.split('T')[0] || 'N/A'}</td>
+                              <td className="py-3 px-3 text-right">
+                                <button
+                                  onClick={() => openFeedback({ id: lead.id, businessName: lead.businessName })}
+                                  className="text-xs text-brand-green hover:text-brand-green-soft underline"
+                                  title="Tell Tech on Toast where this lead actually is"
+                                >
+                                  Update status
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </>
             );
           })()}
