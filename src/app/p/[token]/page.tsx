@@ -450,7 +450,7 @@ export default function SecurePartnerPage() {
                   </p>
                 ) : (
                   <div className="overflow-auto max-h-[600px] border border-gray-100 rounded-lg">
-                    <table className="w-full text-sm">
+                    <table className="w-full text-sm min-w-[640px]">
                       <thead className="bg-gray-50/80 sticky top-0">
                         <tr className="border-b border-gray-200">
                           <SortableTh col="businessName" cur={leadSort} onClick={toggleSort}>Business</SortableTh>
@@ -582,7 +582,7 @@ export default function SecurePartnerPage() {
               <span className="text-gray-400 font-normal ml-2 text-sm">{totalImpressions.toLocaleString()} reach · {totalEngagements.toLocaleString()} engagements</span>
             </h2>
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+              <table className="w-full text-sm min-w-[560px]">
                 <thead>
                   <tr className="border-b border-gray-200">
                     <th className="text-left py-3 px-3 text-gray-500 font-medium">Activity</th>
@@ -653,7 +653,7 @@ export default function SecurePartnerPage() {
           <div className="bg-white rounded-xl border border-gray-200 p-5 sm:p-6 mb-6 sm:mb-8">
             <h2 className="font-semibold text-gray-900 mb-4">Site Traffic - Weekly</h2>
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+              <table className="w-full text-sm min-w-[560px]">
                 <thead>
                   <tr className="border-b border-gray-200">
                     <th className="text-left py-3 px-3 text-gray-500 font-medium">Week</th>

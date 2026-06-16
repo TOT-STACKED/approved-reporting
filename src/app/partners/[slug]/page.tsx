@@ -194,7 +194,7 @@ export default function PartnerPage() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
         <div>
           <a href="/" className="text-sm text-gray-500 hover:text-gray-700">&larr; Back to Dashboard</a>
           <h1 className="text-2xl font-bold text-gray-900 mt-2">{partner.name}</h1>
@@ -203,7 +203,7 @@ export default function PartnerPage() {
         <button
           onClick={() => setShowNarrative(true)}
           disabled={generating}
-          className="bg-brand-green hover:bg-brand-green-soft text-white px-6 py-3 rounded-lg font-medium transition-colors disabled:opacity-50"
+          className="bg-brand-green hover:bg-brand-green-soft text-white px-6 py-3 rounded-lg font-medium transition-colors disabled:opacity-50 whitespace-nowrap"
         >
           {generating ? 'Generating...' : 'Generate Report'}
         </button>
@@ -356,7 +356,7 @@ export default function PartnerPage() {
                 </p>
               ) : (
                 <div className="overflow-auto max-h-[600px] border border-gray-100 rounded-lg">
-                  <table className="w-full text-sm">
+                  <table className="w-full text-sm min-w-[560px]">
                     <thead className="bg-gray-50/80 sticky top-0">
                       <tr className="border-b border-gray-200">
                         <SortableTh col="businessName" cur={leadSort} onClick={toggleSort}>Business</SortableTh>
@@ -523,7 +523,7 @@ export default function PartnerPage() {
         <div className="bg-white rounded-xl border border-gray-200 p-6 mb-8">
           <h2 className="font-semibold text-gray-900 mb-4">Site Traffic - Weekly</h2>
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="w-full text-sm min-w-[560px]">
               <thead>
                 <tr className="border-b border-gray-200">
                   <th className="text-left py-3 px-3 text-gray-500 font-medium">Week</th>
