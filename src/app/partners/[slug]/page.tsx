@@ -255,43 +255,47 @@ export default function PartnerPage() {
       <div className="bg-white rounded-xl border border-gray-200 p-6 mb-6">
         <h2 className="font-semibold text-gray-900 mb-4">
           Lead Progress
-          <span className="text-gray-400 font-normal ml-2 text-sm">{stageFilter} · newest 20</span>
+          <span className="text-gray-400 font-normal ml-2 text-sm">All {stageFilter} leads</span>
         </h2>
         {(() => {
-          const rows = [...partner.recentLeads]
+          // Full partner.leads (all-time), not partner.recentLeads (90-day
+          // window) — show every lead at the selected stage.
+          const rows = [...partner.leads]
             .filter(l => (l.status || '').trim().toLowerCase() === stageFilter.toLowerCase())
-            .sort((a, b) => (b.date || '').localeCompare(a.date || ''))
-            .slice(0, 20);
+            .sort((a, b) => (b.date || '').localeCompare(a.date || ''));
           if (rows.length === 0) {
-            return <p className="text-gray-500 text-sm">No {stageFilter} leads in the last 90 days.</p>;
+            return <p className="text-gray-500 text-sm">No {stageFilter} leads yet.</p>;
           }
           return (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-gray-200">
-                    <th className="text-left py-3 px-3 text-gray-500 font-medium">Business</th>
-                    <th className="text-left py-3 px-3 text-gray-500 font-medium">Status</th>
-                    <th className="text-left py-3 px-3 text-gray-500 font-medium">Source</th>
-                    <th className="text-left py-3 px-3 text-gray-500 font-medium">Date Added</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {rows.map((lead) => (
-                    <tr key={lead.id} className="border-b border-gray-100">
-                      <td className="py-3 px-3 text-gray-900">{lead.businessName}</td>
-                      <td className="py-3 px-3">
-                        <span className="inline-block bg-gray-100 text-gray-700 text-xs px-2 py-1 rounded-full">
-                          {lead.status}
-                        </span>
-                      </td>
-                      <td className="py-3 px-3 text-gray-600">{lead.source}</td>
-                      <td className="py-3 px-3 text-gray-600">{lead.date?.split('T')[0] || 'N/A'}</td>
+            <>
+              <p className="text-xs text-gray-400 -mt-2 mb-3">{rows.length} {stageFilter} lead{rows.length === 1 ? '' : 's'}</p>
+              <div className="overflow-auto max-h-[600px] border border-gray-100 rounded-lg">
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-50/80 sticky top-0">
+                    <tr className="border-b border-gray-200">
+                      <th className="text-left py-3 px-3 text-gray-500 font-medium">Business</th>
+                      <th className="text-left py-3 px-3 text-gray-500 font-medium">Status</th>
+                      <th className="text-left py-3 px-3 text-gray-500 font-medium">Source</th>
+                      <th className="text-left py-3 px-3 text-gray-500 font-medium">Date Added</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody>
+                    {rows.map((lead) => (
+                      <tr key={lead.id} className="border-b border-gray-100">
+                        <td className="py-3 px-3 text-gray-900">{lead.businessName}</td>
+                        <td className="py-3 px-3">
+                          <span className="inline-block bg-gray-100 text-gray-700 text-xs px-2 py-1 rounded-full">
+                            {lead.status}
+                          </span>
+                        </td>
+                        <td className="py-3 px-3 text-gray-600">{lead.source}</td>
+                        <td className="py-3 px-3 text-gray-600">{lead.date?.split('T')[0] || 'N/A'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
           );
         })()}
       </div>

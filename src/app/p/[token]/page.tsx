@@ -342,51 +342,56 @@ export default function SecurePartnerPage() {
         <div className="bg-white rounded-xl border border-gray-200 p-5 sm:p-6 mb-6 sm:mb-8">
           <h2 className="font-semibold text-gray-900 mb-4">
             Lead Progress
-            <span className="text-gray-400 font-normal ml-2 text-sm">{stageFilter} · newest 20</span>
+            <span className="text-gray-400 font-normal ml-2 text-sm">All {stageFilter} leads</span>
           </h2>
           {(() => {
-            const rows = [...partner.recentLeads]
+            // Use the full partner.leads (all-time), not partner.recentLeads
+            // (last-90-day window) — partners want to see every lead at the
+            // selected stage, not just recent ones.
+            const rows = [...partner.leads]
               .filter(l => (l.status || '').trim().toLowerCase() === stageFilter.toLowerCase())
-              .sort((a, b) => (b.date || '').localeCompare(a.date || ''))
-              .slice(0, 20);
+              .sort((a, b) => (b.date || '').localeCompare(a.date || ''));
             if (rows.length === 0) {
-              return <p className="text-sm text-gray-500">No {stageFilter} leads in the last 90 days.</p>;
+              return <p className="text-sm text-gray-500">No {stageFilter} leads yet.</p>;
             }
             return (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-gray-200">
-                      <th className="text-left py-3 px-3 text-gray-500 font-medium">Business</th>
-                      <th className="text-left py-3 px-3 text-gray-500 font-medium">Status</th>
-                      <th className="text-left py-3 px-3 text-gray-500 font-medium">Source</th>
-                      <th className="text-left py-3 px-3 text-gray-500 font-medium">Date Added</th>
-                      <th className="text-right py-3 px-3 text-gray-500 font-medium">Update</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {rows.map(lead => (
-                      <tr key={lead.id} className="border-b border-gray-100">
-                        <td className="py-3 px-3 text-gray-900">{lead.businessName}</td>
-                        <td className="py-3 px-3">
-                          <span className="inline-block bg-gray-100 text-gray-700 text-xs px-2 py-1 rounded-full">{lead.status}</span>
-                        </td>
-                        <td className="py-3 px-3 text-gray-600">{lead.source}</td>
-                        <td className="py-3 px-3 text-gray-600">{lead.date?.split('T')[0] || 'N/A'}</td>
-                        <td className="py-3 px-3 text-right">
-                          <button
-                            onClick={() => openFeedback({ id: lead.id, businessName: lead.businessName })}
-                            className="text-xs text-brand-green hover:text-brand-green-soft underline"
-                            title="Tell Tech on Toast where this lead actually is"
-                          >
-                            Update status
-                          </button>
-                        </td>
+              <>
+                <p className="text-xs text-gray-400 -mt-2 mb-3">{rows.length} {stageFilter} lead{rows.length === 1 ? '' : 's'}</p>
+                <div className="overflow-auto max-h-[600px] border border-gray-100 rounded-lg">
+                  <table className="w-full text-sm">
+                    <thead className="bg-gray-50/80 sticky top-0">
+                      <tr className="border-b border-gray-200">
+                        <th className="text-left py-3 px-3 text-gray-500 font-medium">Business</th>
+                        <th className="text-left py-3 px-3 text-gray-500 font-medium">Status</th>
+                        <th className="text-left py-3 px-3 text-gray-500 font-medium">Source</th>
+                        <th className="text-left py-3 px-3 text-gray-500 font-medium">Date Added</th>
+                        <th className="text-right py-3 px-3 text-gray-500 font-medium">Update</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                    </thead>
+                    <tbody>
+                      {rows.map(lead => (
+                        <tr key={lead.id} className="border-b border-gray-100">
+                          <td className="py-3 px-3 text-gray-900">{lead.businessName}</td>
+                          <td className="py-3 px-3">
+                            <span className="inline-block bg-gray-100 text-gray-700 text-xs px-2 py-1 rounded-full">{lead.status}</span>
+                          </td>
+                          <td className="py-3 px-3 text-gray-600">{lead.source}</td>
+                          <td className="py-3 px-3 text-gray-600">{lead.date?.split('T')[0] || 'N/A'}</td>
+                          <td className="py-3 px-3 text-right">
+                            <button
+                              onClick={() => openFeedback({ id: lead.id, businessName: lead.businessName })}
+                              className="text-xs text-brand-green hover:text-brand-green-soft underline"
+                              title="Tell Tech on Toast where this lead actually is"
+                            >
+                              Update status
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </>
             );
           })()}
         </div>
