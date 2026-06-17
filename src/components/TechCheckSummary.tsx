@@ -53,8 +53,19 @@ interface WhatsAppSummary {
   totalAnswered: number;
 }
 
+// Same venue shape as WhatsApp — reuse type for the Knowledge Base panel too.
+type KnowledgeBaseVenue = WhatsAppVenue;
+interface KnowledgeBaseSummary {
+  yes: KnowledgeBaseVenue[];
+  no: KnowledgeBaseVenue[];
+  yesCount: number;
+  noCount: number;
+  totalAnswered: number;
+}
+
 interface TechCheckData {
   whatsapp?: WhatsAppSummary;
+  knowledgeBase?: KnowledgeBaseSummary;
   categories: Category[];
   totalAnswers: number;
   totalVenues: number;
@@ -86,7 +97,9 @@ export default function TechCheckSummary() {
   const [error, setError] = useState('');
   const [openCategory, setOpenCategory] = useState<string | null>(null);
   const [openTool, setOpenTool] = useState<string | null>(null);
-  const [openWhatsapp, setOpenWhatsapp] = useState<'yes' | 'no' | null>(null);
+  // Keyed by `${panelId}:${side}` so each yes/no question (WhatsApp,
+  // Knowledge Base, …) tracks its own open list independently.
+  const [openYesNo, setOpenYesNo] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const categoryRefs = useRef<Map<string, HTMLDivElement>>(new Map());
 
@@ -247,10 +260,29 @@ export default function TechCheckSummary() {
         </div>
       )}
 
-      {/* WhatsApp yes/no panel — pinned above the categories */}
-      {data.whatsapp && (() => {
-        const w = data.whatsapp;
-        const exportWhatsappCsv = (label: 'Yes' | 'No', venues: WhatsAppVenue[]) => {
+      {/* Yes/No question panels — pinned above the categories. Each question
+          (WhatsApp, Knowledge Base, …) is independent — opening one panel
+          doesn't collapse the other. */}
+      {(() => {
+        type YesNoSummary = { yes: WhatsAppVenue[]; no: WhatsAppVenue[]; totalAnswered: number };
+        const questions: { id: string; title: string; subtitle: string; csvSlug: string; summary?: YesNoSummary }[] = [
+          {
+            id: 'whatsapp',
+            title: 'WhatsApp for team comms',
+            subtitle: 'Yes vs no — click either to see the venue list (= leads for comms-tool pitches).',
+            csvSlug: 'whatsapp',
+            summary: data.whatsapp,
+          },
+          {
+            id: 'knowledge-base',
+            title: 'Knowledge base',
+            subtitle: 'Yes vs no — click either to see venues that need (or already have) a knowledge base solution.',
+            csvSlug: 'knowledge-base',
+            summary: data.knowledgeBase,
+          },
+        ];
+
+        const exportCsv = (csvSlug: string, label: 'Yes' | 'No', venues: WhatsAppVenue[]) => {
           const header = [
             'Answer', 'Business', 'Contact', 'Email', 'Phone',
             'Location', 'Locations', 'Vertical', 'Industry', 'Submitted',
@@ -268,18 +300,20 @@ export default function TechCheckSummary() {
             v.created_at?.slice(0, 10) || '',
           ]);
           const date = new Date().toISOString().slice(0, 10);
-          downloadCsv(`whatsapp-${label.toLowerCase()}-${date}.csv`, [header, ...rows]);
+          downloadCsv(`${csvSlug}-${label.toLowerCase()}-${date}.csv`, [header, ...rows]);
         };
 
-        const Panel = ({ side, label, venues, color }: {
-          side: 'yes' | 'no'; label: string; venues: WhatsAppVenue[]; color: string;
+        const Panel = ({ questionId, csvSlug, side, label, venues, color, totalAnswered }: {
+          questionId: string; csvSlug: string; side: 'yes' | 'no'; label: string;
+          venues: WhatsAppVenue[]; color: string; totalAnswered: number;
         }) => {
-          const open = openWhatsapp === side;
-          const pct = w.totalAnswered ? Math.round((venues.length / w.totalAnswered) * 100) : 0;
+          const key = `${questionId}:${side}`;
+          const open = openYesNo === key;
+          const pct = totalAnswered ? Math.round((venues.length / totalAnswered) * 100) : 0;
           return (
             <div className={`${color} rounded-xl p-4`}>
               <button
-                onClick={() => setOpenWhatsapp(open ? null : side)}
+                onClick={() => setOpenYesNo(open ? null : key)}
                 className="w-full text-left"
               >
                 <div className="flex items-baseline justify-between gap-2">
@@ -298,7 +332,7 @@ export default function TechCheckSummary() {
                       {venues.length} {venues.length === 1 ? 'venue' : 'venues'} answered “{label}”
                     </p>
                     <button
-                      onClick={() => exportWhatsappCsv(label as 'Yes' | 'No', venues)}
+                      onClick={() => exportCsv(csvSlug, label as 'Yes' | 'No', venues)}
                       className="text-[11px] text-gray-500 hover:text-brand-green"
                       title={`Export these ${venues.length} venues as CSV`}
                     >
@@ -343,27 +377,38 @@ export default function TechCheckSummary() {
           );
         };
 
+        const visible = questions.filter(q => !!q.summary);
+        if (visible.length === 0) return null;
+
         return (
-          <div className="bg-white rounded-xl border border-gray-200 p-4 mb-3">
-            <div className="mb-3">
-              <h3 className="font-semibold text-gray-900">WhatsApp for team comms</h3>
-              <p className="text-[11px] text-gray-500">
-                Yes vs no — click either to see the venue list (= leads for comms-tool pitches).
-                {' '}
-                <span className="text-gray-400">({w.totalAnswered} answered)</span>
-              </p>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <Panel side="yes" label="Yes" venues={w.yes} color="bg-brand-lime/30" />
-              <Panel side="no" label="No" venues={w.no} color="bg-brand-sky" />
-            </div>
-            {w.totalAnswered === 0 && (
-              <p className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-3 py-2 mt-3">
-                No answers showing yet. If you know venues have answered this on the tech review,
-                the portal likely can&apos;t read the <code>submissions</code> table — RLS in
-                Supabase may need a SELECT policy for it (same fix we did for the other reporting tables).
-              </p>
-            )}
+          <div className="space-y-3 mb-3">
+            {visible.map(q => {
+              const s = q.summary!;
+              return (
+                <div key={q.id} className="bg-white rounded-xl border border-gray-200 p-4">
+                  <div className="mb-3">
+                    <h3 className="font-semibold text-gray-900">{q.title}</h3>
+                    <p className="text-[11px] text-gray-500">
+                      {q.subtitle}
+                      {' '}
+                      <span className="text-gray-400">({s.totalAnswered} answered)</span>
+                    </p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <Panel questionId={q.id} csvSlug={q.csvSlug} side="yes" label="Yes"
+                      venues={s.yes} color="bg-brand-lime/30" totalAnswered={s.totalAnswered} />
+                    <Panel questionId={q.id} csvSlug={q.csvSlug} side="no" label="No"
+                      venues={s.no} color="bg-brand-sky" totalAnswered={s.totalAnswered} />
+                  </div>
+                  {s.totalAnswered === 0 && (
+                    <p className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-3 py-2 mt-3">
+                      No answers showing yet. Either the column hasn&apos;t been populated, or
+                      Supabase RLS may need a SELECT policy on <code>business_submissions</code>.
+                    </p>
+                  )}
+                </div>
+              );
+            })}
           </div>
         );
       })()}

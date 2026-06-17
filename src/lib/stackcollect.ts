@@ -95,6 +95,67 @@ export async function getWhatsappResponses(): Promise<WhatsAppSummary> {
   };
 }
 
+// --- Knowledge Base answers — same shape as WhatsApp, reads from
+// business_submissions.has_knowledge_base. Used by the Tech Check Insights
+// panel so we can spot venues that don't have a knowledge base and pitch
+// the right partner.
+
+export interface KnowledgeBaseResponse {
+  id: string;
+  created_at: string;
+  has_knowledge_base: boolean;
+  businessName: string;
+  contactName: string | null;
+  contactEmail: string | null;
+  phoneNumber: string | null;
+  location: string | null;
+  numberOfLocations: string | null;
+  vertical: string | null;
+  industry: string | null;
+}
+
+export interface KnowledgeBaseSummary {
+  yes: KnowledgeBaseResponse[];
+  no: KnowledgeBaseResponse[];
+  yesCount: number;
+  noCount: number;
+  totalAnswered: number;
+}
+
+export async function getKnowledgeBaseResponses(): Promise<KnowledgeBaseSummary> {
+  const rows: any[] = await supabaseFetchAll(
+    'business_submissions',
+    'select=id,created_at,has_knowledge_base,business_name,contact_name,contact_email,phone_number,location,number_of_locations,vertical,industry&has_knowledge_base=not.is.null&order=created_at.desc'
+  );
+
+  const yes: KnowledgeBaseResponse[] = [];
+  const no: KnowledgeBaseResponse[] = [];
+  for (const r of rows) {
+    if (isTestSubmission(r.business_name)) continue;
+    const v: KnowledgeBaseResponse = {
+      id: r.id,
+      created_at: r.created_at,
+      has_knowledge_base: r.has_knowledge_base === true,
+      businessName: r.business_name ?? '',
+      contactName: r.contact_name ?? null,
+      contactEmail: r.contact_email ?? null,
+      phoneNumber: r.phone_number ?? null,
+      location: r.location ?? null,
+      numberOfLocations: r.number_of_locations ?? null,
+      vertical: r.vertical ?? null,
+      industry: r.industry ?? null,
+    };
+    (r.has_knowledge_base === true ? yes : no).push(v);
+  }
+  return {
+    yes,
+    no,
+    yesCount: yes.length,
+    noCount: no.length,
+    totalAnswered: yes.length + no.length,
+  };
+}
+
 // --- Types ---
 
 export interface TechStackEntry {
