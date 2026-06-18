@@ -95,13 +95,13 @@ export async function getWhatsappResponses(): Promise<WhatsAppSummary> {
   };
 }
 
-// --- Knowledge-base survey answer (uses_knowledge_base on business_submissions).
+// --- Knowledge-base survey answer (has_knowledge_base on business_submissions).
 // Same shape and pattern as the WhatsApp question — yes/no with venue lists.
 
 export interface KnowledgeBaseResponse {
   id: string;
   created_at: string;
-  uses_knowledge_base: boolean;
+  has_knowledge_base: boolean;
   businessName: string;
   contactName: string | null;
   contactEmail: string | null;
@@ -123,7 +123,7 @@ export interface KnowledgeBaseSummary {
 export async function getKnowledgeBaseResponses(): Promise<KnowledgeBaseSummary> {
   const rows: any[] = await supabaseFetchAll(
     'business_submissions',
-    'select=id,created_at,uses_knowledge_base,business_name,contact_name,contact_email,phone_number,location,number_of_locations,vertical,industry&uses_knowledge_base=not.is.null&order=created_at.desc'
+    'select=id,created_at,has_knowledge_base,business_name,contact_name,contact_email,phone_number,location,number_of_locations,vertical,industry&has_knowledge_base=not.is.null&order=created_at.desc'
   );
 
   const yes: KnowledgeBaseResponse[] = [];
@@ -133,7 +133,7 @@ export async function getKnowledgeBaseResponses(): Promise<KnowledgeBaseSummary>
     const v: KnowledgeBaseResponse = {
       id: r.id,
       created_at: r.created_at,
-      uses_knowledge_base: r.uses_knowledge_base === true,
+      has_knowledge_base: r.has_knowledge_base === true,
       businessName: r.business_name ?? '',
       contactName: r.contact_name ?? null,
       contactEmail: r.contact_email ?? null,
@@ -143,7 +143,7 @@ export async function getKnowledgeBaseResponses(): Promise<KnowledgeBaseSummary>
       vertical: r.vertical ?? null,
       industry: r.industry ?? null,
     };
-    (r.uses_knowledge_base === true ? yes : no).push(v);
+    (r.has_knowledge_base === true ? yes : no).push(v);
   }
   return {
     yes,

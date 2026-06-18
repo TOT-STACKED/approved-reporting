@@ -491,7 +491,7 @@ export default function TechCheckSummary() {
             </div>
             {k.totalAnswered === 0 && (
               <p className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-3 py-2 mt-3">
-                No answers showing yet. The <code>uses_knowledge_base</code> column on
+                No answers showing yet. The <code>has_knowledge_base</code> column on
                 <code className="mx-1">business_submissions</code> may need RLS SELECT,
                 or the column may not be populated yet.
               </p>
