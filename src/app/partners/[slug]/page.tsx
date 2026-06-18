@@ -10,6 +10,7 @@ import ConversionTimeline from '@/components/ConversionTimeline';
 import ConversionFunnelStrip from '@/components/ConversionFunnelStrip';
 import PartnerNps, { type PartnerNpsData } from '@/components/PartnerNps';
 import StacksDashboard from '@/components/StacksDashboard';
+import StackCollectSection from '@/components/StackCollectSection';
 import AskBox from '@/components/AskBox';
 import LeadStatusGlossary from '@/components/LeadStatusGlossary';
 import { LEAD_STATUS_EXPLAINER } from '@/lib/lead-status';
@@ -82,12 +83,8 @@ export default function PartnerPage() {
   const slug = params.slug as string;
   const [partner, setPartner] = useState<PartnerDetail | null>(null);
   const [metrics, setMetrics] = useState<MetricsEntry[]>([]);
-  const [stackCollect, setStackCollect] = useState<{
-    mentions: number;
-    categories: { category: string; count: number }[];
-    totalReviews: number;
-    marketShare: string;
-  } | null>(null);
+  // any — the shape lives inside StackCollectSection; page just passes it through.
+  const [stackCollect, setStackCollect] = useState<any>(null);
   const [nps, setNps] = useState<PartnerNpsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
@@ -187,15 +184,14 @@ export default function PartnerPage() {
   const malCount = partner.statusBreakdown['MAL'] || 0;
   const mqlCount = partner.statusBreakdown['MQL'] || 0;
   const sqlCount = partner.statusBreakdown['SQL'] || 0;
-  // Count Closed Won from statusBreakdown only. status and stage are derived
-  // from the same per-partner value upstream, so adding stageBreakdown too
-  // double-counts every won lead (e.g. Tenzo's single BAO win showing as 2).
   const closedWon = (partner.statusBreakdown['Closed Won'] || 0) +
-    (partner.statusBreakdown['Closed Won '] || 0);
+    (partner.statusBreakdown['Closed Won '] || 0) +
+    (partner.stageBreakdown['Closed Won'] || 0) +
+    (partner.stageBreakdown['Closed Won '] || 0);
 
   return (
     <div>
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+      <div className="flex items-center justify-between mb-8">
         <div>
           <a href="/" className="text-sm text-gray-500 hover:text-gray-700">&larr; Back to Dashboard</a>
           <h1 className="text-2xl font-bold text-gray-900 mt-2">{partner.name}</h1>
@@ -204,7 +200,7 @@ export default function PartnerPage() {
         <button
           onClick={() => setShowNarrative(true)}
           disabled={generating}
-          className="bg-brand-green hover:bg-brand-green-soft text-white px-6 py-3 rounded-lg font-medium transition-colors disabled:opacity-50 whitespace-nowrap"
+          className="bg-brand-green hover:bg-brand-green-soft text-white px-6 py-3 rounded-lg font-medium transition-colors disabled:opacity-50"
         >
           {generating ? 'Generating...' : 'Generate Report'}
         </button>
@@ -287,6 +283,36 @@ export default function PartnerPage() {
       {/* Pipeline conversion rates — under the KPI cards, above the table. */}
       <ConversionFunnelStrip leadCount={partner.leadCount} statusBreakdown={partner.statusBreakdown} />
 
+      {/* Watch-Out: MQL leads need action to qualify. Click filters the table
+          to MQL so the user lands on the leads they need to chase. */}
+      {mqlCount > 0 && (() => {
+        const now = Date.now();
+        const staleMql = partner.leads.filter(l => {
+          if ((l.status || '').trim() !== 'MQL' || !l.lastModified) return false;
+          return (now - new Date(l.lastModified).getTime()) / 86_400_000 > STALE_DAYS;
+        }).length;
+        return (
+          <button
+            type="button"
+            onClick={() => setStageFilter('MQL')}
+            className="w-full bg-amber-50 border border-amber-200 rounded-xl p-4 mb-4 flex items-start gap-3 text-left hover:bg-amber-100 transition-colors"
+          >
+            <span className="text-2xl leading-none mt-0.5">⚠️</span>
+            <div className="flex-1">
+              <p className="font-semibold text-amber-900">
+                Watch out — {mqlCount} lead{mqlCount === 1 ? '' : 's'} at MQL involving your product
+              </p>
+              <p className="text-sm text-amber-800/80 mt-0.5">
+                {staleMql > 0
+                  ? `${staleMql} ${staleMql === 1 ? 'has' : 'have'} had no activity for 30+ days — chase to qualify or drop`
+                  : 'These are warm but unqualified — chase them to move to SQL'}
+              </p>
+            </div>
+            <span className="text-xs text-amber-700 font-medium mt-1 whitespace-nowrap">View MQL →</span>
+          </button>
+        );
+      })()}
+
       {/* Lead Progress — interactive table scoped to whichever stage was
           clicked above. Sits directly under the KPI cards. */}
       <div className="bg-white rounded-xl border border-gray-200 p-6 mb-6">
@@ -357,7 +383,7 @@ export default function PartnerPage() {
                 </p>
               ) : (
                 <div className="overflow-auto max-h-[600px] border border-gray-100 rounded-lg">
-                  <table className="w-full text-sm min-w-[560px]">
+                  <table className="w-full text-sm">
                     <thead className="bg-gray-50/80 sticky top-0">
                       <tr className="border-b border-gray-200">
                         <SortableTh col="businessName" cur={leadSort} onClick={toggleSort}>Business</SortableTh>
@@ -474,39 +500,8 @@ export default function PartnerPage() {
       </div>
 
       {/* StackCollect / Tech Stack Reviews */}
-      {stackCollect && stackCollect.mentions > 0 && (
-        <div className="bg-white rounded-xl border border-gray-200 p-6 mb-8">
-          <h2 className="font-semibold text-gray-900 mb-4">
-            StackCollect - Tech Stack Reviews
-            <span className="text-gray-400 font-normal ml-2 text-sm">from techontoast.community</span>
-          </h2>
-          <div className="grid grid-cols-3 gap-4 mb-5">
-            <div className="bg-brand-cream rounded-lg p-4 text-center">
-              <p className="text-2xl font-bold text-brand-green">{stackCollect.mentions}</p>
-              <p className="text-xs text-gray-500 mt-1">Times selected by operators</p>
-            </div>
-            <div className="bg-brand-cream rounded-lg p-4 text-center">
-              <p className="text-2xl font-bold text-brand-green">{stackCollect.marketShare}%</p>
-              <p className="text-xs text-gray-500 mt-1">Market share (of reviews)</p>
-            </div>
-            <div className="bg-brand-cream rounded-lg p-4 text-center">
-              <p className="text-2xl font-bold text-brand-green">{stackCollect.totalReviews}</p>
-              <p className="text-xs text-gray-500 mt-1">Total tech stack reviews</p>
-            </div>
-          </div>
-          {stackCollect.categories.length > 0 && (
-            <div>
-              <p className="text-sm font-medium text-gray-700 mb-2">Selected in categories:</p>
-              <div className="flex flex-wrap gap-2">
-                {stackCollect.categories.map(c => (
-                  <span key={c.category} className="text-xs bg-brand-sky text-brand-green px-2.5 py-1 rounded-full">
-                    {c.category} ({c.count})
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
+      {stackCollect && partner && (
+        <StackCollectSection partnerName={partner.name} data={stackCollect} />
       )}
 
       {/* Partner NPS */}
@@ -524,7 +519,7 @@ export default function PartnerPage() {
         <div className="bg-white rounded-xl border border-gray-200 p-6 mb-8">
           <h2 className="font-semibold text-gray-900 mb-4">Site Traffic - Weekly</h2>
           <div className="overflow-x-auto">
-            <table className="w-full text-sm min-w-[560px]">
+            <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-gray-200">
                   <th className="text-left py-3 px-3 text-gray-500 font-medium">Week</th>

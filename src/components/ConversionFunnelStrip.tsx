@@ -41,7 +41,7 @@ export default function ConversionFunnelStrip({ leadCount, statusBreakdown }: Pr
       <p className="text-[11px] text-gray-500 font-semibold uppercase tracking-wider mb-2">
         Pipeline conversion
       </p>
-      <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-baseline gap-2 sm:gap-x-5 sm:gap-y-2 text-sm">
+      <div className="flex flex-wrap items-baseline gap-x-5 gap-y-2 text-sm">
         <Step label="MAL → MQL" value={malToMql} note={`${reachedMql} of ${leadCount}`} />
         <Arrow />
         <Step label="MQL → SQL" value={mqlToSql} note={`${reachedSql} of ${reachedMql}`} />

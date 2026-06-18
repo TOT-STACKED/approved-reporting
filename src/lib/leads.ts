@@ -108,7 +108,10 @@ export async function getAllLeads(): Promise<Lead[]> {
       lastModified: f[FIELDS.lastModified] || '',
       size: f[FIELDS.size] || '',
       location: f[FIELDS.location] || '',
-      date: f[FIELDS.date] || '',
+      // Fall back to Airtable's auto-populated record createdTime when the
+      // user-entered Date field is empty, so the dashboard always shows
+      // *some* date for a lead (and the stale-vs-fresh signal isn't blank).
+      date: f[FIELDS.date] || r.createdTime || '',
     };
   });
 }

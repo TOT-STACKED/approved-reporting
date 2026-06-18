@@ -95,67 +95,6 @@ export async function getWhatsappResponses(): Promise<WhatsAppSummary> {
   };
 }
 
-// --- Knowledge Base answers — same shape as WhatsApp, reads from
-// business_submissions.has_knowledge_base. Used by the Tech Check Insights
-// panel so we can spot venues that don't have a knowledge base and pitch
-// the right partner.
-
-export interface KnowledgeBaseResponse {
-  id: string;
-  created_at: string;
-  has_knowledge_base: boolean;
-  businessName: string;
-  contactName: string | null;
-  contactEmail: string | null;
-  phoneNumber: string | null;
-  location: string | null;
-  numberOfLocations: string | null;
-  vertical: string | null;
-  industry: string | null;
-}
-
-export interface KnowledgeBaseSummary {
-  yes: KnowledgeBaseResponse[];
-  no: KnowledgeBaseResponse[];
-  yesCount: number;
-  noCount: number;
-  totalAnswered: number;
-}
-
-export async function getKnowledgeBaseResponses(): Promise<KnowledgeBaseSummary> {
-  const rows: any[] = await supabaseFetchAll(
-    'business_submissions',
-    'select=id,created_at,has_knowledge_base,business_name,contact_name,contact_email,phone_number,location,number_of_locations,vertical,industry&has_knowledge_base=not.is.null&order=created_at.desc'
-  );
-
-  const yes: KnowledgeBaseResponse[] = [];
-  const no: KnowledgeBaseResponse[] = [];
-  for (const r of rows) {
-    if (isTestSubmission(r.business_name)) continue;
-    const v: KnowledgeBaseResponse = {
-      id: r.id,
-      created_at: r.created_at,
-      has_knowledge_base: r.has_knowledge_base === true,
-      businessName: r.business_name ?? '',
-      contactName: r.contact_name ?? null,
-      contactEmail: r.contact_email ?? null,
-      phoneNumber: r.phone_number ?? null,
-      location: r.location ?? null,
-      numberOfLocations: r.number_of_locations ?? null,
-      vertical: r.vertical ?? null,
-      industry: r.industry ?? null,
-    };
-    (r.has_knowledge_base === true ? yes : no).push(v);
-  }
-  return {
-    yes,
-    no,
-    yesCount: yes.length,
-    noCount: no.length,
-    totalAnswered: yes.length + no.length,
-  };
-}
-
 // --- Types ---
 
 export interface TechStackEntry {
@@ -420,36 +359,152 @@ export function matchTermsForPartner(partnerName: string): string[] {
   return PARTNER_VENDOR_ALIASES[key] || [key];
 }
 
-export async function getPartnerStackCollectData(partnerName: string): Promise<{
-  mentions: number;
+export interface PartnerCategoryRanking {
+  category: string;
+  partnerCount: number;        // partner's selections in this category
+  totalSelections: number;     // all tools' selections in this category
+  rank: number;                // 1 = most-picked in this category
+  totalTools: number;          // # of distinct tools competing here
+  leader: { tool: string; count: number };  // top tool in this category
+  shareInCategory: number;     // partnerCount / totalSelections (0..1)
+}
+
+export interface PartnerCompetitor {
+  tool: string;
+  count: number;               // total picks in partner's competing categories
+  sharedCategories: number;    // how many of partner's categories this competitor appears in
+}
+
+export interface PartnerStackData {
+  mentions: number;                       // category-level picks of this partner
+  uniqueReviewsWithPartner: number;       // distinct submissions mentioning partner
   categories: { category: string; count: number }[];
-  totalReviews: number;
-  marketShare: string;
-}> {
-  const entries: TechStackEntry[] = await getTechStackEntries();
+  totalReviews: number;                   // submissions with ≥1 valid tool entry
+  totalReviewsOnPlatform: number;         // all business_submissions (incl. empty)
+  marketShare: string;                    // % of reviews-with-data mentioning partner
+  monthlyMentions: { month: string; count: number }[]; // last 12 months
+  categoryRankings: PartnerCategoryRanking[];
+  topCompetitors: PartnerCompetitor[];    // top 5 rivals in partner's categories
+}
+
+// Build a "YYYY-MM" key from an ISO date string. Returns null on invalid input.
+function monthKey(iso: string): string | null {
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return null;
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
+
+// Returns the last `count` months as YYYY-MM, oldest first, ending with current month.
+// Date.now() is fine here — this runs server-side on each request, not in a workflow.
+function lastNMonths(count: number): string[] {
+  const out: string[] = [];
+  const now = new Date();
+  for (let i = count - 1; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    out.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
+  }
+  return out;
+}
+
+export async function getPartnerStackCollectData(partnerName: string): Promise<PartnerStackData> {
+  const [entries, businesses] = await Promise.all([
+    getTechStackEntries(),
+    getBusinessSubmissions(),
+  ]);
 
   const matchTerms = matchTermsForPartner(partnerName);
+  const isPartnerTool = (toolName: string) => {
+    const t = toolName.toLowerCase().trim();
+    return matchTerms.some(term => t.includes(term));
+  };
 
-  const matched = entries.filter(e =>
-    matchTerms.some(term => e.tool_name.toLowerCase().trim().includes(term))
-  );
+  const matched = entries.filter(e => isPartnerTool(e.tool_name));
 
+  // Categories the partner appears in, and how many times in each.
   const catCounts: Record<string, number> = {};
+  for (const e of matched) catCounts[e.category] = (catCounts[e.category] || 0) + 1;
+  const partnerCategories = Object.entries(catCounts)
+    .sort(([, a], [, b]) => b - a)
+    .map(([category, count]) => ({ category, count }));
+
+  const totalReviews = new Set(entries.map(e => e.submission_id)).size;
+  const uniqueReviewsWithPartner = new Set(matched.map(e => e.submission_id)).size;
+
+  // Monthly trend over the last 12 months (matched entries bucketed by created_at).
+  const bucketMonths = lastNMonths(12);
+  const monthBuckets: Record<string, number> = Object.fromEntries(bucketMonths.map(m => [m, 0]));
   for (const e of matched) {
-    catCounts[e.category] = (catCounts[e.category] || 0) + 1;
+    const k = monthKey(e.created_at);
+    if (k && k in monthBuckets) monthBuckets[k]++;
+  }
+  const monthlyMentions = bucketMonths.map(m => ({ month: m, count: monthBuckets[m] }));
+
+  // Category rankings: for each of the partner's categories, rank all tools
+  // by selection count so the partner can see "you're #2 of 9 in X — leader Y".
+  // Folds case + whitespace so "Lightspeed" and "lightspeed " are one tool.
+  const partnerCategorySet = new Set(partnerCategories.map(c => c.category));
+  const byCategory: Record<string, Record<string, { displayName: string; count: number }>> = {};
+  for (const e of entries) {
+    if (!partnerCategorySet.has(e.category)) continue;
+    const key = e.tool_name.toLowerCase().trim();
+    if (!key) continue;
+    if (!byCategory[e.category]) byCategory[e.category] = {};
+    const bucket = byCategory[e.category];
+    if (!bucket[key]) bucket[key] = { displayName: e.tool_name.trim(), count: 0 };
+    bucket[key].count++;
   }
 
-  const totalSubmissions = new Set(entries.map(e => e.submission_id)).size;
+  const categoryRankings: PartnerCategoryRanking[] = partnerCategories.map(({ category, count }) => {
+    const toolsHere = Object.entries(byCategory[category] || {})
+      .map(([key, v]) => ({ key, ...v }))
+      .sort((a, b) => b.count - a.count);
+    const partnerKey = toolsHere.find(t => isPartnerTool(t.key))?.key;
+    const rank = partnerKey ? toolsHere.findIndex(t => t.key === partnerKey) + 1 : 0;
+    const leader = toolsHere[0] || { displayName: '—', count: 0 };
+    const totalSelections = toolsHere.reduce((a, t) => a + t.count, 0);
+    return {
+      category,
+      partnerCount: count,
+      totalSelections,
+      rank,
+      totalTools: toolsHere.length,
+      leader: { tool: leader.displayName, count: leader.count },
+      shareInCategory: totalSelections > 0 ? count / totalSelections : 0,
+    };
+  });
+
+  // Top competitors: other tools picked in the partner's own categories,
+  // weighted by total appearances. `sharedCategories` says how many of the
+  // partner's categories each rival shows up in (breadth signal).
+  const competitorTotals: Record<string, { displayName: string; count: number; categories: Set<string> }> = {};
+  for (const e of entries) {
+    if (!partnerCategorySet.has(e.category)) continue;
+    if (isPartnerTool(e.tool_name)) continue;
+    const key = e.tool_name.toLowerCase().trim();
+    if (!key) continue;
+    if (!competitorTotals[key]) {
+      competitorTotals[key] = { displayName: e.tool_name.trim(), count: 0, categories: new Set() };
+    }
+    competitorTotals[key].count++;
+    competitorTotals[key].categories.add(e.category);
+  }
+  const topCompetitors = Object.values(competitorTotals)
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 5)
+    .map(c => ({ tool: c.displayName, count: c.count, sharedCategories: c.categories.size }));
 
   return {
     mentions: matched.length,
-    categories: Object.entries(catCounts)
-      .sort(([, a], [, b]) => b - a)
-      .map(([category, count]) => ({ category, count })),
-    totalReviews: totalSubmissions,
-    marketShare: totalSubmissions > 0
-      ? ((new Set(matched.map(e => e.submission_id)).size / totalSubmissions) * 100).toFixed(1)
+    uniqueReviewsWithPartner,
+    categories: partnerCategories,
+    totalReviews,
+    totalReviewsOnPlatform: businesses.length,
+    marketShare: totalReviews > 0
+      ? ((uniqueReviewsWithPartner / totalReviews) * 100).toFixed(1)
       : '0',
+    monthlyMentions,
+    categoryRankings,
+    topCompetitors,
   };
 }
 

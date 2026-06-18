@@ -307,7 +307,10 @@ export async function getPartnerDetail(slug: string): Promise<PartnerDetail | nu
       lastModified: fields[FIELDS.masterView.lastModified] || '',
       size: fields[FIELDS.masterView.size] || '',
       location: fields[FIELDS.masterView.location] || '',
-      date: fields[FIELDS.masterView.date] || '',
+      // Fall back to Airtable's record-level createdTime when the
+      // user-entered Date field is empty (it's a common data-quality gap
+      // and otherwise the dashboard would show "N/A" + flag stale wrongly).
+      date: fields[FIELDS.masterView.date] || r.createdTime || '',
     });
     void stage;
   }

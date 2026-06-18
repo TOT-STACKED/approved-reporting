@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getTechStackEntries, getBusinessSubmissions, getWhatsappResponses, getKnowledgeBaseResponses } from '@/lib/stackcollect';
+import { getTechStackEntries, getBusinessSubmissions, getWhatsappResponses } from '@/lib/stackcollect';
 
 // Internal only — gated by the auth proxy (not in PUBLIC_PREFIXES).
 // Returns the "tech check" answers grouped by category → tool → venues.
@@ -39,11 +39,10 @@ export interface TechCheckCategory {
 
 export async function GET() {
   try {
-    const [entries, businesses, whatsapp, knowledgeBase] = await Promise.all([
+    const [entries, businesses, whatsapp] = await Promise.all([
       getTechStackEntries(),
       getBusinessSubmissions(),
       getWhatsappResponses(),
-      getKnowledgeBaseResponses(),
     ]);
 
     // Build a fast lookup so we can attach venue details to each entry once.
@@ -122,7 +121,6 @@ export async function GET() {
 
     return NextResponse.json({
       whatsapp,
-      knowledgeBase,
       categories,
       totalAnswers,
       totalVenues: totalVenues.size,
