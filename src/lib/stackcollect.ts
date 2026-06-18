@@ -95,6 +95,65 @@ export async function getWhatsappResponses(): Promise<WhatsAppSummary> {
   };
 }
 
+// --- Knowledge-base survey answer (uses_knowledge_base on business_submissions).
+// Same shape and pattern as the WhatsApp question — yes/no with venue lists.
+
+export interface KnowledgeBaseResponse {
+  id: string;
+  created_at: string;
+  uses_knowledge_base: boolean;
+  businessName: string;
+  contactName: string | null;
+  contactEmail: string | null;
+  phoneNumber: string | null;
+  location: string | null;
+  numberOfLocations: string | null;
+  vertical: string | null;
+  industry: string | null;
+}
+
+export interface KnowledgeBaseSummary {
+  yes: KnowledgeBaseResponse[];
+  no: KnowledgeBaseResponse[];
+  yesCount: number;
+  noCount: number;
+  totalAnswered: number;
+}
+
+export async function getKnowledgeBaseResponses(): Promise<KnowledgeBaseSummary> {
+  const rows: any[] = await supabaseFetchAll(
+    'business_submissions',
+    'select=id,created_at,uses_knowledge_base,business_name,contact_name,contact_email,phone_number,location,number_of_locations,vertical,industry&uses_knowledge_base=not.is.null&order=created_at.desc'
+  );
+
+  const yes: KnowledgeBaseResponse[] = [];
+  const no: KnowledgeBaseResponse[] = [];
+  for (const r of rows) {
+    if (isTestSubmission(r.business_name)) continue;
+    const v: KnowledgeBaseResponse = {
+      id: r.id,
+      created_at: r.created_at,
+      uses_knowledge_base: r.uses_knowledge_base === true,
+      businessName: r.business_name ?? '',
+      contactName: r.contact_name ?? null,
+      contactEmail: r.contact_email ?? null,
+      phoneNumber: r.phone_number ?? null,
+      location: r.location ?? null,
+      numberOfLocations: r.number_of_locations ?? null,
+      vertical: r.vertical ?? null,
+      industry: r.industry ?? null,
+    };
+    (r.uses_knowledge_base === true ? yes : no).push(v);
+  }
+  return {
+    yes,
+    no,
+    yesCount: yes.length,
+    noCount: no.length,
+    totalAnswered: yes.length + no.length,
+  };
+}
+
 // --- Types ---
 
 export interface TechStackEntry {
@@ -352,6 +411,7 @@ export const PARTNER_VENDOR_ALIASES: Record<string, string[]> = {
   'toast': ['toast'],
   'como': ['como'],
   'storekit': ['storekit'],
+  'seven rooms': ['sevenrooms', 'seven rooms', '7rooms'],
 };
 
 export function matchTermsForPartner(partnerName: string): string[] {

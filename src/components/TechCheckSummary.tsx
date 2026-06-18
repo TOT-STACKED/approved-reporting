@@ -53,8 +53,20 @@ interface WhatsAppSummary {
   totalAnswered: number;
 }
 
+// Same shape as WhatsApp — venues that answered yes/no to "do you have a
+// knowledge base?" on the tech-stack review form.
+type KbVenue = WhatsAppVenue;
+interface KbSummary {
+  yes: KbVenue[];
+  no: KbVenue[];
+  yesCount: number;
+  noCount: number;
+  totalAnswered: number;
+}
+
 interface TechCheckData {
   whatsapp?: WhatsAppSummary;
+  knowledgeBase?: KbSummary;
   categories: Category[];
   totalAnswers: number;
   totalVenues: number;
@@ -87,6 +99,7 @@ export default function TechCheckSummary() {
   const [openCategory, setOpenCategory] = useState<string | null>(null);
   const [openTool, setOpenTool] = useState<string | null>(null);
   const [openWhatsapp, setOpenWhatsapp] = useState<'yes' | 'no' | null>(null);
+  const [openKb, setOpenKb] = useState<'yes' | 'no' | null>(null);
   const [search, setSearch] = useState('');
   const categoryRefs = useRef<Map<string, HTMLDivElement>>(new Map());
 
@@ -362,6 +375,125 @@ export default function TechCheckSummary() {
                 No answers showing yet. If you know venues have answered this on the tech review,
                 the portal likely can&apos;t read the <code>submissions</code> table — RLS in
                 Supabase may need a SELECT policy for it (same fix we did for the other reporting tables).
+              </p>
+            )}
+          </div>
+        );
+      })()}
+
+      {/* Knowledge-base yes/no panel — same shape as WhatsApp. The "No" side
+          is a lead list for KB / help-centre tool pitches. */}
+      {data.knowledgeBase && (() => {
+        const k = data.knowledgeBase;
+        const exportKbCsv = (label: 'Yes' | 'No', venues: KbVenue[]) => {
+          const header = [
+            'Answer', 'Business', 'Contact', 'Email', 'Phone',
+            'Location', 'Locations', 'Vertical', 'Industry', 'Submitted',
+          ];
+          const rows = venues.map(v => [
+            label,
+            v.businessName || '',
+            v.contactName || '',
+            v.contactEmail || '',
+            v.phoneNumber || '',
+            v.location || '',
+            v.numberOfLocations || '',
+            v.vertical || '',
+            v.industry || '',
+            v.created_at?.slice(0, 10) || '',
+          ]);
+          const date = new Date().toISOString().slice(0, 10);
+          downloadCsv(`knowledge-base-${label.toLowerCase()}-${date}.csv`, [header, ...rows]);
+        };
+
+        const Panel = ({ side, label, venues, color }: {
+          side: 'yes' | 'no'; label: string; venues: KbVenue[]; color: string;
+        }) => {
+          const open = openKb === side;
+          const pct = k.totalAnswered ? Math.round((venues.length / k.totalAnswered) * 100) : 0;
+          return (
+            <div className={`${color} rounded-xl p-4`}>
+              <button onClick={() => setOpenKb(open ? null : side)} className="w-full text-left">
+                <div className="flex items-baseline justify-between gap-2">
+                  <span className="text-sm font-semibold text-brand-green">{label}</span>
+                  <span className="text-[11px] text-brand-green/70">{pct}%</span>
+                </div>
+                <p className="text-3xl font-bold text-brand-green mt-1">{venues.length}</p>
+                <p className="text-[11px] text-brand-green/70 mt-0.5">
+                  {venues.length === 1 ? 'venue' : 'venues'} · {open ? 'hide' : 'show'} list
+                </p>
+              </button>
+              {open && (
+                <div className="mt-3 bg-white/60 rounded-md p-3 border border-brand-green/10">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-[11px] font-medium text-brand-green">
+                      {venues.length} {venues.length === 1 ? 'venue' : 'venues'} answered “{label}”
+                    </p>
+                    <button
+                      onClick={() => exportKbCsv(label as 'Yes' | 'No', venues)}
+                      className="text-[11px] text-gray-500 hover:text-brand-green"
+                      title={`Export these ${venues.length} venues as CSV`}
+                    >
+                      ↓ CSV
+                    </button>
+                  </div>
+                  <ul className="space-y-2 max-h-72 overflow-y-auto pr-1">
+                    {venues.map(v => {
+                      const verticalChip = v.vertical || v.industry;
+                      return (
+                        <li key={v.id} className="text-xs">
+                          <div className="flex items-baseline justify-between gap-2">
+                            <span className="font-medium text-gray-900">{v.businessName || '—'}</span>
+                            {verticalChip && (
+                              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-white/80 text-brand-green whitespace-nowrap">
+                                {verticalChip}
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-gray-500 flex flex-wrap gap-x-3 gap-y-0.5 mt-0.5">
+                            {v.contactName && <span>{v.contactName}</span>}
+                            {v.contactEmail && (
+                              <a href={`mailto:${v.contactEmail}`} className="text-brand-green hover:text-brand-green-soft underline">
+                                {v.contactEmail}
+                              </a>
+                            )}
+                            {v.phoneNumber && (
+                              <a href={`tel:${v.phoneNumber.replace(/\s+/g, '')}`} className="text-brand-green hover:text-brand-green-soft underline">
+                                {v.phoneNumber}
+                              </a>
+                            )}
+                            {v.location && <span>{v.location}</span>}
+                            {v.numberOfLocations && <span>{v.numberOfLocations} site{v.numberOfLocations === '1' ? '' : 's'}</span>}
+                          </div>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+              )}
+            </div>
+          );
+        };
+
+        return (
+          <div className="bg-white rounded-xl border border-gray-200 p-4 mb-3">
+            <div className="mb-3">
+              <h3 className="font-semibold text-gray-900">Do you have a knowledge base?</h3>
+              <p className="text-[11px] text-gray-500">
+                Yes vs no — click either to see the venue list (= the &ldquo;No&rdquo; side is a lead list for KB / help-centre pitches).
+                {' '}
+                <span className="text-gray-400">({k.totalAnswered} answered)</span>
+              </p>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <Panel side="yes" label="Yes" venues={k.yes} color="bg-brand-lime/30" />
+              <Panel side="no" label="No" venues={k.no} color="bg-brand-sky" />
+            </div>
+            {k.totalAnswered === 0 && (
+              <p className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-3 py-2 mt-3">
+                No answers showing yet. The <code>uses_knowledge_base</code> column on
+                <code className="mx-1">business_submissions</code> may need RLS SELECT,
+                or the column may not be populated yet.
               </p>
             )}
           </div>
