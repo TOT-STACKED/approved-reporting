@@ -254,10 +254,11 @@ export default function SecurePartnerPage() {
   const malCount = partner.statusBreakdown['MAL'] || 0;
   const mqlCount = partner.statusBreakdown['MQL'] || 0;
   const sqlCount = partner.statusBreakdown['SQL'] || 0;
+  // statusBreakdown only — the same lead also appears in stageBreakdown,
+  // so summing both double-counted every Closed Won. Trailing-space variant
+  // kept defensively for Airtable values like 'Closed Won '.
   const closedWon = (partner.statusBreakdown['Closed Won'] || 0) +
-    (partner.statusBreakdown['Closed Won '] || 0) +
-    (partner.stageBreakdown['Closed Won'] || 0) +
-    (partner.stageBreakdown['Closed Won '] || 0);
+    (partner.statusBreakdown['Closed Won '] || 0);
 
   const totalImpressions = activities.reduce((s, a) => s + a.impressions, 0);
   const totalEngagements = activities.reduce((s, a) => s + a.engagements, 0);
