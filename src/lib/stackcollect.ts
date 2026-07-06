@@ -412,6 +412,7 @@ export const PARTNER_VENDOR_ALIASES: Record<string, string[]> = {
   'como': ['como'],
   'storekit': ['storekit'],
   'seven rooms': ['sevenrooms', 'seven rooms', '7rooms'],
+  'leat': ['leat'],
 };
 
 export function matchTermsForPartner(partnerName: string): string[] {
