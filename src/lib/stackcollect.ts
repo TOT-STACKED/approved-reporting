@@ -474,9 +474,16 @@ export async function getPartnerStackCollectData(partnerName: string): Promise<P
   ]);
 
   const matchTerms = matchTermsForPartner(partnerName);
+  // Word-boundary match, not substring, so short aliases like 'sky' don't
+  // grab unrelated tools such as 'Skywire' (EPOS) or 'SkyKick'. Multi-word
+  // aliases like 'seven rooms' still work because \b sits at each end.
+  const partnerTermPatterns = matchTerms.map(term => {
+    const escaped = term.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    return new RegExp(`\\b${escaped}\\b`, 'i');
+  });
   const isPartnerTool = (toolName: string) => {
     const t = toolName.toLowerCase().trim();
-    return matchTerms.some(term => t.includes(term));
+    return partnerTermPatterns.some(re => re.test(t));
   };
 
   const matched = entries.filter(e => isPartnerTool(e.tool_name));
@@ -593,10 +600,16 @@ export async function getPartnerNpsRollup(partnerName: string): Promise<PartnerN
   const terms = matchTermsForPartner(partnerName);
   const scores = await getNpsScores();
 
+  // Same word-boundary match as the tech-stack side so 'sky' doesn't grab
+  // 'Skywire' etc. Keeps NPS attribution in sync with StackCollect ranks.
+  const termPatterns = terms.map(term => {
+    const escaped = term.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    return new RegExp(`\\b${escaped}\\b`, 'i');
+  });
   const matched = scores.filter(s => {
-    const v = (s.vendor ?? '').toLowerCase().trim();
+    const v = (s.vendor ?? '').trim();
     if (!v) return false;
-    return terms.some(t => v.includes(t));
+    return termPatterns.some(re => re.test(v));
   });
 
   const all = matched.map(s => s.score);
