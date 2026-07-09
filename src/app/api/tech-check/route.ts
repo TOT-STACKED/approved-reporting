@@ -97,12 +97,12 @@ export async function GET() {
     // Pin the lead-gen priority cluster first: the people/team & learning
     // categories that map to partner pitches. Everything else sorts by volume.
     // Order here = display order at the top of the dashboard section.
+    // Post-consolidation (25 categories): time & attendance + applicant
+    // tracking got folded into People Management / Payroll.
     const PRIORITY: string[] = [
       'people management',
       'learning & development',
       'payroll',
-      'time & attendance',
-      'applicant tracking system',
     ];
     const priorityRank = (cat: string) => {
       const c = cat.trim().toLowerCase();
