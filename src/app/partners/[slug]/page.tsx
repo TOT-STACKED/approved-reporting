@@ -90,16 +90,32 @@ export default function PartnerPage() {
   const [generating, setGenerating] = useState(false);
 
   useEffect(() => {
-    fetch(`/api/partners/${slug}`)
-      .then(r => r.json())
-      .then(data => {
-        setPartner(data.partner);
-        setMetrics(data.metrics || []);
-        setStackCollect(data.stackCollect || null);
-        setNps(data.nps || null);
+    let cancelled = false;
+    // Cold-start safety: if the first fetch returns no partner, wait 1.5s
+    // and try once more. Airtable pagination sometimes returns partial data
+    // on a cold serverless invocation; a retry lands on a warm cache.
+    const load = async (attempt: number) => {
+      try {
+        const r = await fetch(`/api/partners/${slug}`, { cache: 'no-store' });
+        const data = await r.json();
+        if (cancelled) return;
+        if (data.partner) {
+          setPartner(data.partner);
+          setMetrics(data.metrics || []);
+          setStackCollect(data.stackCollect || null);
+          setNps(data.nps || null);
+          setLoading(false);
+          return;
+        }
+        if (attempt === 1) { setTimeout(() => load(2), 1500); return; }
         setLoading(false);
-      })
-      .catch(() => setLoading(false));
+      } catch {
+        if (attempt === 1) { setTimeout(() => load(2), 1500); return; }
+        if (!cancelled) setLoading(false);
+      }
+    };
+    load(1);
+    return () => { cancelled = true; };
   }, [slug]);
 
   const [reportHtml, setReportHtml] = useState<string | null>(null);

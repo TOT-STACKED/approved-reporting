@@ -50,8 +50,8 @@ export default function Dashboard() {
     if (saved) setHiddenPartners(JSON.parse(saved));
 
     Promise.all([
-      fetch('/api/partners').then(r => r.json()),
-      fetch('/api/leads').then(r => r.json()),
+      fetch('/api/partners', { cache: 'no-store' }).then(r => r.json()),
+      fetch('/api/leads', { cache: 'no-store' }).then(r => r.json()),
     ])
       .then(([partnerData, leadsData]) => {
         setPartners(partnerData.partners || []);

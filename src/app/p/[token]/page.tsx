@@ -165,25 +165,37 @@ export default function SecurePartnerPage() {
   }
 
   useEffect(() => {
-    fetch(`/api/p/${token}`)
-      .then(r => {
+    let cancelled = false;
+    // Cold-start safety: retry once on empty partner. See partners/[slug]
+    // for the same pattern — Airtable pagination can return partial data
+    // on a cold serverless invocation.
+    const load = async (attempt: number) => {
+      try {
+        const r = await fetch(`/api/p/${token}`, { cache: 'no-store' });
         if (r.status === 401) {
-          setUnauthorized(true);
-          setLoading(false);
-          return null;
+          if (!cancelled) { setUnauthorized(true); setLoading(false); }
+          return;
         }
-        return r.json();
-      })
-      .then(data => {
-        if (!data) return;
-        setPartner(data.partner);
-        setMetrics(data.metrics || []);
-        setActivities(data.activities || []);
-        setStackCollect(data.stackCollect || null);
-        setNps(data.nps || null);
+        const data = await r.json();
+        if (cancelled) return;
+        if (data && data.partner) {
+          setPartner(data.partner);
+          setMetrics(data.metrics || []);
+          setActivities(data.activities || []);
+          setStackCollect(data.stackCollect || null);
+          setNps(data.nps || null);
+          setLoading(false);
+          return;
+        }
+        if (attempt === 1) { setTimeout(() => load(2), 1500); return; }
         setLoading(false);
-      })
-      .catch(() => setLoading(false));
+      } catch {
+        if (attempt === 1) { setTimeout(() => load(2), 1500); return; }
+        if (!cancelled) setLoading(false);
+      }
+    };
+    load(1);
+    return () => { cancelled = true; };
   }, [token]);
 
   const generateReport = async () => {
