@@ -49,12 +49,25 @@ export async function GET() {
     // Build a fast lookup so we can attach venue details to each entry once.
     const bizById = new Map(businesses.map(b => [b.id, b]));
 
+    // Fold ~12 legacy-taxonomy rows from before Lovable consolidated to the
+    // 25-category taxonomy. Cheaper to fold at read-time than to migrate the
+    // rows in Supabase — same result, no data mutation risk.
+    const CATEGORY_FOLD: Record<string, string> = {
+      'epos': 'Point of Sale',
+      'workforce': 'People Management',
+      'inventory': 'Inventory & Stock Management',
+      'learning': 'Learning & Development',
+      'finance / ops management': 'Finance & Accounting',
+      'loyalty / crm': 'Loyalty & CRM',
+    };
+
     // Group: category → tool → list of venue records.
     const byCategory = new Map<string, Map<string, TechCheckVenue[]>>();
     for (const e of entries) {
       const biz = bizById.get(e.submission_id);
       if (!biz) continue;
-      const category = (e.category || '').trim();
+      const rawCategory = (e.category || '').trim();
+      const category = CATEGORY_FOLD[rawCategory.toLowerCase()] ?? rawCategory;
       const tool = (e.tool_name || '').trim();
       if (!category || !tool) continue;
 
