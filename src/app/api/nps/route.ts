@@ -10,9 +10,12 @@ export async function GET() {
     // Filter out our own pipeline smoke-test rows and any clearly-bogus vendor names.
     // 'low-nps-slack-test' is a QA touchpoint used to test the low-NPS Slack
     // alert wiring — always TestVendorCo/Test Hospitality Ltd, not real data.
+    // Any vendor prefixed with '__' is treated as a diagnostic/test marker
+    // (__e2e_check__, __diag_vendor__, etc.) — keeps the top-vendors ranking
+    // clean without having to enumerate each test name individually.
     const TEST_TOUCHPOINTS = new Set(['pipeline-smoke-test', 'low-nps-slack-test']);
     const clean = scores.filter(
-      s => s.vendor !== '__e2e_check__' && !TEST_TOUCHPOINTS.has(s.touchpoint ?? '')
+      s => !(s.vendor ?? '').trim().startsWith('__') && !TEST_TOUCHPOINTS.has(s.touchpoint ?? '')
     );
 
     const vendorRollup = rollupNpsByVendor(clean);

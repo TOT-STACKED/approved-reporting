@@ -97,7 +97,16 @@ function recomputeStats(recent: RecentResponse[]) {
         detractors: d,
       };
     })
-    .sort((x, y) => y.nps - x.nps);
+    // Sort by sample-size tier first, then NPS. Anything with 5+ responses
+    // ranks above anything with 4, then 3, etc. — stops n=1 vendors trivially
+    // scoring 100 and pushing multi-response vendors off the top of the list.
+    // NPS is the tiebreaker within each tier.
+    .sort((x, y) => {
+      const xTier = Math.min(x.count, 5);
+      const yTier = Math.min(y.count, 5);
+      if (yTier !== xTier) return yTier - xTier;
+      return y.nps - x.nps;
+    });
   return { scores, promoters, passives, detractors, avg, nps, vendorRollup };
 }
 
@@ -290,16 +299,27 @@ export default function NpsDashboard() {
                   <div className="text-gray-800 font-medium mt-0.5">{stats.detractors} <span className="text-gray-400 font-normal">({Math.round((stats.detractors / filteredRecent.length) * 100)}%)</span></div>
                 </div>
               </div>
-              {Object.keys(data.bySource).length > 1 && (
-                <div className="mt-4 pt-3 border-t border-gray-100 text-xs text-gray-500">
-                  <span className="font-medium text-gray-700">Sources: </span>
-                  {Object.entries(data.bySource).map(([src, n], i, arr) => (
-                    <span key={src}>
-                      {SOURCE_LABELS[src as 'techstackreview' | 'toast-support-bot'] ?? src} ({n}){i < arr.length - 1 ? ' · ' : ''}
-                    </span>
-                  ))}
-                </div>
-              )}
+              {/* Sources caption — computed from filteredRecent (not data.bySource)
+                  so the count reflects the currently-selected period, matching the
+                  KPI cards above rather than showing the always-global total. */}
+              {(() => {
+                const bySourceScoped: Record<string, number> = {};
+                for (const r of filteredRecent) {
+                  bySourceScoped[r.source] = (bySourceScoped[r.source] || 0) + 1;
+                }
+                const entries = Object.entries(bySourceScoped);
+                if (entries.length < 2) return null;
+                return (
+                  <div className="mt-4 pt-3 border-t border-gray-100 text-xs text-gray-500">
+                    <span className="font-medium text-gray-700">Sources: </span>
+                    {entries.map(([src, n], i, arr) => (
+                      <span key={src}>
+                        {SOURCE_LABELS[src as 'techstackreview' | 'toast-support-bot'] ?? src} ({n}){i < arr.length - 1 ? ' · ' : ''}
+                      </span>
+                    ))}
+                  </div>
+                );
+              })()}
             </>
           )}
         </div>
@@ -311,24 +331,36 @@ export default function NpsDashboard() {
             <p className="text-xs text-gray-400">No vendor-level data yet</p>
           ) : (
             <div className="space-y-2">
-              {stats.vendorRollup.slice(0, 8).map(v => (
-                <div key={v.vendor} className="flex items-center gap-3">
-                  <div className="flex-1">
-                    <div className="flex items-center justify-between mb-0.5">
-                      <span className="text-xs font-medium text-gray-700 truncate">{v.vendor}</span>
-                      <span className="text-xs text-gray-500 whitespace-nowrap ml-2">
-                        {v.nps} <span className="text-gray-400">· {v.count}</span>
-                      </span>
-                    </div>
-                    <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                      <div
-                        className={`h-full rounded-full ${v.nps >= 30 ? 'bg-emerald-500' : v.nps >= 0 ? 'bg-amber-500' : 'bg-rose-500'}`}
-                        style={{ width: `${Math.max(5, Math.min(100, (v.nps + 100) / 2))}%` }}
-                      />
+              {stats.vendorRollup.slice(0, 8).map(v => {
+                // Anything under 3 responses is statistically noisy — flag it
+                // in the row so the reader knows the score isn't stable yet.
+                const lowSample = v.count < 3;
+                return (
+                  <div key={v.vendor} className="flex items-center gap-3">
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between mb-0.5 gap-2">
+                        <span className={`text-xs font-medium truncate ${lowSample ? 'text-gray-500' : 'text-gray-700'}`}>
+                          {v.vendor}
+                          {lowSample && (
+                            <span className="ml-1.5 text-[10px] px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-500 font-normal">
+                              low sample
+                            </span>
+                          )}
+                        </span>
+                        <span className="text-xs text-gray-500 whitespace-nowrap">
+                          {v.nps} <span className="text-gray-400">· n={v.count}</span>
+                        </span>
+                      </div>
+                      <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                        <div
+                          className={`h-full rounded-full ${lowSample ? 'opacity-40 ' : ''}${v.nps >= 30 ? 'bg-emerald-500' : v.nps >= 0 ? 'bg-amber-500' : 'bg-rose-500'}`}
+                          style={{ width: `${Math.max(5, Math.min(100, (v.nps + 100) / 2))}%` }}
+                        />
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
