@@ -111,7 +111,10 @@ function npsColor(score: number | null) {
 export default function NpsDashboard() {
   const [data, setData] = useState<NpsData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [period, setPeriod] = useState<Period>('month');
+  // Default to 'all' because NPS submissions are sparse — a 30-day window
+  // often shows near-zero and reads as "the feed is broken" when actually
+  // scores just come in slowly. Users can still narrow via the buttons.
+  const [period, setPeriod] = useState<Period>('all');
   const [source, setSource] = useState<SourceFilter>('all');
   const [showRecent, setShowRecent] = useState(false);
 
