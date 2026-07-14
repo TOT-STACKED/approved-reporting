@@ -205,6 +205,43 @@ export default function NpsDashboard() {
         </div>
       </div>
 
+      {/* Freshness watchdog — surfaces silent upstream breakage.
+          Reads from data.recent (all real rows, ignores current period/source
+          filter) so it reflects pipeline health, not the current view. */}
+      {(() => {
+        if (!data.recent.length) return null;
+        const latestMs = data.recent.reduce(
+          (max, r) => Math.max(max, new Date(r.created_at).getTime()),
+          0
+        );
+        if (!latestMs) return null;
+        const daysOld = Math.floor((Date.now() - latestMs) / 86_400_000);
+        if (daysOld < 7) return null;
+        const isCritical = daysOld >= 30;
+        const wrap = isCritical
+          ? 'bg-rose-50 border-rose-200 text-rose-900'
+          : 'bg-amber-50 border-amber-200 text-amber-900';
+        const sub = isCritical
+          ? 'The pipeline that writes NPS scores has almost certainly stopped — investigate stackcollect-webhook logs on Lovable.'
+          : 'No new NPS scores in over a week — worth checking the pipeline before it drifts further.';
+        const latestDate = new Date(latestMs).toLocaleDateString('en-GB', {
+          day: 'numeric', month: 'short', year: 'numeric'
+        });
+        return (
+          <div className={`border rounded-xl p-4 mb-4 flex items-start gap-3 ${wrap}`}>
+            <span className="text-2xl leading-none mt-0.5">⚠️</span>
+            <div className="flex-1">
+              <p className="font-semibold">
+                Latest NPS score is {daysOld} days old (received {latestDate})
+              </p>
+              <p className={`text-sm mt-0.5 ${isCritical ? 'text-rose-800/80' : 'text-amber-800/80'}`}>
+                {sub}
+              </p>
+            </div>
+          </div>
+        );
+      })()}
+
       {/* KPI row */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
         <div className={`bg-gradient-to-br ${npsColor(npsScore)} rounded-2xl p-4 text-white text-center shadow-sm`}>
