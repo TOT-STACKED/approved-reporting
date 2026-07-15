@@ -20,18 +20,23 @@ export async function GET() {
       submissionTools[e.submission_id].push({ category: e.category, tool_name: e.tool_name });
     }
 
-    // Merge business info with their tools
-    const reviews = businesses.map(b => ({
-      id: b.id,
-      businessName: b.business_name,
-      industry: b.industry,
-      location: b.location,
-      size: b.size,
-      numberOfLocations: b.number_of_locations,
-      created_at: b.created_at,
-      submissionType: b.submission_type,
-      tools: submissionTools[b.id] || [],
-    })).sort((a, b) => b.created_at.localeCompare(a.created_at));
+    // Merge business info with their tools — only include submissions that
+    // have at least one meaningful tool entry. Empty submissions (form
+    // abandoned or every answer was N/A/None) aren't really "reviews" and
+    // were inflating the main dashboard's number vs /analytics.
+    const reviews = businesses
+      .filter(b => submissionTools[b.id]?.length)
+      .map(b => ({
+        id: b.id,
+        businessName: b.business_name,
+        industry: b.industry,
+        location: b.location,
+        size: b.size,
+        numberOfLocations: b.number_of_locations,
+        created_at: b.created_at,
+        submissionType: b.submission_type,
+        tools: submissionTools[b.id],
+      })).sort((a, b) => b.created_at.localeCompare(a.created_at));
 
     // Top tools from analytics view
     const topTools = toolUsage.slice(0, 20).map(t => ({
