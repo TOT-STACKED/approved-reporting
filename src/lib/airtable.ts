@@ -40,6 +40,15 @@ const FIELDS = {
     size: 'fldwUdKgqSG6E2JZ1',
     location: 'fldTwzHji3JbrvHPU',
     date: 'fldRND3uaiduLQouI',
+    // Contact fields — gated per stage on the partner-facing /p/[token] page.
+    // MQL rows only expose position (Tech on Toast handles MQL outreach).
+    // SQL rows expose full contact + notes for the partner to take forward.
+    firstName: 'fld26qV2h9PnWZpKD',
+    lastName: 'fldnMvs9tjp2RHVeY',
+    position: 'fldZNL4IH2olRr66g',
+    contactEmail: 'fldRdQUlKtkwn6eHK',
+    contactNumber: 'fldmNvuo4hUotbcjY',
+    totNotes: 'fldMl5guDipzNfYkN',
   },
   partnerMetrics: {
     partnerName: 'fldriMb2tvbkFVdU3',
@@ -142,6 +151,14 @@ export interface Lead {
   size: string;
   location: string;
   date: string;
+  // Contact info — populated on every lead but exposed by the UI per stage.
+  // The partner-facing page shows position only at MQL, full details at SQL+.
+  firstName?: string;
+  lastName?: string;
+  position?: string;
+  contactEmail?: string;
+  contactNumber?: string;
+  totNotes?: string;
 }
 
 export interface MetricsEntry {
@@ -311,6 +328,12 @@ export async function getPartnerDetail(slug: string): Promise<PartnerDetail | nu
       // user-entered Date field is empty (it's a common data-quality gap
       // and otherwise the dashboard would show "N/A" + flag stale wrongly).
       date: fields[FIELDS.masterView.date] || r.createdTime || '',
+      firstName:     (fields[FIELDS.masterView.firstName]     as string | undefined) || '',
+      lastName:      (fields[FIELDS.masterView.lastName]      as string | undefined) || '',
+      position:      (fields[FIELDS.masterView.position]      as string | undefined) || '',
+      contactEmail:  (fields[FIELDS.masterView.contactEmail]  as string | undefined) || '',
+      contactNumber: (fields[FIELDS.masterView.contactNumber] as string | undefined) || '',
+      totNotes:      (fields[FIELDS.masterView.totNotes]      as string | undefined) || '',
     });
     void stage;
   }

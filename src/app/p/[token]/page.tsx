@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Fragment, useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import PartnerNps, { type PartnerNpsData } from '@/components/PartnerNps';
 import ConversionTimeline from '@/components/ConversionTimeline';
@@ -34,6 +34,12 @@ interface Lead {
   stage: string;
   lastModified: string;
   date?: string;
+  firstName?: string;
+  lastName?: string;
+  position?: string;
+  contactEmail?: string;
+  contactNumber?: string;
+  totNotes?: string;
 }
 
 interface MetricsEntry {
@@ -110,6 +116,7 @@ export default function SecurePartnerPage() {
   const [leadSearch, setLeadSearch] = useState('');
   const [leadSort, setLeadSort] = useState<{ col: SortCol; dir: 'asc' | 'desc' }>({ col: 'date', dir: 'desc' });
   const [staleOnly, setStaleOnly] = useState(false);
+  const [expandedLeadId, setExpandedLeadId] = useState<string | null>(null);
   const STALE_DAYS = 30;
   function toggleSort(col: SortCol) {
     setLeadSort(prev => prev.col === col
@@ -503,27 +510,94 @@ export default function SecurePartnerPage() {
                       <tbody>
                         {sorted.map(lead => {
                           const stale = isStale(lead);
+                          const isExpanded = expandedLeadId === lead.id;
+                          // Stage-gated visibility:
+                          //   MQL → position only (Tech on Toast handles outreach)
+                          //   SQL / Closed Won / Closed Lost → full contact + notes
+                          const stageKey = (lead.status || '').trim();
+                          const isMql = stageKey === 'MQL';
+                          const fullName = [lead.firstName, lead.lastName].filter(Boolean).join(' ');
                           return (
-                            <tr key={lead.id} className={`border-b border-gray-100 ${stale ? 'bg-amber-50/40' : ''}`}>
-                              <td className="py-3 px-3 text-gray-900">
-                                {lead.businessName}
-                                {stale && <span className="ml-2 text-[10px] text-amber-700">⚠ stale</span>}
-                              </td>
-                              <td className="py-3 px-3">
-                                <span className="inline-block bg-gray-100 text-gray-700 text-xs px-2 py-1 rounded-full">{lead.status}</span>
-                              </td>
-                              <td className="py-3 px-3 text-gray-600">{lead.source}</td>
-                              <td className="py-3 px-3 text-gray-600">{lead.date?.split('T')[0] || 'N/A'}</td>
-                              <td className="py-3 px-3 text-right">
-                                <button
-                                  onClick={() => openFeedback({ id: lead.id, businessName: lead.businessName })}
-                                  className="text-xs text-brand-green hover:text-brand-green-soft underline"
-                                  title="Tell Tech on Toast where this lead actually is"
-                                >
-                                  Update status
-                                </button>
-                              </td>
-                            </tr>
+                            <Fragment key={lead.id}>
+                              <tr
+                                onClick={() => setExpandedLeadId(isExpanded ? null : lead.id)}
+                                className={`border-b border-gray-100 cursor-pointer hover:bg-brand-cream/40 ${stale ? 'bg-amber-50/40' : ''} ${isExpanded ? 'bg-brand-cream/60' : ''}`}
+                              >
+                                <td className="py-3 px-3 text-gray-900">
+                                  <span className="inline-block mr-1.5 text-gray-400 text-[10px]">{isExpanded ? '▾' : '▸'}</span>
+                                  {lead.businessName}
+                                  {stale && <span className="ml-2 text-[10px] text-amber-700">⚠ stale</span>}
+                                </td>
+                                <td className="py-3 px-3">
+                                  <span className="inline-block bg-gray-100 text-gray-700 text-xs px-2 py-1 rounded-full">{lead.status}</span>
+                                </td>
+                                <td className="py-3 px-3 text-gray-600">{lead.source}</td>
+                                <td className="py-3 px-3 text-gray-600">{lead.date?.split('T')[0] || 'N/A'}</td>
+                                <td className="py-3 px-3 text-right">
+                                  <button
+                                    onClick={e => { e.stopPropagation(); openFeedback({ id: lead.id, businessName: lead.businessName }); }}
+                                    className="text-xs text-brand-green hover:text-brand-green-soft underline"
+                                    title="Tell Tech on Toast where this lead actually is"
+                                  >
+                                    Update status
+                                  </button>
+                                </td>
+                              </tr>
+                              {isExpanded && (
+                                <tr className="bg-brand-cream/40 border-b border-gray-100">
+                                  <td colSpan={5} className="py-3 px-4 sm:px-5">
+                                    {isMql ? (
+                                      // MQL — role only, no contact route.
+                                      <div className="text-xs sm:text-sm text-gray-700">
+                                        <p className="mb-2">
+                                          <span className="text-gray-500">Position: </span>
+                                          <span className="font-medium text-gray-900">{lead.position || '—'}</span>
+                                        </p>
+                                        <p className="text-[11px] text-amber-800 bg-amber-50 border border-amber-200 rounded-md px-3 py-2">
+                                          Tech on Toast handles all MQL outreach. Contact details unlock when this lead progresses to SQL — we'll notify you in Slack the moment it does.
+                                        </p>
+                                      </div>
+                                    ) : (
+                                      // SQL / Closed Won / Closed Lost — full contact + notes.
+                                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs sm:text-sm">
+                                        <div>
+                                          <p className="text-[10px] uppercase tracking-wider text-gray-500 mb-1">Contact</p>
+                                          <p className="font-medium text-gray-900">{fullName || '—'}</p>
+                                          {lead.position && (
+                                            <p className="text-gray-600 mt-0.5">{lead.position}</p>
+                                          )}
+                                          <div className="mt-1.5 space-y-0.5">
+                                            {lead.contactEmail && (
+                                              <p>
+                                                <a href={`mailto:${lead.contactEmail}`} className="text-brand-green hover:text-brand-green-soft underline">
+                                                  {lead.contactEmail}
+                                                </a>
+                                              </p>
+                                            )}
+                                            {lead.contactNumber && (
+                                              <p>
+                                                <a href={`tel:${lead.contactNumber.replace(/\s+/g, '')}`} className="text-brand-green hover:text-brand-green-soft underline">
+                                                  {lead.contactNumber}
+                                                </a>
+                                              </p>
+                                            )}
+                                            {!lead.contactEmail && !lead.contactNumber && (
+                                              <p className="text-gray-400 italic text-xs">No email or phone on file — chase Tech on Toast for the details.</p>
+                                            )}
+                                          </div>
+                                        </div>
+                                        <div>
+                                          <p className="text-[10px] uppercase tracking-wider text-gray-500 mb-1">Tech on Toast notes</p>
+                                          <p className="text-gray-700 leading-relaxed whitespace-pre-line">
+                                            {lead.totNotes || <span className="text-gray-400 italic">No notes yet.</span>}
+                                          </p>
+                                        </div>
+                                      </div>
+                                    )}
+                                  </td>
+                                </tr>
+                              )}
+                            </Fragment>
                           );
                         })}
                       </tbody>
