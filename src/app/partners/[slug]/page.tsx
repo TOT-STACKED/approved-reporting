@@ -468,10 +468,13 @@ export default function PartnerPage() {
                       {sorted.map((lead) => {
                         const stale = isStale(lead);
                         const isExpanded = expandedLeadId === lead.id;
-                        // Internal team sees the same expand-drawer as the
-                        // partner-facing page, but with FULL contact info at
-                        // every stage — no MQL gating, because the team
-                        // handles all MQL outreach themselves.
+                        // Same MQL gating as /p/[token] — even the internal
+                        // view hides contact for MQL. Keeps a screen-share
+                        // safe (no accidental leak if a partner sees the
+                        // screen) and keeps both pages behaviourally identical
+                        // so there's only one thing to reason about.
+                        const stageKey = (lead.status || '').trim();
+                        const isMql = stageKey === 'MQL';
                         const fullName = [lead.firstName, lead.lastName].filter(Boolean).join(' ');
                         return (
                           <Fragment key={lead.id}>
@@ -504,38 +507,57 @@ export default function PartnerPage() {
                             {isExpanded && (
                               <tr className="bg-brand-cream/40 border-b border-gray-100">
                                 <td colSpan={5} className="py-3 px-4 sm:px-5">
-                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs sm:text-sm">
-                                    <div>
-                                      <p className="text-[10px] uppercase tracking-wider text-gray-500 mb-1">Contact</p>
-                                      <p className="font-medium text-gray-900">{fullName || '—'}</p>
-                                      {lead.position && <p className="text-gray-600 mt-0.5">{lead.position}</p>}
-                                      <div className="mt-1.5 space-y-0.5">
-                                        {lead.contactEmail && (
-                                          <p>
-                                            <a href={`mailto:${lead.contactEmail}`} className="text-brand-green hover:text-brand-green-soft underline">
-                                              {lead.contactEmail}
-                                            </a>
-                                          </p>
-                                        )}
-                                        {lead.contactNumber && (
-                                          <p>
-                                            <a href={`tel:${lead.contactNumber.replace(/\s+/g, '')}`} className="text-brand-green hover:text-brand-green-soft underline">
-                                              {lead.contactNumber}
-                                            </a>
-                                          </p>
-                                        )}
-                                        {!lead.contactEmail && !lead.contactNumber && (
-                                          <p className="text-gray-400 italic text-xs">No email or phone on file — check Airtable.</p>
-                                        )}
+                                  {isMql ? (
+                                    // MQL — role + source only, no contact route.
+                                    <div className="text-xs sm:text-sm text-gray-700 space-y-2">
+                                      <div className="flex flex-wrap gap-x-6 gap-y-1">
+                                        <p>
+                                          <span className="text-gray-500">Position: </span>
+                                          <span className="font-medium text-gray-900">{lead.position || '—'}</span>
+                                        </p>
+                                        <p>
+                                          <span className="text-gray-500">Source: </span>
+                                          <span className="font-medium text-gray-900">{lead.source || '—'}</span>
+                                        </p>
                                       </div>
-                                    </div>
-                                    <div>
-                                      <p className="text-[10px] uppercase tracking-wider text-gray-500 mb-1">TOT notes</p>
-                                      <p className="text-gray-700 leading-relaxed whitespace-pre-line">
-                                        {lead.totNotes || <span className="text-gray-400 italic">No notes yet.</span>}
+                                      <p className="text-[11px] text-amber-800 bg-amber-50 border border-amber-200 rounded-md px-3 py-2">
+                                        MQL leads — contact details hidden until the lead progresses to SQL. Tech on Toast handles all MQL outreach.
                                       </p>
                                     </div>
-                                  </div>
+                                  ) : (
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs sm:text-sm">
+                                      <div>
+                                        <p className="text-[10px] uppercase tracking-wider text-gray-500 mb-1">Contact</p>
+                                        <p className="font-medium text-gray-900">{fullName || '—'}</p>
+                                        {lead.position && <p className="text-gray-600 mt-0.5">{lead.position}</p>}
+                                        <div className="mt-1.5 space-y-0.5">
+                                          {lead.contactEmail && (
+                                            <p>
+                                              <a href={`mailto:${lead.contactEmail}`} className="text-brand-green hover:text-brand-green-soft underline">
+                                                {lead.contactEmail}
+                                              </a>
+                                            </p>
+                                          )}
+                                          {lead.contactNumber && (
+                                            <p>
+                                              <a href={`tel:${lead.contactNumber.replace(/\s+/g, '')}`} className="text-brand-green hover:text-brand-green-soft underline">
+                                                {lead.contactNumber}
+                                              </a>
+                                            </p>
+                                          )}
+                                          {!lead.contactEmail && !lead.contactNumber && (
+                                            <p className="text-gray-400 italic text-xs">No email or phone on file — check Airtable.</p>
+                                          )}
+                                        </div>
+                                      </div>
+                                      <div>
+                                        <p className="text-[10px] uppercase tracking-wider text-gray-500 mb-1">TOT notes</p>
+                                        <p className="text-gray-700 leading-relaxed whitespace-pre-line">
+                                          {lead.totNotes || <span className="text-gray-400 italic">No notes yet.</span>}
+                                        </p>
+                                      </div>
+                                    </div>
+                                  )}
                                 </td>
                               </tr>
                             )}

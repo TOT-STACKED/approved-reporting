@@ -547,12 +547,18 @@ export default function SecurePartnerPage() {
                                 <tr className="bg-brand-cream/40 border-b border-gray-100">
                                   <td colSpan={5} className="py-3 px-4 sm:px-5">
                                     {isMql ? (
-                                      // MQL — role only, no contact route.
-                                      <div className="text-xs sm:text-sm text-gray-700">
-                                        <p className="mb-2">
-                                          <span className="text-gray-500">Position: </span>
-                                          <span className="font-medium text-gray-900">{lead.position || '—'}</span>
-                                        </p>
+                                      // MQL — role + source only, no contact route.
+                                      <div className="text-xs sm:text-sm text-gray-700 space-y-2">
+                                        <div className="flex flex-wrap gap-x-6 gap-y-1">
+                                          <p>
+                                            <span className="text-gray-500">Position: </span>
+                                            <span className="font-medium text-gray-900">{lead.position || '—'}</span>
+                                          </p>
+                                          <p>
+                                            <span className="text-gray-500">Source: </span>
+                                            <span className="font-medium text-gray-900">{lead.source || '—'}</span>
+                                          </p>
+                                        </div>
                                         <p className="text-[11px] text-amber-800 bg-amber-50 border border-amber-200 rounded-md px-3 py-2">
                                           Tech on Toast handles all MQL outreach. Contact details unlock when this lead progresses to SQL — we'll notify you in Slack the moment it does.
                                         </p>
