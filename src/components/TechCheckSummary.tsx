@@ -64,6 +64,29 @@ interface KbSummary {
   totalAnswered: number;
 }
 
+// One expandable venue row for the "all tech checks" drilldown at the
+// bottom of the page. Comes pre-shaped from /api/tech-check with tools
+// grouped by category and NPS scores already attached.
+interface VenueDrilldown {
+  submissionId: string;
+  businessName: string;
+  contactName: string | null;
+  contactEmail: string | null;
+  location: string | null;
+  size: string | null;
+  numberOfLocations: string | null;
+  industry: string | null;
+  vertical: string | null;
+  createdAt: string;
+  toolCount: number;
+  npsCount: number;
+  avgNps: number | null;
+  byCategory: Array<{
+    category: string;
+    tools: Array<{ tool: string; nps: number | null; comment: string | null }>;
+  }>;
+}
+
 interface TechCheckData {
   whatsapp?: WhatsAppSummary;
   knowledgeBase?: KbSummary;
@@ -71,6 +94,7 @@ interface TechCheckData {
   totalAnswers: number;
   totalVenues: number;
   totalCategories: number;
+  venues?: VenueDrilldown[];
 }
 
 // CSV helper: quote everything so notes/biggest_challenge with commas / quotes
@@ -101,6 +125,12 @@ export default function TechCheckSummary() {
   const [openWhatsapp, setOpenWhatsapp] = useState<'yes' | 'no' | null>(null);
   const [openKb, setOpenKb] = useState<'yes' | 'no' | null>(null);
   const [search, setSearch] = useState('');
+  // Drilldown section state — collapsed by default so 600+ venues don't
+  // dominate the page. Search filters by business name / location /
+  // contact / any tool the venue picked.
+  const [showVenues, setShowVenues] = useState(false);
+  const [venueSearch, setVenueSearch] = useState('');
+  const [expandedVenue, setExpandedVenue] = useState<string | null>(null);
   const categoryRefs = useRef<Map<string, HTMLDivElement>>(new Map());
 
   function jumpToCategory(cat: string) {
@@ -635,6 +665,159 @@ export default function TechCheckSummary() {
           );
         })}
       </div>
+
+      {/* All venue tech checks — full drilldown. Collapsed by default so a
+          600+ venue list doesn't dominate the page. Search filters by venue,
+          location, contact, or any tool the venue picked. Each row expands
+          to show every tool the operator entered, grouped by category, with
+          the NPS score they gave that specific tool. */}
+      {data.venues && data.venues.length > 0 && (() => {
+        const venues = data.venues;
+        const q = venueSearch.trim().toLowerCase();
+        const filtered = q
+          ? venues.filter(v => {
+              if ((v.businessName || '').toLowerCase().includes(q)) return true;
+              if ((v.location || '').toLowerCase().includes(q)) return true;
+              if ((v.contactName || '').toLowerCase().includes(q)) return true;
+              if ((v.contactEmail || '').toLowerCase().includes(q)) return true;
+              // Match against any tool the venue picked
+              return v.byCategory.some(cat => cat.tools.some(t => t.tool.toLowerCase().includes(q)));
+            })
+          : venues;
+
+        const npsClass = (n: number | null): string => {
+          if (n == null) return 'bg-gray-100 text-gray-500';
+          if (n >= 9) return 'bg-emerald-100 text-emerald-800';
+          if (n >= 7) return 'bg-amber-100 text-amber-800';
+          return 'bg-rose-100 text-rose-800';
+        };
+        const avgClass = (n: number | null): string => {
+          if (n == null) return 'bg-gray-100 text-gray-500';
+          if (n >= 8) return 'bg-emerald-500 text-white';
+          if (n >= 6) return 'bg-amber-500 text-white';
+          return 'bg-rose-500 text-white';
+        };
+
+        return (
+          <div className="bg-white rounded-xl border border-gray-200 mt-3 overflow-hidden">
+            <button
+              onClick={() => setShowVenues(s => !s)}
+              className="w-full flex items-center justify-between gap-3 p-4 text-left hover:bg-brand-cream/40"
+              aria-expanded={showVenues}
+            >
+              <div>
+                <h3 className="font-semibold text-gray-900">All venue tech checks</h3>
+                <p className="text-[11px] text-gray-500 mt-0.5">
+                  Every completed tech check, with the exact stack each venue picked and their NPS score per product.
+                </p>
+              </div>
+              <span className="text-xs text-gray-500 whitespace-nowrap inline-flex items-center gap-1">
+                {venues.length} venues
+                <svg className={`w-3.5 h-3.5 transition-transform ${showVenues ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
+                </svg>
+              </span>
+            </button>
+
+            {showVenues && (
+              <div className="border-t border-gray-100">
+                <div className="p-3 sm:p-4">
+                  <input
+                    type="text"
+                    value={venueSearch}
+                    onChange={e => setVenueSearch(e.target.value)}
+                    placeholder="Search venue, contact, location, or tool…"
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-green focus:border-brand-green"
+                  />
+                  <p className="text-[11px] text-gray-400 mt-1.5">
+                    Showing {filtered.length} of {venues.length} venues{q ? ` matching "${q}"` : ''}
+                  </p>
+                </div>
+
+                <ul className="max-h-[720px] overflow-y-auto border-t border-gray-100 divide-y divide-gray-100">
+                  {filtered.length === 0 && (
+                    <li className="p-6 text-center text-sm text-gray-400">No venues match this search.</li>
+                  )}
+                  {filtered.map(v => {
+                    const isOpen = expandedVenue === v.submissionId;
+                    return (
+                      <li key={v.submissionId}>
+                        <button
+                          onClick={() => setExpandedVenue(isOpen ? null : v.submissionId)}
+                          className={`w-full flex items-center gap-3 p-3 sm:p-4 text-left hover:bg-brand-cream/30 ${isOpen ? 'bg-brand-cream/50' : ''}`}
+                        >
+                          <span className="text-gray-400 text-[10px] w-3">{isOpen ? '▾' : '▸'}</span>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium text-gray-900 truncate">
+                              {v.businessName}
+                              {v.numberOfLocations && (
+                                <span className="text-[11px] text-gray-500 font-normal ml-2">
+                                  {v.numberOfLocations} site{v.numberOfLocations === '1' ? '' : 's'}
+                                </span>
+                              )}
+                            </p>
+                            <p className="text-[11px] text-gray-500 mt-0.5 flex flex-wrap gap-x-3">
+                              {v.location && <span>{v.location}</span>}
+                              {v.vertical && <span>{v.vertical}</span>}
+                              <span>{v.toolCount} tools</span>
+                              <span>{v.npsCount} rated</span>
+                              <span className="text-gray-400">{v.createdAt.slice(0, 10)}</span>
+                            </p>
+                          </div>
+                          <span className={`text-xs px-2 py-1 rounded-full font-semibold tabular-nums whitespace-nowrap ${avgClass(v.avgNps)}`}>
+                            {v.avgNps != null ? `${v.avgNps.toFixed(1)} avg` : 'no NPS'}
+                          </span>
+                        </button>
+
+                        {isOpen && (
+                          <div className="bg-brand-cream/30 border-t border-gray-100 p-4 sm:p-5">
+                            {v.contactEmail && (
+                              <p className="text-[11px] text-gray-500 mb-3">
+                                Contact:{' '}
+                                <span className="text-gray-800">{v.contactName || '—'}</span>
+                                {' · '}
+                                <a href={`mailto:${v.contactEmail}`} className="text-brand-green hover:text-brand-green-soft underline">
+                                  {v.contactEmail}
+                                </a>
+                              </p>
+                            )}
+                            {v.byCategory.length === 0 ? (
+                              <p className="text-xs text-gray-400 italic">No tools recorded.</p>
+                            ) : (
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-3">
+                                {v.byCategory.map(cat => (
+                                  <div key={cat.category}>
+                                    <p className="text-[10px] uppercase tracking-wider text-gray-500 font-medium mb-1.5">
+                                      {cat.category}
+                                    </p>
+                                    <ul className="space-y-1">
+                                      {cat.tools.map((t, i) => (
+                                        <li key={`${cat.category}-${t.tool}-${i}`} className="flex items-center justify-between gap-2 text-xs">
+                                          <span className="text-gray-800">{t.tool}</span>
+                                          <span
+                                            className={`px-1.5 py-0.5 rounded-full text-[10px] font-medium tabular-nums whitespace-nowrap ${npsClass(t.nps)}`}
+                                            title={t.comment || undefined}
+                                          >
+                                            {t.nps != null ? `${t.nps}/10` : '—'}
+                                          </span>
+                                        </li>
+                                      ))}
+                                    </ul>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            )}
+          </div>
+        );
+      })()}
     </div>
   );
 }

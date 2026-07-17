@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getTechStackEntries, getBusinessSubmissions, getWhatsappResponses, getKnowledgeBaseResponses } from '@/lib/stackcollect';
+import { getTechStackEntries, getBusinessSubmissions, getWhatsappResponses, getKnowledgeBaseResponses, getNpsScores } from '@/lib/stackcollect';
 
 // Internal only — gated by the auth proxy (not in PUBLIC_PREFIXES).
 // Returns the "tech check" answers grouped by category → tool → venues.
@@ -37,13 +37,34 @@ export interface TechCheckCategory {
   tools: TechCheckTool[];
 }
 
+export interface TechCheckVenueDrilldown {
+  submissionId: string;
+  businessName: string;
+  contactName: string | null;
+  contactEmail: string | null;
+  location: string | null;
+  size: string | null;
+  numberOfLocations: string | null;
+  industry: string | null;
+  vertical: string | null;
+  createdAt: string;
+  toolCount: number;
+  npsCount: number;
+  avgNps: number | null;    // 0..10, one decimal, null if no scores
+  byCategory: Array<{
+    category: string;
+    tools: Array<{ tool: string; nps: number | null; comment: string | null }>;
+  }>;
+}
+
 export async function GET() {
   try {
-    const [entries, businesses, whatsapp, knowledgeBase] = await Promise.all([
+    const [entries, businesses, whatsapp, knowledgeBase, npsAll] = await Promise.all([
       getTechStackEntries(),
       getBusinessSubmissions(),
       getWhatsappResponses(),
       getKnowledgeBaseResponses(),
+      getNpsScores(),
     ]);
 
     // Build a fast lookup so we can attach venue details to each entry once.
@@ -133,6 +154,100 @@ export async function GET() {
     const totalVenues = new Set<string>();
     for (const c of categories) for (const t of c.tools) for (const v of t.venues) totalVenues.add(v.submissionId);
 
+    // ============================================================
+    // Per-venue drilldown — one row per submission, expandable to
+    // show every tool they picked (grouped by category) with the
+    // matching NPS score if the operator rated that tool.
+    //
+    // Matching rules:
+    //   1. NPS row belongs to a venue if submission_id or external_id
+    //      equals the business id.
+    //   2. Within a venue, an NPS row is attached to a tool if
+    //      vendor.toLowerCase().trim() === tool_name.toLowerCase().trim().
+    //   3. Overall NPS for a venue is the average of ALL numeric scores
+    //      attached, rounded to one decimal.
+    // ============================================================
+    const npsBySubmission = new Map<string, typeof npsAll>();
+    for (const n of npsAll) {
+      const key = n.submission_id || n.external_id;
+      if (!key) continue;
+      if (!npsBySubmission.has(key)) npsBySubmission.set(key, []);
+      npsBySubmission.get(key)!.push(n);
+    }
+
+    // Group entries by submission for the drilldown build
+    const entriesBySubmission = new Map<string, typeof entries>();
+    for (const e of entries) {
+      if (!entriesBySubmission.has(e.submission_id)) entriesBySubmission.set(e.submission_id, []);
+      entriesBySubmission.get(e.submission_id)!.push(e);
+    }
+
+    // Apply the same legacy-category fold as the main category loop
+    const CATEGORY_FOLD: Record<string, string> = {
+      'epos': 'Point of Sale',
+      'workforce': 'People Management',
+      'inventory': 'Inventory & Stock Management',
+      'learning': 'Learning & Development',
+      'finance / ops management': 'Finance & Accounting',
+      'loyalty / crm': 'Loyalty & CRM',
+    };
+
+    const venues: TechCheckVenueDrilldown[] = businesses
+      .filter(b => (entriesBySubmission.get(b.id)?.length ?? 0) > 0)
+      .map(b => {
+        const bizEntries = entriesBySubmission.get(b.id)!;
+        const bizNps = npsBySubmission.get(b.id) || [];
+
+        // Group tools by category, attaching NPS where the vendor matches.
+        const byCategoryMap = new Map<string, Array<{ tool: string; nps: number | null; comment: string | null }>>();
+        for (const e of bizEntries) {
+          const rawCat = (e.category || '').trim();
+          const cat = CATEGORY_FOLD[rawCat.toLowerCase()] ?? rawCat;
+          const toolNorm = (e.tool_name || '').toLowerCase().trim();
+          const npsMatch = bizNps.find(n => (n.vendor || '').toLowerCase().trim() === toolNorm);
+          if (!byCategoryMap.has(cat)) byCategoryMap.set(cat, []);
+          byCategoryMap.get(cat)!.push({
+            tool: e.tool_name,
+            nps: typeof npsMatch?.score === 'number' ? npsMatch.score : null,
+            comment: npsMatch?.comment || null,
+          });
+        }
+
+        // Sort categories alphabetically; tools within each category by name.
+        const byCategory = Array.from(byCategoryMap.entries())
+          .sort(([a], [b]) => a.localeCompare(b))
+          .map(([category, tools]) => ({
+            category,
+            tools: tools.slice().sort((a, b) => a.tool.localeCompare(b.tool)),
+          }));
+
+        // Overall NPS = mean of all numeric scores attached to this venue.
+        const scores = bizEntries
+          .map(e => bizNps.find(n => (n.vendor || '').toLowerCase().trim() === (e.tool_name || '').toLowerCase().trim())?.score)
+          .filter((s): s is number => typeof s === 'number');
+        const avgNps = scores.length
+          ? Math.round((scores.reduce((a, b) => a + b, 0) / scores.length) * 10) / 10
+          : null;
+
+        return {
+          submissionId: b.id,
+          businessName: b.business_name || 'Unknown',
+          contactName: b.contact_name || null,
+          contactEmail: b.contact_email || null,
+          location: b.location || null,
+          size: b.size || null,
+          numberOfLocations: b.number_of_locations || null,
+          industry: b.industry || null,
+          vertical: b.vertical || null,
+          createdAt: b.created_at || '',
+          toolCount: bizEntries.length,
+          npsCount: scores.length,
+          avgNps,
+          byCategory,
+        };
+      })
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+
     return NextResponse.json({
       whatsapp,
       knowledgeBase,
@@ -140,6 +255,7 @@ export async function GET() {
       totalAnswers,
       totalVenues: totalVenues.size,
       totalCategories: categories.length,
+      venues,
     });
   } catch (error: any) {
     return NextResponse.json({ error: error.message || 'Failed' }, { status: 500 });
