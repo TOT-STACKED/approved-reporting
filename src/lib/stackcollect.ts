@@ -218,6 +218,7 @@ export interface NpsScore {
   company: string | null;
   venue_id: string | null;
   external_id: string | null;
+  submission_id: string | null;
   meta: Record<string, unknown>;
 }
 

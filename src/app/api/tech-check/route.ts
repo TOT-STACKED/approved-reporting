@@ -182,16 +182,9 @@ export async function GET() {
       entriesBySubmission.get(e.submission_id)!.push(e);
     }
 
-    // Apply the same legacy-category fold as the main category loop
-    const CATEGORY_FOLD: Record<string, string> = {
-      'epos': 'Point of Sale',
-      'workforce': 'People Management',
-      'inventory': 'Inventory & Stock Management',
-      'learning': 'Learning & Development',
-      'finance / ops management': 'Finance & Accounting',
-      'loyalty / crm': 'Loyalty & CRM',
-    };
-
+    // CATEGORY_FOLD is declared earlier in the handler for the main
+    // category aggregation — reused here for the per-venue drilldown so
+    // both surfaces stay in sync.
     const venues: TechCheckVenueDrilldown[] = businesses
       .filter(b => (entriesBySubmission.get(b.id)?.length ?? 0) > 0)
       .map(b => {
