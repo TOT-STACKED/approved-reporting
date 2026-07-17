@@ -87,6 +87,7 @@ interface VenueDrilldown {
     category: string;
     tools: Array<{ tool: string; nps: number | null; comment: string | null }>;
   }>;
+  extraNps: Array<{ vendor: string; category: string | null; score: number; comment: string | null }>;
 }
 
 interface TechCheckData {
@@ -163,6 +164,18 @@ function downloadVenueReport(v: VenueDrilldown) {
       }
       lines.push('');
     }
+  }
+  if (v.extraNps.length > 0) {
+    lines.push('## Additional NPS scores');
+    lines.push('');
+    lines.push('_These scores are attributed to this venue but the vendor name in the review didn\'t match any tool in the form._');
+    lines.push('');
+    for (const e of v.extraNps) {
+      const commentPart = e.comment ? ` _(${e.comment})_` : '';
+      const catPart = e.category ? ` · ${e.category}` : '';
+      lines.push(`- ${e.vendor}${catPart} — **${e.score}/10**${commentPart}`);
+    }
+    lines.push('');
   }
   if (v.recommendations) {
     lines.push('## AI review — Tech on Toast');
@@ -512,6 +525,33 @@ export default function TechCheckSummary() {
                                     </div>
                                   ))}
                                 </div>
+                              </div>
+                            )}
+
+                            {v.extraNps.length > 0 && (
+                              <div>
+                                <p className="text-[10px] uppercase tracking-wider text-gray-500 font-medium mb-2">
+                                  Additional NPS scores{' '}
+                                  <span className="normal-case text-gray-400 font-normal">
+                                    · vendor named differently than the tool in the form
+                                  </span>
+                                </p>
+                                <ul className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-1">
+                                  {v.extraNps.map((e, i) => (
+                                    <li key={`${e.vendor}-${i}`} className="flex items-center justify-between gap-2 text-xs">
+                                      <span className="text-gray-800">
+                                        {e.vendor}
+                                        {e.category && <span className="text-gray-400 ml-1">· {e.category}</span>}
+                                      </span>
+                                      <span
+                                        className={`px-1.5 py-0.5 rounded-full text-[10px] font-medium tabular-nums whitespace-nowrap ${npsClass(e.score)}`}
+                                        title={e.comment || undefined}
+                                      >
+                                        {e.score}/10
+                                      </span>
+                                    </li>
+                                  ))}
+                                </ul>
                               </div>
                             )}
 

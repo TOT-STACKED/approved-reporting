@@ -60,6 +60,11 @@ export interface TechCheckVenueDrilldown {
     category: string;
     tools: Array<{ tool: string; nps: number | null; comment: string | null }>;
   }>;
+  // NPS scores attributed to this venue but whose vendor didn't match any
+  // tool_name in their tech_stack_entries — usually because the operator
+  // rated a product with a slightly different name than what they picked
+  // in the form. Shown as an "additional scores" section so nothing hides.
+  extraNps: Array<{ vendor: string; category: string | null; score: number; comment: string | null }>;
 }
 
 export async function GET() {
@@ -165,19 +170,37 @@ export async function GET() {
     // matching NPS score if the operator rated that tool.
     //
     // Matching rules:
-    //   1. NPS row belongs to a venue if submission_id or external_id
-    //      equals the business id.
+    //   1. NPS row belongs to a venue if EITHER:
+    //      a) submission_id or external_id equals the business id, OR
+    //      b) company name matches business_name (case/whitespace-insensitive).
+    //      The company-name fallback catches rows written before the
+    //      submission_id column was populated and any where the writer
+    //      couldn't resolve the FK.
     //   2. Within a venue, an NPS row is attached to a tool if
     //      vendor.toLowerCase().trim() === tool_name.toLowerCase().trim().
-    //   3. Overall NPS for a venue is the average of ALL numeric scores
-    //      attached, rounded to one decimal.
+    //   3. Overall NPS for a venue is the average of ALL attributed
+    //      scores, whether they matched a tool or not — otherwise a
+    //      venue with a naming mismatch reads as "no NPS" even though
+    //      they clearly gave scores.
+    //   4. Anything attributed to the venue that couldn't be pinned to
+    //      a specific tool is surfaced separately as extraNps so it
+    //      doesn't disappear.
     // ============================================================
-    const npsBySubmission = new Map<string, typeof npsAll>();
+    const norm = (s: string | null | undefined) => (s || '').toLowerCase().trim().replace(/\s+/g, ' ');
+    const npsByBusinessId = new Map<string, typeof npsAll>();
     for (const n of npsAll) {
       const key = n.submission_id || n.external_id;
       if (!key) continue;
-      if (!npsBySubmission.has(key)) npsBySubmission.set(key, []);
-      npsBySubmission.get(key)!.push(n);
+      if (!npsByBusinessId.has(key)) npsByBusinessId.set(key, []);
+      npsByBusinessId.get(key)!.push(n);
+    }
+    // Secondary index for the company-name fallback.
+    const npsByCompanyName = new Map<string, typeof npsAll>();
+    for (const n of npsAll) {
+      const key = norm(n.company);
+      if (!key) continue;
+      if (!npsByCompanyName.has(key)) npsByCompanyName.set(key, []);
+      npsByCompanyName.get(key)!.push(n);
     }
 
     // Group entries by submission for the drilldown build
@@ -194,15 +217,28 @@ export async function GET() {
       .filter(b => (entriesBySubmission.get(b.id)?.length ?? 0) > 0)
       .map(b => {
         const bizEntries = entriesBySubmission.get(b.id)!;
-        const bizNps = npsBySubmission.get(b.id) || [];
+        // Attribute NPS by id first, then fall back to matching on company name.
+        // De-dupe by nps.id in case both paths return the same row.
+        const byId = npsByBusinessId.get(b.id) || [];
+        const byCompany = npsByCompanyName.get(norm(b.business_name)) || [];
+        const seenNpsIds = new Set<string>();
+        const bizNps: typeof npsAll = [];
+        for (const n of [...byId, ...byCompany]) {
+          if (seenNpsIds.has(n.id)) continue;
+          seenNpsIds.add(n.id);
+          bizNps.push(n);
+        }
 
-        // Group tools by category, attaching NPS where the vendor matches.
+        // Group tools by category, attaching NPS where the vendor matches
+        // the tool_name exactly (case + whitespace normalized).
+        const usedNpsIds = new Set<string>();
         const byCategoryMap = new Map<string, Array<{ tool: string; nps: number | null; comment: string | null }>>();
         for (const e of bizEntries) {
           const rawCat = (e.category || '').trim();
           const cat = CATEGORY_FOLD[rawCat.toLowerCase()] ?? rawCat;
-          const toolNorm = (e.tool_name || '').toLowerCase().trim();
-          const npsMatch = bizNps.find(n => (n.vendor || '').toLowerCase().trim() === toolNorm);
+          const toolNorm = norm(e.tool_name);
+          const npsMatch = bizNps.find(n => norm(n.vendor) === toolNorm);
+          if (npsMatch) usedNpsIds.add(npsMatch.id);
           if (!byCategoryMap.has(cat)) byCategoryMap.set(cat, []);
           byCategoryMap.get(cat)!.push({
             tool: e.tool_name,
@@ -219,12 +255,26 @@ export async function GET() {
             tools: tools.slice().sort((a, b) => a.tool.localeCompare(b.tool)),
           }));
 
-        // Overall NPS = mean of all numeric scores attached to this venue.
-        const scores = bizEntries
-          .map(e => bizNps.find(n => (n.vendor || '').toLowerCase().trim() === (e.tool_name || '').toLowerCase().trim())?.score)
+        // Extra NPS = attributed to this venue but not attached to any tool
+        // (usually because the vendor name in the review differs from the
+        // tool_name the operator picked in the form). Show separately so
+        // the score isn't silently dropped.
+        const extraNps = bizNps
+          .filter(n => !usedNpsIds.has(n.id) && typeof n.score === 'number' && n.vendor)
+          .map(n => ({
+            vendor: n.vendor as string,
+            category: n.category || null,
+            score: n.score,
+            comment: n.comment || null,
+          }));
+
+        // Overall NPS = mean of ALL scores attributed to this venue,
+        // whether they matched a tool_name or not.
+        const allScores = bizNps
+          .map(n => n.score)
           .filter((s): s is number => typeof s === 'number');
-        const avgNps = scores.length
-          ? Math.round((scores.reduce((a, b) => a + b, 0) / scores.length) * 10) / 10
+        const avgNps = allScores.length
+          ? Math.round((allScores.reduce((a, b) => a + b, 0) / allScores.length) * 10) / 10
           : null;
 
         return {
@@ -240,10 +290,11 @@ export async function GET() {
           biggestChallenge: b.biggest_challenge || null,
           createdAt: b.created_at || '',
           toolCount: bizEntries.length,
-          npsCount: scores.length,
+          npsCount: allScores.length,
           avgNps,
           recommendations: b.recommendations || null,
           byCategory,
+          extraNps,
         };
       })
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
