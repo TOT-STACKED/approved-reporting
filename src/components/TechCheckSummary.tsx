@@ -77,10 +77,12 @@ interface VenueDrilldown {
   numberOfLocations: string | null;
   industry: string | null;
   vertical: string | null;
+  biggestChallenge: string | null;
   createdAt: string;
   toolCount: number;
   npsCount: number;
   avgNps: number | null;
+  recommendations: string | null;
   byCategory: Array<{
     category: string;
     tools: Array<{ tool: string; nps: number | null; comment: string | null }>;
@@ -112,6 +114,67 @@ function downloadCsv(filename: string, rows: string[][]) {
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
   a.download = filename;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+
+// Build a Markdown report from a venue's tech check + AI recommendations.
+// Everything a partner or the internal team might want in one file: business
+// info, biggest challenge, stack grouped by category with per-tool NPS,
+// overall NPS, and the AI review parsed from the pipe-separated recommendations.
+function downloadVenueReport(v: VenueDrilldown) {
+  const safeSlug = (v.businessName || 'venue').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'venue';
+  const date = new Date().toISOString().slice(0, 10);
+  const lines: string[] = [];
+  lines.push(`# ${v.businessName} — Tech Check Report`);
+  lines.push('');
+  lines.push(`_Generated ${date} from Approved Reporting_`);
+  lines.push('');
+  lines.push('## Venue');
+  if (v.contactName)         lines.push(`- **Contact:** ${v.contactName}`);
+  if (v.contactEmail)        lines.push(`- **Email:** ${v.contactEmail}`);
+  if (v.location)            lines.push(`- **Location:** ${v.location}`);
+  if (v.vertical)            lines.push(`- **Vertical:** ${v.vertical}`);
+  if (v.industry)            lines.push(`- **Industry:** ${v.industry}`);
+  if (v.numberOfLocations)   lines.push(`- **Sites:** ${v.numberOfLocations}`);
+  if (v.size)                lines.push(`- **Size:** ${v.size}`);
+  if (v.createdAt)           lines.push(`- **Submitted:** ${v.createdAt.slice(0, 10)}`);
+  lines.push(`- **Tools recorded:** ${v.toolCount}`);
+  lines.push(`- **Tools rated:** ${v.npsCount}${v.avgNps != null ? ` · **Overall NPS avg:** ${v.avgNps.toFixed(1)}/10` : ''}`);
+  lines.push('');
+  if (v.biggestChallenge) {
+    lines.push('## Biggest challenge');
+    lines.push('');
+    lines.push(`> ${v.biggestChallenge}`);
+    lines.push('');
+  }
+  lines.push('## Tech stack');
+  lines.push('');
+  if (v.byCategory.length === 0) {
+    lines.push('_No tools recorded._');
+  } else {
+    for (const cat of v.byCategory) {
+      lines.push(`### ${cat.category}`);
+      lines.push('');
+      for (const t of cat.tools) {
+        const npsPart = t.nps != null ? ` — **${t.nps}/10**` : '';
+        const commentPart = t.comment ? ` _(${t.comment})_` : '';
+        lines.push(`- ${t.tool}${npsPart}${commentPart}`);
+      }
+      lines.push('');
+    }
+  }
+  if (v.recommendations) {
+    lines.push('## AI review — Tech on Toast');
+    lines.push('');
+    const recs = v.recommendations.split(/\s*\|\s*/).map(s => s.trim()).filter(Boolean);
+    for (const r of recs) lines.push(`- ${r}`);
+    lines.push('');
+  }
+  const blob = new Blob([lines.join('\n')], { type: 'text/markdown;charset=utf-8;' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `tech-check-${safeSlug}-${date}.md`;
   a.click();
   setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 }
@@ -396,41 +459,76 @@ export default function TechCheckSummary() {
                         </button>
 
                         {isOpen && (
-                          <div className="bg-brand-cream/30 border-t border-gray-100 p-4 sm:p-5">
-                            {v.contactEmail && (
-                              <p className="text-[11px] text-gray-500 mb-3">
-                                Contact:{' '}
-                                <span className="text-gray-800">{v.contactName || '—'}</span>
-                                {' · '}
-                                <a href={`mailto:${v.contactEmail}`} className="text-brand-green hover:text-brand-green-soft underline">
-                                  {v.contactEmail}
-                                </a>
-                              </p>
+                          <div className="bg-brand-cream/30 border-t border-gray-100 p-4 sm:p-5 space-y-4">
+                            <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1 text-[11px] text-gray-500">
+                              {v.contactEmail && (
+                                <span>
+                                  Contact:{' '}
+                                  <span className="text-gray-800">{v.contactName || '—'}</span>
+                                  {' · '}
+                                  <a href={`mailto:${v.contactEmail}`} className="text-brand-green hover:text-brand-green-soft underline">
+                                    {v.contactEmail}
+                                  </a>
+                                </span>
+                              )}
+                              <button
+                                onClick={() => downloadVenueReport(v)}
+                                className="ml-auto text-[11px] text-brand-green hover:text-brand-green-soft underline"
+                                title="Download this tech check as a Markdown report"
+                              >
+                                ↓ Download report (.md)
+                              </button>
+                            </div>
+
+                            {v.biggestChallenge && (
+                              <div>
+                                <p className="text-[10px] uppercase tracking-wider text-gray-500 font-medium mb-1">Biggest challenge</p>
+                                <p className="text-xs sm:text-sm text-gray-800 italic">&ldquo;{v.biggestChallenge}&rdquo;</p>
+                              </div>
                             )}
+
                             {v.byCategory.length === 0 ? (
                               <p className="text-xs text-gray-400 italic">No tools recorded.</p>
                             ) : (
-                              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-3">
-                                {v.byCategory.map(cat => (
-                                  <div key={cat.category}>
-                                    <p className="text-[10px] uppercase tracking-wider text-gray-500 font-medium mb-1.5">
-                                      {cat.category}
-                                    </p>
-                                    <ul className="space-y-1">
-                                      {cat.tools.map((t, i) => (
-                                        <li key={`${cat.category}-${t.tool}-${i}`} className="flex items-center justify-between gap-2 text-xs">
-                                          <span className="text-gray-800">{t.tool}</span>
-                                          <span
-                                            className={`px-1.5 py-0.5 rounded-full text-[10px] font-medium tabular-nums whitespace-nowrap ${npsClass(t.nps)}`}
-                                            title={t.comment || undefined}
-                                          >
-                                            {t.nps != null ? `${t.nps}/10` : '—'}
-                                          </span>
-                                        </li>
-                                      ))}
-                                    </ul>
-                                  </div>
-                                ))}
+                              <div>
+                                <p className="text-[10px] uppercase tracking-wider text-gray-500 font-medium mb-2">Tech stack</p>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-3">
+                                  {v.byCategory.map(cat => (
+                                    <div key={cat.category}>
+                                      <p className="text-[11px] text-gray-600 font-medium mb-1">{cat.category}</p>
+                                      <ul className="space-y-1">
+                                        {cat.tools.map((t, i) => (
+                                          <li key={`${cat.category}-${t.tool}-${i}`} className="flex items-center justify-between gap-2 text-xs">
+                                            <span className="text-gray-800">{t.tool}</span>
+                                            <span
+                                              className={`px-1.5 py-0.5 rounded-full text-[10px] font-medium tabular-nums whitespace-nowrap ${npsClass(t.nps)}`}
+                                              title={t.comment || undefined}
+                                            >
+                                              {t.nps != null ? `${t.nps}/10` : '—'}
+                                            </span>
+                                          </li>
+                                        ))}
+                                      </ul>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
+                            {v.recommendations && (
+                              <div className="bg-white border border-brand-green/20 rounded-md p-3 sm:p-4">
+                                <p className="text-[10px] uppercase tracking-wider text-brand-green font-medium mb-2">
+                                  AI review · Tech on Toast
+                                </p>
+                                <ul className="space-y-1.5 text-xs sm:text-sm text-gray-800 list-disc pl-4">
+                                  {v.recommendations
+                                    .split(/\s*\|\s*/)
+                                    .map(s => s.trim())
+                                    .filter(Boolean)
+                                    .map((rec, i) => (
+                                      <li key={i} className="leading-relaxed">{rec}</li>
+                                    ))}
+                                </ul>
                               </div>
                             )}
                           </div>

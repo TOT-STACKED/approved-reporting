@@ -47,10 +47,15 @@ export interface TechCheckVenueDrilldown {
   numberOfLocations: string | null;
   industry: string | null;
   vertical: string | null;
+  biggestChallenge: string | null;
   createdAt: string;
   toolCount: number;
   npsCount: number;
   avgNps: number | null;    // 0..10, one decimal, null if no scores
+  // AI-generated recommendations from the stack-review edge function
+  // (persisted back to business_submissions.recommendations). Usually
+  // pipe-separated bullets, occasionally longer narrative.
+  recommendations: string | null;
   byCategory: Array<{
     category: string;
     tools: Array<{ tool: string; nps: number | null; comment: string | null }>;
@@ -232,10 +237,12 @@ export async function GET() {
           numberOfLocations: b.number_of_locations || null,
           industry: b.industry || null,
           vertical: b.vertical || null,
+          biggestChallenge: b.biggest_challenge || null,
           createdAt: b.created_at || '',
           toolCount: bizEntries.length,
           npsCount: scores.length,
           avgNps,
+          recommendations: b.recommendations || null,
           byCategory,
         };
       })

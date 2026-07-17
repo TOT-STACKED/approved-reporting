@@ -179,6 +179,10 @@ export interface BusinessSubmission {
   biggest_challenge: string | null;
   vertical: string | null;
   submission_type: string;
+  // AI review from the stack-review edge function (pipe-separated bullets
+  // or occasional long-form narrative). Nullable because older rows and
+  // internal imports don't have one.
+  recommendations: string | null;
 }
 
 export interface ToolUsageStat {
