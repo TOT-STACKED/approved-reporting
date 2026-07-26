@@ -22,8 +22,12 @@ const MIN_RESPONSES = 2;
 const MP_BASE = process.env.MARKETPLACE_AIRTABLE_BASE_ID!;              // e.g. appNvxXXaMWJfiX6X
 const MP_TABLE = process.env.MARKETPLACE_PARTNERS_TABLE || 'Partners';  // name or tbl... id
 const MP_KEY = process.env.MARKETPLACE_AIRTABLE_KEY!;                   // PAT: read+write on MP_BASE
-const SCORE_FIELD = process.env.MARKETPLACE_SOS_SCORE_FIELD || 'SOS Score';
-const REVIEWS_FIELD = process.env.MARKETPLACE_SOS_REVIEWS_FIELD || 'SOS Reviews';
+// The marketplace `SOS Score` / `SOS Reviews` fields on Partners are FORMULAS
+// (prefer live rollup from Reviews table, fall back to the `(manual)` fields).
+// We write to the `(manual)` fields so the formula's fallback picks us up.
+// Historically these held hand-entered values; they now hold computed SOS.
+const SCORE_FIELD = process.env.MARKETPLACE_SOS_SCORE_FIELD || 'SOS Score (manual)';
+const REVIEWS_FIELD = process.env.MARKETPLACE_SOS_REVIEWS_FIELD || 'SOS Reviews (manual)';
 
 function sosFromAvg(avg: number): number {
   return Math.round((avg / 2) * 10) / 10;
