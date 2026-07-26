@@ -337,11 +337,11 @@ export async function GET(req: Request) {
       });
     }
 
-    // 5. Fetch Airtable state
+    // 5. Fetch Airtable state — include Tool + Category so we can compare rows
     const [airtableVenues, airtablePartners, airtableTechUsage] = await Promise.all([
       airtableFetchAll(VENUES_TABLE, ['Venue', 'Industry', 'Region']),
       airtableFetchAll(PARTNERS_TABLE, ['Name']),
-      airtableFetchAll(TECH_USAGE_TABLE, ['Source', 'Venue']),
+      airtableFetchAll(TECH_USAGE_TABLE, ['Source', 'Venue', 'Tool', 'Category']),
     ]);
 
     // venue name → record id (for wipe + link)
@@ -371,8 +371,9 @@ export async function GET(req: Request) {
         patterns: termPatterns(matchTermsForPartner(p.name)),
       }));
 
-    // venue record id → old Tech Usage record ids (Source=Self-reported only)
-    const oldTuByVenueId = new Map<string, string[]>();
+    // venue record id → old Tech Usage rows (Source=Self-reported only) with dedupe keys
+    type OldTuRow = { id: string; dedupeKey: string };
+    const oldTuByVenueId = new Map<string, OldTuRow[]>();
     for (const tu of airtableTechUsage) {
       const src = tu.fields.Source;
       const sourceName = typeof src === 'string' ? src : (src as { name?: string } | undefined)?.name;
@@ -380,84 +381,111 @@ export async function GET(req: Request) {
       const venueIds = tu.fields.Venue as string[] | undefined;
       const venueId = venueIds?.[0];
       if (!venueId) continue;
+      const tool = String(tu.fields.Tool ?? '').trim().toLowerCase();
+      const catRaw = tu.fields.Category;
+      const catName = typeof catRaw === 'string' ? catRaw : (catRaw as { name?: string } | undefined)?.name || 'Other';
       const arr = oldTuByVenueId.get(venueId) || [];
-      arr.push(tu.id);
+      arr.push({ id: tu.id, dedupeKey: `${catName}|${tool}` });
       oldTuByVenueId.set(venueId, arr);
     }
 
-    // 6. Plan
-    const venuesToCreate: Array<{ fields: Record<string, unknown> }> = [];
-    const venuesToUpdate: Array<{ id: string; fields: Record<string, unknown> }> = [];
-    const tuIdsToDelete: string[] = [];
+    // 6. Per-venue plan + execute (idempotent: skip venues whose current rows match target)
+    const START = Date.now();
+    const BUDGET_MS = 45_000;
 
-    for (const { key, submission } of venuesToProcess) {
+    let venuesCreated = 0;
+    let venuesUpdated = 0;
+    let venuesConverged = 0;
+    let venuesInSync = 0;
+    let venuesDeferred = 0;
+    let techUsageDeleted = 0;
+    let techUsageCreated = 0;
+    const unmatchedTools = new Map<string, number>();
+
+    for (const { key, submission, entries: subEntries } of venuesToProcess) {
+      // Budget check — leave time for the HTTP response
+      if (Date.now() - START > BUDGET_MS) {
+        venuesDeferred++;
+        continue;
+      }
+
       const venueName = submission.business_name!.trim();
       const industry =
         submission.industry?.trim() || submission.vertical?.trim() || undefined;
       const region = submission.location?.trim() || undefined;
-      const existingId = venueIdByKey.get(key);
+      let venueId = venueIdByKey.get(key);
 
-      if (existingId) {
-        // Fill EMPTY fields only — never overwrite hand-enriched Airtable data
+      // Step 1: ensure venue exists
+      if (!venueId) {
+        const fields: Record<string, unknown> = { Venue: venueName };
+        if (industry) fields.Industry = industry;
+        if (region) fields.Region = region;
+        if (!dry) {
+          const created = await airtableCreate(VENUES_TABLE, [{ fields }]);
+          venueId = created[0]?.id;
+          if (venueId) {
+            venueIdByKey.set(key, venueId);
+            venueMetaByKey.set(key, { industry, region });
+          }
+        }
+        venuesCreated++;
+        if (!venueId) continue; // dry mode — can't create TU rows without an id
+      } else {
+        // Fill empty Industry/Region only — never overwrite hand-enriched values
         const meta = venueMetaByKey.get(key) || {};
         const patch: Record<string, unknown> = {};
         if (industry && !meta.industry) patch.Industry = industry;
         if (region && !meta.region) patch.Region = region;
         if (Object.keys(patch).length > 0) {
-          venuesToUpdate.push({ id: existingId, fields: patch });
-        }
-        const oldIds = oldTuByVenueId.get(existingId) || [];
-        tuIdsToDelete.push(...oldIds);
-      } else {
-        const fields: Record<string, unknown> = { Venue: venueName };
-        if (industry) fields.Industry = industry;
-        if (region) fields.Region = region;
-        venuesToCreate.push({ fields });
-      }
-    }
-
-    // 7. Execute
-    if (!dry) {
-      // Create new venues first — we need their IDs before writing TU rows
-      if (venuesToCreate.length > 0) {
-        const created = await airtableCreate(VENUES_TABLE, venuesToCreate);
-        for (const c of created) {
-          const name = (c.fields.Venue as string | undefined)?.trim();
-          if (name) venueIdByKey.set(normalizeName(name), c.id);
+          if (!dry) await airtableUpdate(VENUES_TABLE, [{ id: venueId, fields: patch }]);
+          venuesUpdated++;
         }
       }
-      if (venuesToUpdate.length > 0) {
-        await airtableUpdate(VENUES_TABLE, venuesToUpdate);
-      }
-      if (tuIdsToDelete.length > 0) {
-        await airtableDelete(TECH_USAGE_TABLE, tuIdsToDelete);
-      }
-    }
 
-    // Build new TU rows (needs venue IDs, which we just created above)
-    const tuRowsToCreate: Array<{ fields: Record<string, unknown> }> = [];
-    const unmatchedTools = new Map<string, number>();
-    for (const { key, submission, entries: subEntries } of venuesToProcess) {
-      const venueId = venueIdByKey.get(key);
-      if (!venueId) continue;
-      const rows = buildTechUsageRows(
+      // Step 2: build target rows for this venue
+      const targetRows = buildTechUsageRows(
         venueId,
-        submission.business_name!.trim(),
+        venueName,
         submission,
         subEntries,
         partnerIndex,
       );
-      for (const row of rows) {
+      for (const row of targetRows) {
         if (!row.fields.Partner) {
           const tool = String(row.fields.Tool ?? '').toLowerCase();
           unmatchedTools.set(tool, (unmatchedTools.get(tool) ?? 0) + 1);
         }
       }
-      tuRowsToCreate.push(...rows);
-    }
 
-    if (!dry && tuRowsToCreate.length > 0) {
-      await airtableCreate(TECH_USAGE_TABLE, tuRowsToCreate);
+      // Step 3: skip if current == target (same set of "category|tool" keys)
+      const currentRows = oldTuByVenueId.get(venueId) || [];
+      const currentKeys = new Set(currentRows.map((r) => r.dedupeKey));
+      const targetKeys = new Set(
+        targetRows.map((r) => {
+          const cat = String(r.fields.Category ?? 'Other');
+          const tool = String(r.fields.Tool ?? '').trim().toLowerCase();
+          return `${cat}|${tool}`;
+        }),
+      );
+      const sameSize = currentKeys.size === targetKeys.size;
+      const sameMembers = sameSize && [...targetKeys].every((k) => currentKeys.has(k));
+      if (sameSize && sameMembers) {
+        venuesInSync++;
+        continue;
+      }
+
+      // Step 4: create-then-delete (temp duplicates preferred over temp zero rows)
+      if (!dry) {
+        if (targetRows.length > 0) {
+          await airtableCreate(TECH_USAGE_TABLE, targetRows);
+        }
+        if (currentRows.length > 0) {
+          await airtableDelete(TECH_USAGE_TABLE, currentRows.map((r) => r.id));
+        }
+      }
+      techUsageCreated += targetRows.length;
+      techUsageDeleted += currentRows.length;
+      venuesConverged++;
     }
 
     // Top 20 unmatched tools — feed into PARTNER_VENDOR_ALIASES if any are actually partners
@@ -472,11 +500,15 @@ export async function GET(req: Request) {
       mode: full ? 'full' : 'delta',
       sinceIso: full ? null : new Date(sinceMs).toISOString(),
       onlyVenue: onlyVenueQuery,
+      elapsedMs: Date.now() - START,
       venuesProcessed: venuesToProcess.length,
-      venuesCreated: venuesToCreate.length,
-      venuesUpdated: venuesToUpdate.length,
-      techUsageDeleted: tuIdsToDelete.length,
-      techUsageCreated: tuRowsToCreate.length,
+      venuesConverged,
+      venuesInSync,
+      venuesCreated,
+      venuesUpdated,
+      venuesDeferred,
+      techUsageDeleted,
+      techUsageCreated,
       topUnmatchedTools: topUnmatched,
     });
   } catch (e: unknown) {
