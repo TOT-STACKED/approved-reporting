@@ -391,7 +391,7 @@ export async function GET(req: Request) {
 
     // 6. Per-venue plan + execute (idempotent: skip venues whose current rows match target)
     const START = Date.now();
-    const BUDGET_MS = 45_000;
+    const BUDGET_MS = 20_000; // Netlify's Next.js API route hard-timeout is ~26s; keep buffer
 
     let venuesCreated = 0;
     let venuesUpdated = 0;
@@ -457,9 +457,18 @@ export async function GET(req: Request) {
         }
       }
 
-      // Step 3: skip if current == target (same set of "category|tool" keys)
+      // Step 3: idempotent diff
+      // - Only CREATE rows whose key isn't already present (safe against duplicates from
+      //   prior partial runs)
+      // - DELETE rows whose key isn't in target, PLUS duplicates within a key (keep one)
+      // If both sides are empty → skip.
       const currentRows = oldTuByVenueId.get(venueId) || [];
-      const currentKeys = new Set(currentRows.map((r) => r.dedupeKey));
+      const currentByKey = new Map<string, string[]>();
+      for (const r of currentRows) {
+        const arr = currentByKey.get(r.dedupeKey) || [];
+        arr.push(r.id);
+        currentByKey.set(r.dedupeKey, arr);
+      }
       const targetKeys = new Set(
         targetRows.map((r) => {
           const cat = String(r.fields.Category ?? 'Other');
@@ -467,24 +476,40 @@ export async function GET(req: Request) {
           return `${cat}|${tool}`;
         }),
       );
-      const sameSize = currentKeys.size === targetKeys.size;
-      const sameMembers = sameSize && [...targetKeys].every((k) => currentKeys.has(k));
-      if (sameSize && sameMembers) {
+
+      const rowsToCreate = targetRows.filter((r) => {
+        const cat = String(r.fields.Category ?? 'Other');
+        const tool = String(r.fields.Tool ?? '').trim().toLowerCase();
+        return !currentByKey.has(`${cat}|${tool}`);
+      });
+
+      const idsToDelete: string[] = [];
+      for (const [key, ids] of currentByKey) {
+        if (!targetKeys.has(key)) {
+          // Key not in target — delete all rows with this key
+          idsToDelete.push(...ids);
+        } else if (ids.length > 1) {
+          // Duplicates from a prior partial run — keep one, delete the rest
+          idsToDelete.push(...ids.slice(1));
+        }
+      }
+
+      if (rowsToCreate.length === 0 && idsToDelete.length === 0) {
         venuesInSync++;
         continue;
       }
 
       // Step 4: create-then-delete (temp duplicates preferred over temp zero rows)
       if (!dry) {
-        if (targetRows.length > 0) {
-          await airtableCreate(TECH_USAGE_TABLE, targetRows);
+        if (rowsToCreate.length > 0) {
+          await airtableCreate(TECH_USAGE_TABLE, rowsToCreate);
         }
-        if (currentRows.length > 0) {
-          await airtableDelete(TECH_USAGE_TABLE, currentRows.map((r) => r.id));
+        if (idsToDelete.length > 0) {
+          await airtableDelete(TECH_USAGE_TABLE, idsToDelete);
         }
       }
-      techUsageCreated += targetRows.length;
-      techUsageDeleted += currentRows.length;
+      techUsageCreated += rowsToCreate.length;
+      techUsageDeleted += idsToDelete.length;
       venuesConverged++;
     }
 
