@@ -392,6 +392,7 @@ export async function getStackCollectStats(): Promise<StackCollectStats> {
 export const PARTNER_VENDOR_ALIASES: Record<string, string[]> = {
   'sky': ['sky'],
   'workforce': ['workforce'],
+  'workforce.com': ['workforce', 'workforce.com'],
   'bizimply': ['bizimply'],
   'square': ['square'],
   'sona': ['sona'],
@@ -418,6 +419,13 @@ export const PARTNER_VENDOR_ALIASES: Record<string, string[]> = {
   'storekit': ['storekit'],
   'seven rooms': ['sevenrooms', 'seven rooms', '7rooms'],
   'leat': ['leat'],
+  // Partners renamed after their vendor term was already established in stack reviews.
+  // Alias the new display name back to the historical vendor term(s).
+  'planday from xero': ['planday'],
+  'connect frontline': ['connect', 'connect frontline'],
+  'me&u': ['me&u', 'meandu', 'me and u'],
+  'ws&co insights': ['wsco', 'ws&co', 'ws co'],
+  'prodicta ltd': ['prodicta'],
 };
 
 export function matchTermsForPartner(partnerName: string): string[] {
