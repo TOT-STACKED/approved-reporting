@@ -1,0 +1,647 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>How Tech on Toast's stack works</title>
+<style>
+  :root {
+    --paper: #F5F0E1;
+    --paper-soft: #EBE1C4;
+    --paper-inset: #E0D6B7;
+    --ink: #0F2A1E;
+    --ink-soft: #556B5C;
+    --line: #B7AC91;
+    --line-soft: #D2C9AF;
+    --accent: #0F2A1E;
+    --pop: #B85B1E;
+    --code: #345F4A;
+    --node-input: #EBE1C4;
+    --node-process: #E8CDA8;
+    --node-storage: #A9C4B0;
+    --node-output: #B4D2DA;
+    --node-portal-bg: #0F2A1E;
+    --node-portal-ink: #F5F0E1;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --paper: #101F19;
+      --paper-soft: #182B22;
+      --paper-inset: #223B2F;
+      --ink: #F0E9D3;
+      --ink-soft: #A6B4A0;
+      --line: #2F4638;
+      --line-soft: #223B2F;
+      --accent: #F0E9D3;
+      --pop: #E48146;
+      --code: #9DBAA4;
+      --node-input: #26382D;
+      --node-process: #6B5230;
+      --node-storage: #3F6650;
+      --node-output: #385763;
+      --node-portal-bg: #F0E9D3;
+      --node-portal-ink: #0F2A1E;
+    }
+  }
+  :root[data-theme="light"] {
+    --paper: #F5F0E1;
+    --paper-soft: #EBE1C4;
+    --paper-inset: #E0D6B7;
+    --ink: #0F2A1E;
+    --ink-soft: #556B5C;
+    --line: #B7AC91;
+    --line-soft: #D2C9AF;
+    --accent: #0F2A1E;
+    --pop: #B85B1E;
+    --code: #345F4A;
+    --node-input: #EBE1C4;
+    --node-process: #E8CDA8;
+    --node-storage: #A9C4B0;
+    --node-output: #B4D2DA;
+    --node-portal-bg: #0F2A1E;
+    --node-portal-ink: #F5F0E1;
+  }
+  :root[data-theme="dark"] {
+    --paper: #101F19;
+    --paper-soft: #182B22;
+    --paper-inset: #223B2F;
+    --ink: #F0E9D3;
+    --ink-soft: #A6B4A0;
+    --line: #2F4638;
+    --line-soft: #223B2F;
+    --accent: #F0E9D3;
+    --pop: #E48146;
+    --code: #9DBAA4;
+    --node-input: #26382D;
+    --node-process: #6B5230;
+    --node-storage: #3F6650;
+    --node-output: #385763;
+    --node-portal-bg: #F0E9D3;
+    --node-portal-ink: #0F2A1E;
+  }
+
+  html, body {
+    background: var(--paper);
+    color: var(--ink);
+    margin: 0;
+    font-family: -apple-system, "Segoe UI", ui-sans-serif, system-ui, sans-serif;
+    font-size: 16px;
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    html { scroll-behavior: smooth; }
+  }
+
+  .doc {
+    max-width: 880px;
+    margin: 0 auto;
+    padding: 72px 28px 96px;
+  }
+
+  .eyebrow, .eyebrow-small {
+    font-family: ui-monospace, "JetBrains Mono", "SF Mono", Menlo, monospace;
+    text-transform: uppercase;
+    letter-spacing: 0.22em;
+    color: var(--ink-soft);
+    font-weight: 500;
+    margin: 0 0 24px;
+    font-size: 11px;
+  }
+  .eyebrow-small { margin: 0 0 12px; font-size: 10.5px; }
+
+  h1 {
+    font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, ui-serif, serif;
+    font-size: 52px;
+    line-height: 1.05;
+    font-weight: 500;
+    letter-spacing: -0.02em;
+    margin: 0 0 24px;
+    text-wrap: balance;
+    color: var(--ink);
+  }
+
+  .lede {
+    font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, ui-serif, serif;
+    font-size: 22px;
+    line-height: 1.45;
+    color: var(--ink-soft);
+    max-width: 60ch;
+    margin: 0 0 24px;
+    font-style: italic;
+    text-wrap: pretty;
+  }
+
+  h2 {
+    font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, ui-serif, serif;
+    font-size: 34px;
+    line-height: 1.15;
+    font-weight: 500;
+    margin: 0 0 20px;
+    letter-spacing: -0.015em;
+    color: var(--ink);
+    text-wrap: balance;
+  }
+
+  h3 {
+    font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, ui-serif, serif;
+    font-size: 20px;
+    line-height: 1.3;
+    font-weight: 600;
+    margin: 40px 0 14px;
+    color: var(--ink);
+  }
+
+  section { margin: 84px 0 0; }
+  section > p { max-width: 62ch; margin: 0 0 20px; }
+
+  code {
+    font-family: ui-monospace, "JetBrains Mono", "SF Mono", Menlo, monospace;
+    font-size: 0.86em;
+    color: var(--code);
+    background: var(--paper-soft);
+    padding: 1.5px 6px;
+    border-radius: 3px;
+    white-space: nowrap;
+  }
+
+  .split {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 44px;
+    margin-top: 40px;
+    padding-top: 40px;
+    border-top: 1px solid var(--line);
+  }
+  .split > div p { margin: 0; }
+  @media (max-width: 720px) {
+    .split { grid-template-columns: 1fr; gap: 28px; }
+  }
+
+  .diagram-wrap {
+    background: var(--paper-soft);
+    border: 1px solid var(--line-soft);
+    border-radius: 4px;
+    padding: 40px 24px;
+    margin: 28px 0 40px;
+    overflow-x: auto;
+  }
+  .diagram-wrap pre.mermaid {
+    margin: 0;
+    text-align: center;
+    background: transparent;
+    border: 0;
+    padding: 0;
+    font-family: ui-monospace, monospace;
+    font-size: 12px;
+    color: var(--ink);
+  }
+  .diagram-wrap svg { max-width: 100%; height: auto; }
+
+  dl.legend {
+    display: grid;
+    grid-template-columns: 180px 1fr;
+    column-gap: 32px;
+    row-gap: 22px;
+    margin: 24px 0 0;
+    padding: 0;
+  }
+  dl.legend dt {
+    font-family: ui-monospace, "JetBrains Mono", "SF Mono", Menlo, monospace;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--ink);
+    letter-spacing: 0.01em;
+    padding-top: 2px;
+  }
+  dl.legend dd {
+    margin: 0;
+    color: var(--ink-soft);
+    line-height: 1.6;
+    font-size: 15px;
+  }
+  @media (max-width: 620px) {
+    dl.legend { grid-template-columns: 1fr; row-gap: 6px; }
+    dl.legend dd { margin-bottom: 20px; }
+  }
+
+  .ref-table-wrap {
+    margin: 28px 0 0;
+    border: 1px solid var(--line-soft);
+    border-radius: 4px;
+    overflow-x: auto;
+  }
+  table.ref-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 15px;
+    min-width: 560px;
+  }
+  table.ref-table th, table.ref-table td {
+    text-align: left;
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--line-soft);
+    vertical-align: top;
+  }
+  table.ref-table thead th {
+    background: var(--paper-inset);
+    font-family: ui-monospace, "JetBrains Mono", "SF Mono", Menlo, monospace;
+    font-weight: 500;
+    color: var(--ink);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    border-bottom: 1px solid var(--line);
+  }
+  table.ref-table tbody tr:last-child td { border-bottom: 0; }
+  table.ref-table tbody td { color: var(--ink); }
+  table.ref-table tbody td:first-child { font-weight: 600; }
+  table.ref-table tbody td.owner {
+    font-family: ui-monospace, "JetBrains Mono", "SF Mono", Menlo, monospace;
+    font-size: 12.5px;
+    color: var(--code);
+    white-space: nowrap;
+    font-weight: 500;
+  }
+  table.ref-table tbody td.look { color: var(--ink-soft); }
+
+  ol.steps {
+    list-style: none;
+    counter-reset: step;
+    padding: 0;
+    margin: 28px 0 0;
+    display: grid;
+    gap: 28px;
+  }
+  ol.steps > li {
+    counter-increment: step;
+    display: grid;
+    grid-template-columns: 44px 1fr;
+    gap: 20px;
+    align-items: start;
+  }
+  ol.steps > li::before {
+    content: counter(step, decimal-leading-zero);
+    font-family: ui-monospace, "JetBrains Mono", "SF Mono", Menlo, monospace;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--pop);
+    letter-spacing: 0.06em;
+    padding-top: 6px;
+    border-top: 2px solid var(--pop);
+    text-align: center;
+  }
+  ol.steps h4 {
+    font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, ui-serif, serif;
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--ink);
+    margin: 0 0 6px;
+    line-height: 1.3;
+  }
+  ol.steps p {
+    margin: 0 0 10px;
+    color: var(--ink-soft);
+    font-size: 15px;
+    max-width: 60ch;
+  }
+  ol.steps pre {
+    background: var(--paper-inset);
+    border: 1px solid var(--line-soft);
+    border-radius: 4px;
+    padding: 10px 14px;
+    margin: 6px 0 0;
+    font-family: ui-monospace, "JetBrains Mono", "SF Mono", Menlo, monospace;
+    font-size: 12.5px;
+    color: var(--ink);
+    overflow-x: auto;
+    line-height: 1.55;
+  }
+  @media (max-width: 620px) {
+    ol.steps > li { grid-template-columns: 32px 1fr; gap: 14px; }
+  }
+
+  footer {
+    margin: 96px 0 0;
+    padding-top: 32px;
+    border-top: 1px solid var(--line);
+    color: var(--ink-soft);
+    font-size: 14.5px;
+    line-height: 1.6;
+    font-style: italic;
+    max-width: 62ch;
+  }
+  footer strong { font-style: normal; color: var(--ink); }
+</style>
+</head>
+<body>
+<article class="doc">
+  <header>
+    <p class="eyebrow">Team reference · July 2026</p>
+    <h1>How Tech on Toast's stack works</h1>
+    <p class="lede">Three places hold the data. Two automations move it. One dashboard reads it all — this is what talks to what, and where to look when something moves.</p>
+  </header>
+
+  <section class="split">
+    <div>
+      <p class="eyebrow-small">What we collect</p>
+      <p>Venue-side tech reviews come in through a Lovable-hosted form embedded in Webflow. Every submission writes one row in <code>business_submissions</code>, one row per tool picked in <code>tech_stack_entries</code>, and one row per rated product in <code>nps_scores</code>.</p>
+    </div>
+    <div>
+      <p class="eyebrow-small">What we send out</p>
+      <p>Leads live in Airtable and get triaged by hand. Airtable automations ping the relevant partner in Slack (or Zenzap) as each lead moves from MAL through MQL, SQL, Closed Won and Closed Lost.</p>
+    </div>
+  </section>
+
+  <section>
+    <p class="eyebrow-small">Track 1 · Reviews</p>
+    <h2>Tech reviews &amp; NPS</h2>
+    <p>Follows a venue's submission from the form on Webflow all the way through to what your team reads on the <code>/tech-check</code> page.</p>
+
+    <div class="diagram-wrap" role="img" aria-label="Flow diagram: operator fills form on Webflow, form writes to Lovable Supabase, edge functions generate AI review and write NPS, Approved Reporting reads Supabase.">
+      <pre class="mermaid">
+%%{init: {"theme": "base", "themeVariables": {
+  "background": "transparent",
+  "primaryColor": "#EBE1C4",
+  "primaryTextColor": "#0F2A1E",
+  "primaryBorderColor": "#0F2A1E",
+  "lineColor": "#B85B1E",
+  "secondaryColor": "#A9C4B0",
+  "tertiaryColor": "#E8CDA8",
+  "fontFamily": "Iowan Old Style, Palatino, Georgia, serif",
+  "fontSize": "14px"
+}}}%%
+flowchart TD
+    op["Venue operator"]:::input
+    wf["Webflow<br/>techontoast.community"]:::input
+    form["Lovable form<br/>(React app)"]:::process
+    sb["Lovable Supabase<br/>business_submissions<br/>tech_stack_entries<br/>nps_scores"]:::storage
+    stackReview["stack-review<br/>edge function"]:::process
+    webhook["stackcollect-webhook<br/>edge function"]:::process
+    resend["Resend<br/>email to operator"]:::output
+    portal["Approved Reporting<br/>/tech-check"]:::portal
+
+    op --> wf --> form
+    form --> sb
+    form --> stackReview
+    stackReview -->|writes AI review| sb
+    stackReview --> resend
+    form --> webhook
+    webhook -->|writes NPS rows| sb
+    sb -->|live read| portal
+
+    classDef input fill:#EBE1C4,stroke:#0F2A1E,stroke-width:1.4px,color:#0F2A1E;
+    classDef process fill:#E8CDA8,stroke:#0F2A1E,stroke-width:1.4px,color:#0F2A1E;
+    classDef storage fill:#A9C4B0,stroke:#0F2A1E,stroke-width:1.4px,color:#0F2A1E;
+    classDef output fill:#B4D2DA,stroke:#0F2A1E,stroke-width:1.4px,color:#0F2A1E;
+    classDef portal fill:#0F2A1E,stroke:#0F2A1E,color:#F5F0E1;
+      </pre>
+    </div>
+
+    <h3>What each piece does</h3>
+    <dl class="legend">
+      <dt>Webflow</dt>
+      <dd>Hosts the public tech-check landing page at techontoast.community. Just an iframe embed — nothing else lives here.</dd>
+
+      <dt>Lovable form</dt>
+      <dd>The React app the operator actually fills in. Walks them through picking tools per category and (optionally, for now) rating each 0–10.</dd>
+
+      <dt>Lovable Supabase</dt>
+      <dd>Owns three tables. <code>business_submissions</code> — one row per operator. <code>tech_stack_entries</code> — one row per tool picked. <code>nps_scores</code> — one row per rated product. Also runs two edge functions: <code>stack-review</code> generates the AI review and saves it to <code>business_submissions.recommendations</code>; <code>stackcollect-webhook</code> writes the NPS rows.</dd>
+
+      <dt>Resend</dt>
+      <dd>Emails the finished AI review to the operator. Fires once <code>stack-review</code> completes.</dd>
+
+      <dt>/tech-check</dt>
+      <dd>The insights page on Approved Reporting. Reads Supabase live (no caching). Category cards, per-venue drilldown with per-tool NPS, and Markdown download of every operator's report.</dd>
+    </dl>
+  </section>
+
+  <section>
+    <p class="eyebrow-small">Track 2 · Leads</p>
+    <h2>Leads &amp; partner comms</h2>
+    <p>Follows a lead from your team entering it in Airtable through the point a partner sees it on their private URL and logs status back.</p>
+
+    <div class="diagram-wrap" role="img" aria-label="Flow diagram: team enters leads in Airtable, automation pings Slack or Zenzap on stage change, Approved Reporting reads Airtable, partner opens private URL and submits status which writes to Supabase and Slack.">
+      <pre class="mermaid">
+%%{init: {"theme": "base", "themeVariables": {
+  "background": "transparent",
+  "primaryColor": "#EBE1C4",
+  "primaryTextColor": "#0F2A1E",
+  "primaryBorderColor": "#0F2A1E",
+  "lineColor": "#B85B1E",
+  "secondaryColor": "#A9C4B0",
+  "tertiaryColor": "#E8CDA8",
+  "fontFamily": "Iowan Old Style, Palatino, Georgia, serif",
+  "fontSize": "14px"
+}}}%%
+flowchart TD
+    team["TOT team"]:::input
+    airtable["Airtable — Master Lead Sheet<br/>stage cols: MAL / MQL / SQL /<br/>Closed Won / Closed Lost"]:::storage
+    automation["Airtable automation<br/>on stage change"]:::process
+    slack["Partner Slack channel<br/>(via Slack_Data table)"]:::output
+    zenzap["Zenzap API<br/>approved-leads topic"]:::output
+    portal["Approved Reporting<br/>/  ·  /partners/:slug  ·  /p/:token"]:::portal
+    partner["Partner"]:::input
+    feedbackApi["Feedback API<br/>writes lead_feedback + Slack ping"]:::process
+    leadFb["Slack #lead-feedback"]:::output
+    supabase["Lovable Supabase<br/>lead_feedback"]:::storage
+
+    team -->|enters and triages| airtable
+    airtable --> automation
+    automation -->|Slack partners| slack
+    automation -->|Zenzap partner| zenzap
+    airtable -->|live read| portal
+    partner -->|private URL| portal
+    portal -->|Update status| feedbackApi
+    feedbackApi --> supabase
+    feedbackApi --> leadFb
+
+    classDef input fill:#EBE1C4,stroke:#0F2A1E,stroke-width:1.4px,color:#0F2A1E;
+    classDef process fill:#E8CDA8,stroke:#0F2A1E,stroke-width:1.4px,color:#0F2A1E;
+    classDef storage fill:#A9C4B0,stroke:#0F2A1E,stroke-width:1.4px,color:#0F2A1E;
+    classDef output fill:#B4D2DA,stroke:#0F2A1E,stroke-width:1.4px,color:#0F2A1E;
+    classDef portal fill:#0F2A1E,stroke:#0F2A1E,color:#F5F0E1;
+      </pre>
+    </div>
+
+    <h3>What each piece does</h3>
+    <dl class="legend">
+      <dt>Airtable</dt>
+      <dd>Master Lead Sheet is the source of truth for leads. Five multi-select columns hold partner names per stage (MAL, MQL, SQL, Closed Won, Closed Lost). One lead can be at different stages for different partners.</dd>
+
+      <dt>Airtable automation</dt>
+      <dd>Fires when any stage column changes. Reads the "…Notified" tracking columns to see which partners are genuinely new to that stage, then routes: Slack partners get pinged in their own channel, Zenzap goes via HTTP to the Zenzap API. Writes back to "…Notified" so no partner is pinged twice for the same stage.</dd>
+
+      <dt>Slack (per-partner)</dt>
+      <dd>Every partner has a dedicated channel. Channel IDs live in the <code>Slack_Data</code> table on Airtable. If an ID is missing the automation logs the miss but doesn't block the others.</dd>
+
+      <dt>Zenzap</dt>
+      <dd>Only the Zenzap partner is routed here — their alerts go to the "approved leads" topic via HMAC-signed API call. Everyone else stays on Slack.</dd>
+
+      <dt>Approved Reporting</dt>
+      <dd>Next.js app on Netlify at <code>approvedreporting.netlify.app</code>. Three lead-facing views: <code>/</code> (main dashboard with SOS League), <code>/partners/:slug</code> (internal team, gated by dashboard password), <code>/p/:token</code> (partner-facing, private URL per partner, contact details gated behind MQL).</dd>
+
+      <dt>Feedback API</dt>
+      <dd>Two endpoints, one per surface (internal or token). Both write a row to <code>lead_feedback</code> on Lovable Supabase and post a formatted card to Slack <code>#lead-feedback</code>. Source is tagged <code>internal</code> vs the partner's token tail so we can tell them apart later.</dd>
+    </dl>
+  </section>
+
+  <section>
+    <p class="eyebrow-small">Track 3 · Health</p>
+    <h2>NPS pipeline &amp; monitoring</h2>
+    <p>A zoom-in on NPS specifically, because that's the flow that's broken twice and been backfilled once. Shows the write side, the watchdog that catches silent breakage, and the two places the portal surfaces staleness before anyone notices.</p>
+
+    <div class="diagram-wrap" role="img" aria-label="Flow diagram: operator rates a product, stackcollect-webhook writes to nps_scores, a 48-hour watchdog checks freshness and pings Slack if stale, portal reads nps_scores live and shows a staleness banner if latest score is more than seven days old.">
+      <pre class="mermaid">
+%%{init: {"theme": "base", "themeVariables": {
+  "background": "transparent",
+  "primaryColor": "#EBE1C4",
+  "primaryTextColor": "#0F2A1E",
+  "primaryBorderColor": "#0F2A1E",
+  "lineColor": "#B85B1E",
+  "secondaryColor": "#A9C4B0",
+  "tertiaryColor": "#E8CDA8",
+  "fontFamily": "Iowan Old Style, Palatino, Georgia, serif",
+  "fontSize": "14px"
+}}}%%
+flowchart LR
+    op["Operator rates a product<br/>(0–10 slider, optional today)"]:::input
+    webhook["stackcollect-webhook<br/>edge function"]:::process
+    nps["nps_scores<br/>submission_id · vendor · score"]:::storage
+    watchdog["Watchdog<br/>every 48h"]:::process
+    slackAlert["Slack alert<br/>if last row over 48h old"]:::output
+    portal["Approved Reporting"]:::portal
+    banner["Staleness banner<br/>if latest over 7 days"]:::output
+
+    op --> webhook --> nps
+    nps -->|reads latest| watchdog
+    watchdog -.->|silent breakage| slackAlert
+    nps -->|live read| portal
+    portal -.->|surfaces| banner
+
+    classDef input fill:#EBE1C4,stroke:#0F2A1E,stroke-width:1.4px,color:#0F2A1E;
+    classDef process fill:#E8CDA8,stroke:#0F2A1E,stroke-width:1.4px,color:#0F2A1E;
+    classDef storage fill:#A9C4B0,stroke:#0F2A1E,stroke-width:1.4px,color:#0F2A1E;
+    classDef output fill:#B4D2DA,stroke:#0F2A1E,stroke-width:1.4px,color:#0F2A1E;
+    classDef portal fill:#0F2A1E,stroke:#0F2A1E,color:#F5F0E1;
+      </pre>
+    </div>
+
+    <h3>What each piece does</h3>
+    <dl class="legend">
+      <dt>stackcollect-webhook</dt>
+      <dd>Edge function on Lovable Supabase. Called from the form when the operator submits with any product ratings. Writes one <code>nps_scores</code> row per rated product, keyed by <code>submission_id</code> so the score attaches cleanly to the venue.</dd>
+
+      <dt>Watchdog (48h)</dt>
+      <dd>Scheduled Lovable job — checks <code>MAX(created_at)</code> on <code>nps_scores</code> every 48 hours. If nothing's landed since the last run, posts a warning to Slack. Catches the June-style silent outages within two days instead of a month.</dd>
+
+      <dt>Staleness banner</dt>
+      <dd>Client-side check on the Approved Reporting NPS section. If the latest score is more than 7 days old, an amber banner appears at the top of the NPS panel — visible to anyone opening the dashboard. 30+ days it goes red.</dd>
+
+      <dt>Two false-positive modes</dt>
+      <dd>Not every watchdog fire is a bug. The alert triggers on either a broken writer (real outage) or a legit low-activity 48h window where no operator rated anything. First check the webhook logs — if they're clean, it's the second case, no action needed.</dd>
+    </dl>
+  </section>
+
+  <section>
+    <p class="eyebrow-small">Debug</p>
+    <h2>If something's off, look here first</h2>
+    <p>Six patterns cover most of what goes sideways. Start with the "first place" column before opening a ticket with Lovable. The Owner column is a suggestion — swap in the real name from your team.</p>
+    <div class="ref-table-wrap">
+      <table class="ref-table">
+        <thead>
+          <tr><th>Symptom</th><th>First place to look</th><th>Owner</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Dashboard shows an old lead as "latest"</td>
+            <td class="look">Airtable — has anyone triaged recent MALs into MQL / SQL? The dashboard reads genuine partner-tagged activity, not raw form arrivals.</td>
+            <td class="owner">TOT team</td>
+          </tr>
+          <tr>
+            <td>Partner didn't get their Slack alert</td>
+            <td class="look">Airtable <code>Slack_Data</code> — is there a channel ID for that partner? Then check the automation's run history for that specific record.</td>
+            <td class="owner">TOT team</td>
+          </tr>
+          <tr>
+            <td>NPS score isn't showing on a tech check</td>
+            <td class="look">Lovable Supabase <code>nps_scores</code> — is there a row for that venue? Most of the time the operator just skipped the sliders; roughly half of new submissions still do.</td>
+            <td class="owner">Lovable</td>
+          </tr>
+          <tr>
+            <td>Whole <code>/tech-check</code> page looks stale</td>
+            <td class="look">Netlify Deploys tab — has the latest push landed? Portal reads Supabase live so it's rarely a caching issue.</td>
+            <td class="owner">Chris</td>
+          </tr>
+          <tr>
+            <td>Watchdog fires: "no new NPS in 48h"</td>
+            <td class="look">Either the pipeline broke (Lovable edge function) or nobody rated products in the last 48h. Check <code>stackcollect-webhook</code> logs first.</td>
+            <td class="owner">Chris + Lovable</td>
+          </tr>
+          <tr>
+            <td>Partner sees "Access Denied" on their URL</td>
+            <td class="look">Netlify environment variables — is their token in <code>PARTNER_TOKENS</code>? Redeploy after any edit.</td>
+            <td class="owner">Chris</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <p class="eyebrow-small">Onboarding</p>
+    <h2>Adding a new partner</h2>
+    <p>Every new partner touches three systems: Airtable (they need to exist as a taggable option), Netlify (they need a private URL token), and the portal code (they need a vendor-name alias so tech-stack matching resolves). Miss any one and something silently fails.</p>
+
+    <ol class="steps">
+      <li>
+        <div>
+          <h4>Add the partner to Airtable stage columns</h4>
+          <p>Open the Master Lead Sheet. On each of the five stage columns (MAL, MQL, SQL, Closed Won, Closed Lost) add the partner's exact display name as a new multi-select option. Case and spelling matter — everything downstream normalises off this.</p>
+        </div>
+      </li>
+      <li>
+        <div>
+          <h4>Give them a Slack channel + record it</h4>
+          <p>Create their private Slack channel, invite Chris, then add one row to the <code>Slack_Data</code> table on Airtable — partner name (exact match) and the channel ID. If the channel ID is missing, the automation quietly skips them.</p>
+        </div>
+      </li>
+      <li>
+        <div>
+          <h4>Generate a private URL token</h4>
+          <p>URL-safe 32-character random string. Paste this in a terminal on any Mac:</p>
+          <pre>node -e "console.log(require('crypto').randomBytes(24).toString('base64url'))"</pre>
+        </div>
+      </li>
+      <li>
+        <div>
+          <h4>Add the token to Netlify</h4>
+          <p>Netlify → Site config → Environment variables → <code>PARTNER_TOKENS</code>. It's a JSON object; add one entry inside the braces (don't forget the trailing comma on the previous entry):</p>
+          <pre>"&lt;the-token&gt;": "&lt;partner-slug&gt;"</pre>
+          <p>Slug is lower-case with hyphens for spaces — same as the URL you'd expect: <code>sevenrooms</code>, <code>seven-rooms</code>, <code>clearcourse</code>. Save, then trigger a Netlify redeploy.</p>
+        </div>
+      </li>
+      <li>
+        <div>
+          <h4>Add a vendor alias (for tech-stack matching)</h4>
+          <p>In <code>src/lib/stackcollect.ts</code>, add an entry to <code>PARTNER_VENDOR_ALIASES</code>. Key is the slug you used above; values are every case-insensitive substring their product might appear as in operator reviews:</p>
+          <pre>'sevenrooms': ['sevenrooms', 'seven rooms', '7rooms'],</pre>
+          <p>Commit, push, Netlify auto-deploys. Without this the partner still gets Slack pings for their leads, but their NPS scores won't attach to them on the tech-check drilldown.</p>
+        </div>
+      </li>
+    </ol>
+    <p style="margin-top:32px;"><strong>The private URL to share:</strong> <code>https://approvedreporting.netlify.app/p/&lt;the-token&gt;</code>. Test it in an incognito window before sending it to the partner — should land on their dashboard, not "Access Denied".</p>
+  </section>
+
+  <footer>
+    <p><strong>Three places hold the data.</strong> Lovable (venues + NPS), Airtable (leads + partners), Netlify (the portal that reads both). If you know which one owns the thing you're chasing, you're already halfway to the fix.</p>
+  </footer>
+</article>
+<script type="module">
+  import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs";
+  mermaid.initialize({ startOnLoad: true });
+</script>
+</body>
+</html>
