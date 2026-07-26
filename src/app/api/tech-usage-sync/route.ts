@@ -337,11 +337,13 @@ export async function GET(req: Request) {
       });
     }
 
-    // 5. Fetch Airtable state — include Tool + Category so we can compare rows
+    // 5. Fetch Airtable state — include Tool + Category + Partner so the
+    // idempotency diff detects rows whose Partner link is stale (e.g. after
+    // a partner rename that added a new alias to PARTNER_VENDOR_ALIASES).
     const [airtableVenues, airtablePartners, airtableTechUsage] = await Promise.all([
       airtableFetchAll(VENUES_TABLE, ['Venue', 'Industry', 'Region']),
       airtableFetchAll(PARTNERS_TABLE, ['Name']),
-      airtableFetchAll(TECH_USAGE_TABLE, ['Source', 'Venue', 'Tool', 'Category']),
+      airtableFetchAll(TECH_USAGE_TABLE, ['Source', 'Venue', 'Tool', 'Category', 'Partner']),
     ]);
 
     // venue name → record id (for wipe + link)
@@ -371,7 +373,8 @@ export async function GET(req: Request) {
         patterns: termPatterns(matchTermsForPartner(p.name)),
       }));
 
-    // venue record id → old Tech Usage rows (Source=Self-reported only) with dedupe keys
+    // venue record id → old Tech Usage rows (Source=Self-reported only) with dedupe keys.
+    // Key includes Partner ID so a changed partner match (e.g. new alias) triggers re-processing.
     type OldTuRow = { id: string; dedupeKey: string };
     const oldTuByVenueId = new Map<string, OldTuRow[]>();
     for (const tu of airtableTechUsage) {
@@ -384,8 +387,10 @@ export async function GET(req: Request) {
       const tool = String(tu.fields.Tool ?? '').trim().toLowerCase();
       const catRaw = tu.fields.Category;
       const catName = typeof catRaw === 'string' ? catRaw : (catRaw as { name?: string } | undefined)?.name || 'Other';
+      const partnerIds = tu.fields.Partner as string[] | undefined;
+      const partnerId = partnerIds?.[0] || '';
       const arr = oldTuByVenueId.get(venueId) || [];
-      arr.push({ id: tu.id, dedupeKey: `${catName}|${tool}` });
+      arr.push({ id: tu.id, dedupeKey: `${catName}|${tool}|${partnerId}` });
       oldTuByVenueId.set(venueId, arr);
     }
 
@@ -473,14 +478,16 @@ export async function GET(req: Request) {
         targetRows.map((r) => {
           const cat = String(r.fields.Category ?? 'Other');
           const tool = String(r.fields.Tool ?? '').trim().toLowerCase();
-          return `${cat}|${tool}`;
+          const pid = (r.fields.Partner as string[] | undefined)?.[0] || '';
+          return `${cat}|${tool}|${pid}`;
         }),
       );
 
       const rowsToCreate = targetRows.filter((r) => {
         const cat = String(r.fields.Category ?? 'Other');
         const tool = String(r.fields.Tool ?? '').trim().toLowerCase();
-        return !currentByKey.has(`${cat}|${tool}`);
+        const pid = (r.fields.Partner as string[] | undefined)?.[0] || '';
+        return !currentByKey.has(`${cat}|${tool}|${pid}`);
       });
 
       const idsToDelete: string[] = [];
