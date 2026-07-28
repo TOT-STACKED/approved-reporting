@@ -24,5 +24,8 @@ export default async () => {
 };
 
 export const config: Config = {
-  schedule: '30 5 * * *', // daily 05:30 UTC
+  // Twice-daily 05:30 UTC + 12:30 UTC. Second run is a safety net so a
+  // missed nightly (Netlify scheduled function flake, transient error)
+  // gets recovered same-day rather than waiting until the next morning.
+  schedule: '30 5,12 * * *',
 };

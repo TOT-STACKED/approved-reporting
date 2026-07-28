@@ -33,7 +33,7 @@ import {
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 
-const SINCE_DEFAULT_DAYS = 7;
+const SINCE_DEFAULT_DAYS = 14;
 const SOURCE_LABEL = 'Self-reported (Health Check)';
 
 const MP_BASE = process.env.MARKETPLACE_AIRTABLE_BASE_ID!;

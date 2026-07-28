@@ -24,5 +24,9 @@ export default async () => {
 };
 
 export const config: Config = {
-  schedule: '35 5 * * *', // daily 05:35 UTC (5 min after sos-sync)
+  // Twice-daily 05:35 UTC + 12:35 UTC (5 min after sos-sync).
+  // Second run is a safety net — if either misses (Netlify scheduled function
+  // flake, transient upstream error), the next one catches up. Combined with
+  // the 14-day delta window in the route, coverage is robust to a full day off.
+  schedule: '35 5,12 * * *',
 };
