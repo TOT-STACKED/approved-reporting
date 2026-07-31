@@ -238,12 +238,17 @@ function buildTechUsageRows(
   entries: TechStackEntry[],
   partnerIndex: Array<{ id: string; patterns: RegExp[] }>,
 ): Array<{ fields: Record<string, unknown> }> {
-  // Dedupe by tool alone (not by category+tool) — if an operator lists the
-  // same tool in two categories (e.g. Tevalis in POS + Inventory), we only
-  // create one Tech Usage row for the (venue, tool) pair. First category
-  // wins. This matters for the Partners.Venues using rollup: the linked
-  // Partner would otherwise appear on multiple Tech Usage rows for the same
-  // venue, inflating the SUM (the "Square 42 → 102" bug seen on Jul 31 2026).
+  // Dedupe by MATCHED PARTNER (not just by tool name) — if an operator lists
+  // multiple products from the same partner across categories (e.g. "Fourth",
+  // "Fourth Stock", "Fourth Payroll" — three different tool strings, all
+  // matching the Fourth partner via regex), we collapse them to one Tech
+  // Usage row per (venue, partner). First occurrence wins. Unmatched tools
+  // (no partner) still dedupe by tool name.
+  //
+  // Rationale: the Partners.Venues using rollup SUMs Effective sites per
+  // linked Tech Usage row. Multiple rows for the same (venue, partner)
+  // would count the same venue's sites N times ("Fourth 95 → 197" bug
+  // observed Jul 31 2026 before this change; "Square 42 → 102" the same day).
   const seen = new Set<string>();
   const rows: Array<{ fields: Record<string, unknown> }> = [];
   const submissionDate = submission.created_at.slice(0, 10);
@@ -251,11 +256,11 @@ function buildTechUsageRows(
     const tool = (e.tool_name ?? '').trim();
     if (!tool) continue;
     const category = normalizeCategory(e.category);
-    const dedupeKey = tool.toLowerCase();
-    if (seen.has(dedupeKey)) continue;
-    seen.add(dedupeKey);
 
     const matched = partnerIndex.find((p) => p.patterns.some((re) => re.test(tool)));
+    const dedupeKey = matched ? `partner:${matched.id}` : `tool:${tool.toLowerCase()}`;
+    if (seen.has(dedupeKey)) continue;
+    seen.add(dedupeKey);
 
     const fields: Record<string, unknown> = {
       Entry: `${venueName} — ${tool}`,
