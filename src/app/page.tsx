@@ -128,23 +128,31 @@ export default function Dashboard() {
 
       <AskBox />
 
-      {/* Hero KPIs - Pipeline stages */}
+      {/* Hero KPIs — Stacked marketplace card treatment. Big chunky
+          display-face count sits on a pastel or accent ground, with a
+          small mono label at the bottom-left and a tiny filled dot in the
+          top-right as a colour-coded stage identifier. Same content as
+          before, but reads as a marquee row rather than four data tiles. */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 mb-4">
-        <div className="bg-brand-sky rounded-2xl p-4 sm:p-5 text-brand-green shadow-sm" title={LEAD_STATUS_EXPLAINER.MAL}>
-          <p className="text-2xl sm:text-3xl font-bold">{malCount}</p>
-          <p className="text-xs sm:text-sm font-medium opacity-75 mt-1">MAL</p>
+        <div className="relative bg-brand-sky rounded-3xl p-5 sm:p-7 text-brand-green shadow-sm hover:shadow-md transition-shadow" title={LEAD_STATUS_EXPLAINER.MAL}>
+          <span aria-hidden className="absolute top-4 right-4 w-2.5 h-2.5 rounded-full bg-brand-green/25" />
+          <p className="font-display text-5xl sm:text-6xl leading-[0.9] tracking-tight tabular-nums">{malCount}</p>
+          <p className="font-mono text-[10px] uppercase tracking-[0.22em] mt-4 opacity-70">MAL</p>
         </div>
-        <div className="bg-brand-yellow rounded-2xl p-4 sm:p-5 text-brand-green shadow-sm" title={LEAD_STATUS_EXPLAINER.MQL}>
-          <p className="text-2xl sm:text-3xl font-bold">{mqlCount}</p>
-          <p className="text-xs sm:text-sm font-medium opacity-75 mt-1">MQL</p>
+        <div className="relative bg-brand-yellow rounded-3xl p-5 sm:p-7 text-brand-green shadow-sm hover:shadow-md transition-shadow" title={LEAD_STATUS_EXPLAINER.MQL}>
+          <span aria-hidden className="absolute top-4 right-4 w-2.5 h-2.5 rounded-full bg-brand-green/40" />
+          <p className="font-display text-5xl sm:text-6xl leading-[0.9] tracking-tight tabular-nums">{mqlCount}</p>
+          <p className="font-mono text-[10px] uppercase tracking-[0.22em] mt-4 opacity-70">MQL</p>
         </div>
-        <div className="bg-brand-orange rounded-2xl p-4 sm:p-5 text-white shadow-sm" title={LEAD_STATUS_EXPLAINER.SQL}>
-          <p className="text-2xl sm:text-3xl font-bold">{sqlCount}</p>
-          <p className="text-xs sm:text-sm font-medium opacity-90 mt-1">SQL</p>
+        <div className="relative bg-brand-orange rounded-3xl p-5 sm:p-7 text-white shadow-sm hover:shadow-md transition-shadow" title={LEAD_STATUS_EXPLAINER.SQL}>
+          <span aria-hidden className="absolute top-4 right-4 w-2.5 h-2.5 rounded-full bg-white/50" />
+          <p className="font-display text-5xl sm:text-6xl leading-[0.9] tracking-tight tabular-nums">{sqlCount}</p>
+          <p className="font-mono text-[10px] uppercase tracking-[0.22em] mt-4 opacity-85">SQL</p>
         </div>
-        <div className="bg-brand-green rounded-2xl p-4 sm:p-5 text-white shadow-sm">
-          <p className="text-2xl sm:text-3xl font-bold">{closedWonCount}</p>
-          <p className="text-xs sm:text-sm font-medium opacity-90 mt-1">Closed Won</p>
+        <div className="relative bg-brand-green rounded-3xl p-5 sm:p-7 text-brand-cream shadow-sm hover:shadow-md transition-shadow">
+          <span aria-hidden className="absolute top-4 right-4 w-2.5 h-2.5 rounded-full bg-brand-lime" />
+          <p className="font-display text-5xl sm:text-6xl leading-[0.9] tracking-tight tabular-nums">{closedWonCount}</p>
+          <p className="font-mono text-[10px] uppercase tracking-[0.22em] mt-4 opacity-70">Closed Won</p>
         </div>
       </div>
 
