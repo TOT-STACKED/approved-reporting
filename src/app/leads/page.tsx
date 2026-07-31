@@ -148,7 +148,7 @@ export default function LeadsPage() {
     <div>
       <div className="mb-6 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">All Leads</h1>
+          <h1 className="font-display text-4xl sm:text-5xl tracking-tight leading-[0.95] text-brand-green">All Leads</h1>
           <p className="text-gray-500 mt-1">
             {total.toLocaleString()} total · <span className="text-rose-600 font-medium">{hotCount} hot</span> ·{' '}
             <span className="text-amber-600 font-medium">{highCount} high priority</span>

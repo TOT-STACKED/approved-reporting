@@ -123,7 +123,7 @@ export default function KnowledgePage() {
   return (
     <div>
       <div className="mb-6">
-        <h1 className="text-2xl sm:text-3xl font-bold text-brand-green">Knowledge Base</h1>
+        <h1 className="font-display text-4xl sm:text-6xl tracking-tight leading-[0.95] text-brand-green">Knowledge Base</h1>
         <p className="text-gray-500 mt-1">
           A searchable library of links — quotes, proposals, articles, research.
           Add a URL and the AI can answer questions from the page content.

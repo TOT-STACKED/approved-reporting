@@ -81,7 +81,7 @@ export default function CommunityPage() {
       {/* Hero */}
       <div className="bg-brand-green rounded-2xl p-6 sm:p-8 text-white mb-6 sm:mb-8 shadow-lg">
         <p className="text-xs sm:text-sm uppercase tracking-wider opacity-80 mb-2">Marketplace Community Update</p>
-        <h1 className="text-2xl sm:text-3xl font-bold mb-2">What we&apos;re doing for our marketplace partners</h1>
+        <h1 className="font-display text-4xl sm:text-5xl tracking-tight leading-[0.95] text-brand-green mb-4">What we&apos;re doing for our marketplace partners</h1>
         <p className="text-sm sm:text-base opacity-90 max-w-2xl">
           A snapshot of lead generation, tech stack trends, upcoming events and podcast activity across the Tech on Toast community.
           Same view for every partner — no individual data, just what we&apos;re up to as a network.

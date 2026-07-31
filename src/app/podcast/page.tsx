@@ -121,7 +121,7 @@ export default function PodcastPage() {
   if (loading) {
     return (
       <div>
-        <h1 className="text-2xl sm:text-3xl font-bold text-brand-green mb-4">Podcast</h1>
+        <h1 className="font-display text-4xl sm:text-6xl tracking-tight leading-[0.95] text-brand-green mb-6">Podcast</h1>
         <p className="text-sm text-gray-500">Loading episodes…</p>
       </div>
     );
@@ -130,7 +130,7 @@ export default function PodcastPage() {
   if (!data) {
     return (
       <div>
-        <h1 className="text-2xl sm:text-3xl font-bold text-brand-green mb-4">Podcast</h1>
+        <h1 className="font-display text-4xl sm:text-6xl tracking-tight leading-[0.95] text-brand-green mb-6">Podcast</h1>
         <p className="text-sm text-red-600">Failed to load podcast episodes.</p>
       </div>
     );
@@ -142,7 +142,7 @@ export default function PodcastPage() {
   return (
     <div>
       <div className="mb-6">
-        <h1 className="text-2xl sm:text-3xl font-bold text-brand-green">Podcast</h1>
+        <h1 className="font-display text-4xl sm:text-6xl tracking-tight leading-[0.95] text-brand-green">Podcast</h1>
         <p className="text-gray-500 mt-1 max-w-3xl text-sm">
           Every episode from the show&apos;s RSS, with full Whisper transcripts so the team
           can search what was said. Use the buttons below to pull new episodes from RSS,

@@ -265,7 +265,7 @@ export default function PartnerPage() {
       <div className="flex items-center justify-between mb-8">
         <div>
           <a href="/" className="text-sm text-gray-500 hover:text-gray-700">&larr; Back to Dashboard</a>
-          <h1 className="text-2xl font-bold text-gray-900 mt-2">{partner.name}</h1>
+          <h1 className="font-display text-4xl sm:text-5xl tracking-tight leading-[0.95] text-brand-green mt-2">{partner.name}</h1>
           <p className="text-gray-500">{partner.leadCount} total leads referred</p>
         </div>
         <button

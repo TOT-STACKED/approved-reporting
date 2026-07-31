@@ -308,7 +308,7 @@ export default function SecurePartnerPage() {
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
           <div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-brand-green">{partner.name} Dashboard</h1>
+            <h1 className="font-display text-4xl sm:text-5xl tracking-tight leading-[0.95] text-brand-green">{partner.name} Dashboard</h1>
             <p className="text-gray-500 text-sm mt-1">{partner.leadCount} total leads referred by Tech on Toast</p>
           </div>
           <button

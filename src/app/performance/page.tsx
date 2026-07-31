@@ -199,7 +199,7 @@ export default function PerformancePage() {
     <div>
       <div className="mb-6 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Partner Performance</h1>
+          <h1 className="font-display text-4xl sm:text-5xl tracking-tight leading-[0.95] text-brand-green">Partner Performance</h1>
           <p className="text-gray-500 mt-1 text-sm">
             MQL/SQL pipeline volume, conversion rates and last-lead recency across every active partner.
             Partners that need attention float to the top — sorted red → amber → green.

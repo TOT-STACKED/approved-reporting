@@ -100,7 +100,7 @@ export default function AnalyticsPage() {
   return (
     <div>
       <div className="mb-6 sm:mb-8">
-        <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Analytics</h1>
+        <h1 className="font-display text-4xl sm:text-5xl tracking-tight leading-[0.95] text-brand-green">Analytics</h1>
         <p className="text-gray-500 mt-1 text-sm">Visual breakdown of traffic, pipeline, and tech stack data</p>
       </div>
 

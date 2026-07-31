@@ -122,7 +122,7 @@ export default function Dashboard() {
   return (
     <div>
       <div className="mb-8">
-        <h1 className="text-2xl sm:text-3xl font-bold text-brand-green">Partner Dashboard</h1>
+        <h1 className="font-display text-4xl sm:text-6xl tracking-tight leading-[0.95] text-brand-green">Partner<br/>Dashboard</h1>
         <p className="text-gray-500 mt-1">Performance snapshot across all approved partners</p>
       </div>
 
