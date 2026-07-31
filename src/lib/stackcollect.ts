@@ -183,6 +183,12 @@ export interface BusinessSubmission {
   // or occasional long-form narrative). Nullable because older rows and
   // internal imports don't have one.
   recommendations: string | null;
+  // From techstackreview migration 010 (forwarded via slack-notify). Both
+  // nullable because older submissions don't have them. tech-usage-sync
+  // uses these to populate Airtable Venues.Site count and .Brand override,
+  // which feed the marketplace's Operators/Venues counts.
+  brand_trading_name: string | null;
+  site_count: number | null;
 }
 
 export interface ToolUsageStat {

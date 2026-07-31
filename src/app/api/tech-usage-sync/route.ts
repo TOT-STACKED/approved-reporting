@@ -351,16 +351,24 @@ export async function GET(req: Request) {
     // 5. Fetch Airtable state — include Tool + Category + Partner so the
     // idempotency diff detects rows whose Partner link is stale (e.g. after
     // a partner rename that added a new alias to PARTNER_VENDOR_ALIASES).
+    // Also fetch Site count + Brand override so the "fill empty only" logic
+    // respects any manual entries the team has already made.
     const [airtableVenues, airtablePartners, airtableTechUsage] = await Promise.all([
-      airtableFetchAll(VENUES_TABLE, ['Venue', 'Industry', 'Region']),
+      airtableFetchAll(VENUES_TABLE, ['Venue', 'Industry', 'Region', 'Site count', 'Brand override']),
       airtableFetchAll(PARTNERS_TABLE, ['Name']),
       airtableFetchAll(TECH_USAGE_TABLE, ['Source', 'Venue', 'Tool', 'Category', 'Partner']),
     ]);
 
     // venue name → record id (for wipe + link)
     const venueIdByKey = new Map<string, string>();
-    // venue name → existing Industry/Region (for "only fill empty" update logic)
-    const venueMetaByKey = new Map<string, { industry?: string; region?: string }>();
+    // venue name → existing Industry/Region/Site count/Brand override (for "only
+    // fill empty" update logic — never overwrite hand-enriched data).
+    const venueMetaByKey = new Map<string, {
+      industry?: string;
+      region?: string;
+      siteCount?: number;
+      brandOverride?: string;
+    }>();
     for (const v of airtableVenues) {
       const name = (v.fields.Venue as string | undefined)?.trim();
       if (!name) continue;
@@ -369,6 +377,8 @@ export async function GET(req: Request) {
       venueMetaByKey.set(key, {
         industry: (v.fields.Industry as string | undefined)?.trim() || undefined,
         region: (v.fields.Region as string | undefined)?.trim() || undefined,
+        siteCount: typeof v.fields['Site count'] === 'number' ? (v.fields['Site count'] as number) : undefined,
+        brandOverride: (v.fields['Brand override'] as string | undefined)?.trim() || undefined,
       });
     }
 
@@ -429,6 +439,14 @@ export async function GET(req: Request) {
       const industry =
         submission.industry?.trim() || submission.vertical?.trim() || undefined;
       const region = submission.location?.trim() || undefined;
+      // From submission — the exact site count and brand trading name captured
+      // by the form (techstackreview migration 010). Both may be null on older
+      // submissions.
+      const siteCount =
+        typeof submission.site_count === 'number' && submission.site_count >= 1
+          ? submission.site_count
+          : undefined;
+      const brandOverride = submission.brand_trading_name?.trim() || undefined;
       let venueId = venueIdByKey.get(key);
 
       // Step 1: ensure venue exists
@@ -436,22 +454,30 @@ export async function GET(req: Request) {
         const fields: Record<string, unknown> = { Venue: venueName };
         if (industry) fields.Industry = industry;
         if (region) fields.Region = region;
+        if (siteCount !== undefined) fields['Site count'] = siteCount;
+        if (brandOverride) fields['Brand override'] = brandOverride;
         if (!dry) {
           const created = await airtableCreate(VENUES_TABLE, [{ fields }]);
           venueId = created[0]?.id;
           if (venueId) {
             venueIdByKey.set(key, venueId);
-            venueMetaByKey.set(key, { industry, region });
+            venueMetaByKey.set(key, { industry, region, siteCount, brandOverride });
           }
         }
         venuesCreated++;
         if (!venueId) continue; // dry mode — can't create TU rows without an id
       } else {
-        // Fill empty Industry/Region only — never overwrite hand-enriched values
+        // Fill EMPTY fields only — never overwrite hand-enriched values.
+        // Especially important for Site count / Brand override: the team may
+        // have manually looked up the correct number of sites for a chain,
+        // and we don't want a fresh submission (with a possibly different
+        // number reported by a single site's manager) to clobber it.
         const meta = venueMetaByKey.get(key) || {};
         const patch: Record<string, unknown> = {};
         if (industry && !meta.industry) patch.Industry = industry;
         if (region && !meta.region) patch.Region = region;
+        if (siteCount !== undefined && meta.siteCount === undefined) patch['Site count'] = siteCount;
+        if (brandOverride && !meta.brandOverride) patch['Brand override'] = brandOverride;
         if (Object.keys(patch).length > 0) {
           if (!dry) await airtableUpdate(VENUES_TABLE, [{ id: venueId, fields: patch }]);
           venuesUpdated++;
