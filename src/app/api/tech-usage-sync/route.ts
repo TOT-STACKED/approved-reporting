@@ -238,6 +238,12 @@ function buildTechUsageRows(
   entries: TechStackEntry[],
   partnerIndex: Array<{ id: string; patterns: RegExp[] }>,
 ): Array<{ fields: Record<string, unknown> }> {
+  // Dedupe by tool alone (not by category+tool) — if an operator lists the
+  // same tool in two categories (e.g. Tevalis in POS + Inventory), we only
+  // create one Tech Usage row for the (venue, tool) pair. First category
+  // wins. This matters for the Partners.Venues using rollup: the linked
+  // Partner would otherwise appear on multiple Tech Usage rows for the same
+  // venue, inflating the SUM (the "Square 42 → 102" bug seen on Jul 31 2026).
   const seen = new Set<string>();
   const rows: Array<{ fields: Record<string, unknown> }> = [];
   const submissionDate = submission.created_at.slice(0, 10);
@@ -245,7 +251,7 @@ function buildTechUsageRows(
     const tool = (e.tool_name ?? '').trim();
     if (!tool) continue;
     const category = normalizeCategory(e.category);
-    const dedupeKey = `${category}|${tool.toLowerCase()}`;
+    const dedupeKey = tool.toLowerCase();
     if (seen.has(dedupeKey)) continue;
     seen.add(dedupeKey);
 
