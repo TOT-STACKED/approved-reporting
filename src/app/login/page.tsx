@@ -37,12 +37,12 @@ export default async function LoginPage({
         {/* Welcome / brand header */}
         <div className="flex flex-col items-center text-center mb-10">
           <img
-            src="/tech-on-toast-logo.svg"
-            alt="Tech on Toast"
-            className="h-24 w-auto mb-5"
+            src="/stacked-wordmark.svg"
+            alt="Stacked"
+            className="h-14 w-auto mb-6"
           />
-          <h1 className="text-3xl sm:text-4xl font-bold text-brand-green leading-tight">
-            Approved Partner Portal
+          <h1 className="font-display text-4xl sm:text-5xl text-brand-green leading-[1] tracking-tight">
+            Approved<br/>Partner Portal
           </h1>
           <p className="text-sm sm:text-base text-gray-600 mt-4 max-w-xl leading-relaxed">
             The single hub for measuring what we&apos;re doing for our approved

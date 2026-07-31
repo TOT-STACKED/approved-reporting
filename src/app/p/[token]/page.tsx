@@ -289,17 +289,17 @@ export default function SecurePartnerPage() {
         <div className="max-w-5xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
             <img
-              src="/tech-on-toast-logo.svg"
-              alt="Tech on Toast"
-              className="h-9 w-auto text-brand-green"
+              src="/stacked-wordmark.svg"
+              alt="Stacked"
+              className="h-6 sm:h-7 w-auto"
             />
-            <span className="flex flex-col leading-tight">
-              <span className="font-semibold text-brand-green text-sm sm:text-base">{partner.name}</span>
-              <span className="text-[10px] sm:text-xs text-gray-500 -mt-0.5">Partner Portal</span>
+            <span className="flex flex-col leading-tight border-l border-brand-green/15 pl-3">
+              <span className="font-display text-sm sm:text-base text-brand-green leading-none">{partner.name}</span>
+              <span className="font-mono text-[9px] sm:text-[10px] uppercase tracking-[0.18em] text-brand-green/60 mt-1">Partner Portal</span>
             </span>
           </div>
-          <span className="text-[10px] sm:text-xs uppercase tracking-[0.18em] text-brand-green-soft font-medium hidden sm:inline">
-            Tech on Toast
+          <span className="font-mono text-[10px] sm:text-xs uppercase tracking-[0.18em] text-brand-green-soft font-medium hidden sm:inline">
+            Stacked
           </span>
         </div>
       </nav>

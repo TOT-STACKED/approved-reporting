@@ -79,13 +79,12 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
           <a href="/" className="flex items-center gap-3 group">
             <img
-              src="/tech-on-toast-logo.svg"
-              alt="Tech on Toast"
-              className="h-9 w-auto text-brand-green transition-transform group-hover:-rotate-3"
+              src="/stacked-wordmark.svg"
+              alt="Stacked"
+              className="h-6 sm:h-7 w-auto transition-transform group-hover:-rotate-2"
             />
-            <span className="flex flex-col leading-tight">
-              <span className="font-semibold text-brand-green text-sm sm:text-base">Tech on Toast</span>
-              <span className="text-[10px] sm:text-xs text-gray-500 -mt-0.5">Partner Portal</span>
+            <span className="hidden sm:inline-block font-mono text-[10px] uppercase tracking-[0.18em] text-brand-green/60 border-l border-brand-green/15 pl-3">
+              Approved Reporting
             </span>
           </a>
 

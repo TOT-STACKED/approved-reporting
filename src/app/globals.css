@@ -1,21 +1,45 @@
 @import "tailwindcss";
 
-/* Tech on Toast brand palette.
-   These tokens generate Tailwind utilities like bg-brand-green, text-brand-cream, etc.
-   Tweak the values here to retune the whole product. */
+/* Stacked brand palette — retuned July 2026 from the new brand identity.
+   The legacy `brand-green` token name is kept so existing utilities keep
+   working, but its value is now the deep purple-black ink used across the
+   marketing site. Same for brand-pink, brand-lime, brand-yellow, brand-lavender
+   — the utility classes stay, the colours behind them shift to match the
+   new visual language.
+
+   New token: `brand-berry` for the deep magenta accent (Approved Partners
+   badges and stamps). */
 @theme {
-  --color-brand-green: #1d3b1f;
-  --color-brand-green-soft: #2f5a33;
-  --color-brand-cream: #f7f2e3;
-  --color-brand-cream-soft: #fbf7ec;
-  --color-brand-orange: #e96333;
-  --color-brand-pink: #f78bb5;
-  --color-brand-lime: #c4f470;
-  --color-brand-yellow: #f5c44e;
-  --color-brand-lavender: #c5b2f5;
-  --color-brand-sky: #cee2f7;
+  --color-brand-green: #231A2D;
+  --color-brand-green-soft: #3A2D47;
+  --color-brand-cream: #F4EFDF;
+  --color-brand-cream-soft: #FBF7EC;
+  --color-brand-orange: #F27E3E;
+  --color-brand-berry: #8B1B47;
+  --color-brand-pink: #F7B5C8;
+  --color-brand-lime: #B8D874;
+  --color-brand-yellow: #F1CD54;
+  --color-brand-lavender: #C9B4E6;
+  --color-brand-sky: #CEE2F7;
+
+  --font-display: "Archivo Black", ui-sans-serif, system-ui, sans-serif;
+  --font-body: "DM Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
 }
 
 body {
-  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+  font-family: var(--font-dm-sans), ui-sans-serif, system-ui, sans-serif;
+  font-feature-settings: "ss01", "cv11";
+}
+
+/* Display face for headings on marketing/dashboard surfaces. Applied
+   selectively via `font-display` utility to avoid running-text pages
+   suddenly turning chunky. */
+.font-display {
+  font-family: var(--font-archivo-black), ui-sans-serif, system-ui, sans-serif;
+  font-weight: 900;
+  letter-spacing: -0.01em;
+}
+.font-mono {
+  font-family: var(--font-jetbrains-mono), ui-monospace, "SF Mono", Menlo, monospace;
 }
