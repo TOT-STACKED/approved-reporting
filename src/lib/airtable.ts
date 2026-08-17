@@ -92,7 +92,9 @@ async function airtableFetch(tableId: string, params: Record<string, string> = {
 
   const res = await fetch(url.toString(), {
     headers: { Authorization: `Bearer ${API_KEY}` },
-    next: { revalidate: 60 },
+    // no-store: see leads.ts. Airtable pagination offsets are ephemeral
+    // and any mixed-freshness cache truncates or duplicates results.
+    cache: 'no-store',
   });
 
   if (!res.ok) {

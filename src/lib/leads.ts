@@ -69,7 +69,12 @@ export async function getAllLeads(): Promise<Lead[]> {
 
     const res = await fetch(url.toString(), {
       headers: { Authorization: `Bearer ${API_KEY}` },
-      next: { revalidate: 60 },
+      // no-store on paginated Airtable fetches: offset tokens are ephemeral,
+      // so a mixed-freshness cache (page 1 stale + page 2 fresh, or vice versa)
+      // can silently truncate or duplicate. Route handlers are already
+      // force-dynamic; the extra Airtable round-trip is sub-second and worth
+      // the guaranteed consistency.
+      cache: 'no-store',
     });
     const data = await res.json();
     allRecords.push(...(data.records || []));
