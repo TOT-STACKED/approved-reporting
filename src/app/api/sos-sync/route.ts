@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getNpsScores, matchTermsForPartner } from '@/lib/stackcollect';
+import { getNpsScores, matchTermsForPartner, rollupNpsByVendor } from '@/lib/stackcollect';
 
 // Syncs the Stacked Operator Score (SOS) onto the marketplace Partners table
 // in Airtable, so the Framer marketplace tiles can display a star rating.
@@ -8,8 +8,15 @@ import { getNpsScores, matchTermsForPartner } from '@/lib/stackcollect';
 //   sos = round((avg operator rating 0-10 / 2), 1)   → 0..5, one decimal
 // A partner is scored only at MIN_RESPONSES+ reviews (matches the league table).
 //
-// Vendor -> partner matching reuses PARTNER_VENDOR_ALIASES via
-// matchTermsForPartner(), word-boundary matched, so "SumUp POS" -> "SumUp" etc.
+// Vendor -> partner matching uses the SAME grouping the League Table uses:
+// rollupNpsByVendor() groups NPS rows by exact vendor name (case-insensitive,
+// whitespace-trimmed). We then take, for each partner, the rollup rows whose
+// vendor matches any of the partner's aliases in PARTNER_VENDOR_ALIASES —
+// aggregating counts and averages across the aliases so multi-alias vendors
+// (e.g. "Seven Rooms" ← ["sevenrooms","seven rooms","7rooms"]) still combine,
+// while incidental substring hits (e.g. an unrelated "Como Bar" row) do NOT
+// contaminate a partner's average. This guarantees the marketplace tile shows
+// the exact same SOS/count the League Table shows for that vendor.
 //
 // NOTE: the marketplace Partners table lives in a DIFFERENT Airtable base from
 // the portal's CRM base, so this uses its own env vars / key.
@@ -31,13 +38,6 @@ const REVIEWS_FIELD = process.env.MARKETPLACE_SOS_REVIEWS_FIELD || 'SOS Reviews 
 
 function sosFromAvg(avg: number): number {
   return Math.round((avg / 2) * 10) / 10;
-}
-
-function termPatterns(terms: string[]): RegExp[] {
-  return terms.map((t) => {
-    const escaped = t.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    return new RegExp(`\\b${escaped}\\b`, 'i');
-  });
 }
 
 async function mpFetchAllPartners(): Promise<Array<{ id: string; name: string }>> {
@@ -82,40 +82,58 @@ export async function GET(req: Request) {
   try {
     const [scores, partners] = await Promise.all([getNpsScores(), mpFetchAllPartners()]);
 
+    // Roll NPS rows up per exact vendor name — same grouping the League Table
+    // uses. Everything below is then a lookup into this rollup rather than a
+    // fresh regex sweep, which is what guarantees the marketplace matches the
+    // League Table one for one.
+    const rollup = rollupNpsByVendor(scores);
+    const rollupByVendor = new Map<string, { avg: number; count: number }>();
+    for (const r of rollup) {
+      rollupByVendor.set(r.vendor.toLowerCase().trim(), { avg: r.avg, count: r.count });
+    }
+
     const updates: Array<{ id: string; fields: Record<string, unknown> }> = [];
     const ranked: Array<{ name: string; sos: number; count: number }> = [];
+    // Track which rollup vendors got claimed by at least one partner, so the
+    // unmatchedVendors diagnostic below stays accurate under the new logic.
+    const claimedVendors = new Set<string>();
 
     for (const p of partners) {
       if (!p.name) continue;
-      const pats = termPatterns(matchTermsForPartner(p.name));
-      const matched = scores.filter((s) => {
-        const v = (s.vendor ?? '').trim();
-        return v && pats.some((re) => re.test(v));
-      });
-      const count = matched.length;
-      if (count >= MIN_RESPONSES) {
-        const avg = matched.reduce((a, b) => a + b.score, 0) / count;
+      const aliases = matchTermsForPartner(p.name).map((a) => a.toLowerCase().trim());
+
+      // Aggregate across every alias that has a rollup row. For a single-alias
+      // partner (the common case) this is a straight lookup; for multi-alias
+      // vendors (e.g. Seven Rooms) it's a weighted average across the aliases.
+      let totalScore = 0;
+      let totalCount = 0;
+      for (const alias of aliases) {
+        const row = rollupByVendor.get(alias);
+        if (row) {
+          totalScore += row.avg * row.count;
+          totalCount += row.count;
+          claimedVendors.add(alias);
+        }
+      }
+
+      if (totalCount >= MIN_RESPONSES) {
+        const avg = totalScore / totalCount;
         const sos = sosFromAvg(avg);
-        updates.push({ id: p.id, fields: { [SCORE_FIELD]: sos, [REVIEWS_FIELD]: count } });
-        ranked.push({ name: p.name, sos, count });
+        updates.push({ id: p.id, fields: { [SCORE_FIELD]: sos, [REVIEWS_FIELD]: totalCount } });
+        ranked.push({ name: p.name, sos, count: totalCount });
       } else {
         // Clear any stale score; keep a truthful (sub-threshold) review count.
-        updates.push({ id: p.id, fields: { [SCORE_FIELD]: null, [REVIEWS_FIELD]: count || null } });
+        updates.push({ id: p.id, fields: { [SCORE_FIELD]: null, [REVIEWS_FIELD]: totalCount || null } });
       }
     }
 
-    // Vendors with 2+ reviews that matched NO partner — candidates for a new
-    // alias in PARTNER_VENDOR_ALIASES (or a partner that isn't on the marketplace).
-    const byVendor = new Map<string, number>();
-    for (const s of scores) {
-      const v = (s.vendor ?? '').trim().toLowerCase();
-      if (v) byVendor.set(v, (byVendor.get(v) ?? 0) + 1);
-    }
-    const partnerPats = partners.map((p) => termPatterns(matchTermsForPartner(p.name)));
-    const unmatchedVendors = Array.from(byVendor.entries())
-      .filter(([v, c]) => c >= MIN_RESPONSES && !partnerPats.some((pats) => pats.some((re) => re.test(v))))
-      .sort((a, b) => b[1] - a[1])
-      .map(([vendor, count]) => ({ vendor, count }));
+    // Vendors with 2+ reviews that no partner alias claimed — candidates for a
+    // new alias in PARTNER_VENDOR_ALIASES (or a partner that isn't on the
+    // marketplace at all).
+    const unmatchedVendors = rollup
+      .filter((r) => r.count >= MIN_RESPONSES && !claimedVendors.has(r.vendor.toLowerCase().trim()))
+      .sort((a, b) => b.count - a.count)
+      .map(({ vendor, count }) => ({ vendor, count }));
 
     if (!dry) await mpPatch(updates);
 
