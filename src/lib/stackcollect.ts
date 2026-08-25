@@ -402,7 +402,9 @@ export const PARTNER_VENDOR_ALIASES: Record<string, string[]> = {
   'bizimply': ['bizimply'],
   'square': ['square'],
   'sona': ['sona'],
-  'lightspeed': ['lightspeed'],
+  // Lightspeed Payments is the partner's payment product — operators list it
+  // separately in NPS. Fold it under Lightspeed so their score reflects both.
+  'lightspeed': ['lightspeed', 'lightspeed payments'],
   'nory': ['nory'],
   'cinchio': ['cinchio'],
   'wrs': ['wrs'],
@@ -425,6 +427,16 @@ export const PARTNER_VENDOR_ALIASES: Record<string, string[]> = {
   'storekit': ['storekit'],
   'seven rooms': ['sevenrooms', 'seven rooms', '7rooms'],
   'leat': ['leat'],
+  // Operators occasionally type "SumUp POS" (the till product) as a distinct
+  // vendor. Same company as SumUp payments; roll them up.
+  'sumup': ['sumup', 'sumup pos'],
+  // Operators sometimes drop the space when typing "Allgravy". Same partner.
+  'all gravy': ['all gravy', 'allgravy'],
+  // Oracle Simphony was previously branded Micros Simphony — legacy operator
+  // data still uses the old name. Alias both to the current partner record.
+  'oracle simphony': ['oracle simphony', 'micros', 'micros symphony', 'micros simphony'],
+  // pointOne is sometimes typed with a space ("Point one") in NPS submissions.
+  'pointone': ['pointone', 'point one'],
   // Partners renamed after their vendor term was already established in stack reviews.
   // Alias the new display name back to the historical vendor term(s).
   'planday from xero': ['planday'],
