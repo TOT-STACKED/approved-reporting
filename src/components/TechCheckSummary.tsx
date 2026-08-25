@@ -108,6 +108,28 @@ function csvEscape(v: unknown): string {
   return `"${s.replace(/"/g, '""')}"`;
 }
 
+// Format a site-count value for display. Handles three shapes we've had over
+// the life of the tech-check form:
+//   - New form: a plain integer like "4" → "4 sites"
+//   - Legacy range that already includes the word: "2–5 sites" → left as-is
+//     (prevents the old "2–5 sites sites" double-word bug)
+//   - Range without wording: "11-50" or "20+" → append "sites"
+// Anything else (blank, garbage) is passed through so it never surprises.
+function formatSites(v: string | null | undefined): string | null {
+  if (!v) return null;
+  const trimmed = v.trim();
+  if (!trimmed) return null;
+  if (/site/i.test(trimmed)) return trimmed;
+  const asNum = Number(trimmed);
+  if (Number.isFinite(asNum) && asNum >= 0) {
+    return `${asNum} site${asNum === 1 ? '' : 's'}`;
+  }
+  if (/^\d+\s*[\-–]\s*\d+$/.test(trimmed) || /^\d+\+$/.test(trimmed)) {
+    return `${trimmed} sites`;
+  }
+  return trimmed;
+}
+
 function downloadCsv(filename: string, rows: string[][]) {
   const blob = new Blob([rows.map(r => r.map(csvEscape).join(',')).join('\n')], {
     type: 'text/csv;charset=utf-8;',
@@ -137,7 +159,7 @@ function downloadVenueReport(v: VenueDrilldown) {
   if (v.location)            lines.push(`- **Location:** ${v.location}`);
   if (v.vertical)            lines.push(`- **Vertical:** ${v.vertical}`);
   if (v.industry)            lines.push(`- **Industry:** ${v.industry}`);
-  if (v.numberOfLocations)   lines.push(`- **Sites:** ${v.numberOfLocations}`);
+  if (v.numberOfLocations)   lines.push(`- **Sites:** ${formatSites(v.numberOfLocations)}`);
   if (v.size)                lines.push(`- **Size:** ${v.size}`);
   if (v.createdAt)           lines.push(`- **Submitted:** ${v.createdAt.slice(0, 10)}`);
   lines.push(`- **Tools recorded:** ${v.toolCount}`);
@@ -452,9 +474,9 @@ export default function TechCheckSummary() {
                           <div className="flex-1 min-w-0">
                             <p className="font-medium text-gray-900 truncate">
                               {v.businessName}
-                              {v.numberOfLocations && (
+                              {formatSites(v.numberOfLocations) && (
                                 <span className="text-[11px] text-gray-500 font-normal ml-2">
-                                  {v.numberOfLocations} site{v.numberOfLocations === '1' ? '' : 's'}
+                                  {formatSites(v.numberOfLocations)}
                                 </span>
                               )}
                             </p>
