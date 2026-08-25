@@ -24,9 +24,12 @@ export default async () => {
 };
 
 export const config: Config = {
-  // Twice-daily 05:35 UTC + 12:35 UTC (5 min after sos-sync).
-  // Second run is a safety net — if either misses (Netlify scheduled function
-  // flake, transient upstream error), the next one catches up. Combined with
-  // the 14-day delta window in the route, coverage is robust to a full day off.
-  schedule: '35 5,12 * * *',
+  // Every hour at :35 (5 min after sos-sync so they don't collide on the
+  // Airtable rate limit). Up from twice-daily after the Aug 14–25 2026 outage
+  // where Netlify's scheduler went dark for 11 days and nobody noticed until
+  // it was flagged manually. Hourly = a fresh Health Check submission's
+  // venue + tools land in Airtable within the hour, and any missed
+  // invocations self-heal fast the moment scheduling recovers. The route's
+  // 14-day delta window still guards against a longer outage.
+  schedule: '35 * * * *',
 };

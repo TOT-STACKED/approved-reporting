@@ -24,8 +24,12 @@ export default async () => {
 };
 
 export const config: Config = {
-  // Twice-daily 05:30 UTC + 12:30 UTC. Second run is a safety net so a
-  // missed nightly (Netlify scheduled function flake, transient error)
-  // gets recovered same-day rather than waiting until the next morning.
-  schedule: '30 5,12 * * *',
+  // Every hour on the half — up from twice-daily (05:30 / 12:30 UTC) after
+  // the Aug 14–25 2026 outage where Netlify's scheduled function silently
+  // stopped firing for 11 days. Hourly means: (a) a fresh review reaches the
+  // marketplace tile within the hour instead of by tomorrow morning, and
+  // (b) a run of missed invocations converges in single-digit hours the moment
+  // the scheduler wakes up again. Cost is negligible — the sync is a single
+  // Supabase read + a batched Airtable PATCH, ~1s round-trip.
+  schedule: '30 * * * *',
 };
