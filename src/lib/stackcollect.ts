@@ -444,6 +444,11 @@ export const PARTNER_VENDOR_ALIASES: Record<string, string[]> = {
   'me&u': ['me&u', 'meandu', 'me and u'],
   'ws&co insights': ['wsco', 'ws&co', 'ws co'],
   'prodicta ltd': ['prodicta'],
+  // Revvue trades as Revvue.ai and is tagged "Revvue ai" in Airtable —
+  // operators type all three spellings in stack reviews.
+  'revvue': ['revvue', 'revvue ai', 'revvue.ai'],
+  'feedality': ['feedality'],
+  'flock x': ['flock x', 'flockx'],
 };
 
 export function matchTermsForPartner(partnerName: string): string[] {

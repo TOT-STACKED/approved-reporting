@@ -47,5 +47,8 @@ redeploy, then add a row here.
 | Tevalis | `tevalis` | https://approvedreporting.netlify.app/p/83ee0415c9646338 |
 | Lloyds | `lloyds` | https://approvedreporting.netlify.app/p/c42fabf94155617a |
 | Clearcourse | `clearcourse` | https://approvedreporting.netlify.app/p/258aca68a47006ec |
+| Flock X | `flock-x` | https://approvedreporting.netlify.app/p/134a0de873e1e97c |
+| Feedality | `feedality` | https://approvedreporting.netlify.app/p/08a8dd66231459d3 |
+| Revvue | `revvue` | https://approvedreporting.netlify.app/p/78ca8767940bd992 |
 
-_31 partners. Last updated: 2026-05-18 (Clearcourse now standalone; removed the broken bundled `clearcourse---giftpro---tissl` entry — it never resolved because slug derivation produces single dashes, not triple)._
+_34 partners. Last updated: 2026-09-04 (added Flock X, Feedality and Revvue. Revvue's slug is `revvue` but Airtable's select option reads "Revvue ai" — an alias group in `src/lib/airtable.ts` accepts both. Flock X has no leads tagged yet and isn't a select option in the Master Lead Sheet stage fields, so their page renders the zero state until one is added.)_

@@ -271,7 +271,42 @@ const PARTNER_ALIAS_GROUPS: Record<string, PartnerAliasGroup> = {
     displayName: 'Clearcourse',
     slugs: ['clearcourse', 'tissl', 'giftpro', 'rezcontrol'],
   },
+  // Airtable's select option is "Revvue ai" (slug `revvue-ai`), but the
+  // partner link uses the tidy `revvue`. Accept both so the page resolves
+  // whichever spelling a lead was tagged with.
+  revvue: {
+    displayName: 'Revvue',
+    slugs: ['revvue', 'revvue-ai'],
+  },
 };
+
+// Human-readable name for a slug, used when we have no lead data to read a
+// name off. Prefers an alias group's display name, else title-cases the slug.
+export function partnerDisplayNameForSlug(slug: string): string {
+  const group = PARTNER_ALIAS_GROUPS[slug];
+  if (group) return group.displayName;
+  return slug
+    .split('-')
+    .map(w => (w.length <= 1 ? w.toUpperCase() : w[0].toUpperCase() + w.slice(1)))
+    .join(' ');
+}
+
+// A newly onboarded partner has a live /p/<token> link before any lead is
+// tagged to them in Airtable. Serve them an empty dashboard rather than
+// "Partner not found", which reads like a broken link.
+export function emptyPartnerDetail(slug: string): PartnerDetail {
+  return {
+    name: partnerDisplayNameForSlug(slug),
+    slug,
+    leadCount: 0,
+    statusBreakdown: {},
+    stageBreakdown: {},
+    sourceBreakdown: {},
+    ownerBreakdown: {},
+    leads: [],
+    recentLeads: [],
+  };
+}
 
 export async function getPartnerDetail(slug: string): Promise<PartnerDetail | null> {
   const records = await fetchAllRecords(

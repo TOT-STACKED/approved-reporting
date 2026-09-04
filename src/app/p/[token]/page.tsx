@@ -185,6 +185,9 @@ export default function SecurePartnerPage() {
         }
         const data = await r.json();
         if (cancelled) return;
+        // An empty dashboard is indistinguishable from a partial cold-start
+        // read, so burn the retry first and only then render the zero state.
+        if (data?.empty && attempt === 1) { setTimeout(() => load(2), 1500); return; }
         if (data && data.partner) {
           setPartner(data.partner);
           setMetrics(data.metrics || []);

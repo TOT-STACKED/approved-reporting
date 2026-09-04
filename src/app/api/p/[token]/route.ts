@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getPartnerDetail } from '@/lib/airtable';
+import { getPartnerDetail, emptyPartnerDetail } from '@/lib/airtable';
 import { getPartnerStackCollectData, getPartnerNpsRollup } from '@/lib/stackcollect';
 
 export const dynamic = 'force-dynamic';
@@ -25,18 +25,20 @@ export async function GET(
       return NextResponse.json({ error: 'Invalid or expired link' }, { status: 401 });
     }
 
-    const partner = await getPartnerDetail(slug);
-
-    if (!partner) {
-      return NextResponse.json({ error: 'Partner not found' }, { status: 404 });
-    }
+    // The token is valid, so the partner is real — a null detail just means
+    // no leads are tagged to them yet. Serve an empty dashboard so a
+    // freshly onboarded partner's link works from day one. `empty` lets the
+    // client keep its cold-start retry: a partial Airtable read looks the
+    // same as a genuinely lead-free partner from here.
+    const detail = await getPartnerDetail(slug);
+    const partner = detail || emptyPartnerDetail(slug);
 
     const [stackCollect, nps] = await Promise.all([
       getPartnerStackCollectData(partner.name),
       getPartnerNpsRollup(partner.name),
     ]);
 
-    return NextResponse.json({ partner, stackCollect, nps });
+    return NextResponse.json({ partner, stackCollect, nps, empty: !detail });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
