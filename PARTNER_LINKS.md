@@ -50,5 +50,6 @@ redeploy, then add a row here.
 | Flock X | `flock-x` | https://approvedreporting.netlify.app/p/134a0de873e1e97c |
 | Feedality | `feedality` | https://approvedreporting.netlify.app/p/08a8dd66231459d3 |
 | Revvue | `revvue` | https://approvedreporting.netlify.app/p/78ca8767940bd992 |
+| Planday | `planday` | https://approvedreporting.netlify.app/p/d775f98afeb002d1 |
 
-_34 partners. Last updated: 2026-09-04 (added Flock X, Feedality and Revvue. Revvue's slug is `revvue` but Airtable's select option reads "Revvue ai" — an alias group in `src/lib/airtable.ts` accepts both. Flock X has no leads tagged yet and isn't a select option in the Master Lead Sheet stage fields, so their page renders the zero state until one is added.)_
+_35 partners. Last updated: 2026-09-04 (added Flock X, Feedality, Revvue and Planday. Revvue's slug is `revvue` but Airtable's select option reads "Revvue ai" — an alias group in `src/lib/airtable.ts` accepts both. Flock X has no leads tagged yet and isn't a select option in the Master Lead Sheet stage fields, so their page renders the zero state until one is added.)_
