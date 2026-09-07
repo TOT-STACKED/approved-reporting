@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getNpsScores, rollupNpsByVendor } from '@/lib/stackcollect';
+import { getNpsScores, rollupNpsByVendor, excludeTestNpsRows } from '@/lib/stackcollect';
 
 export const dynamic = 'force-dynamic';
 
@@ -7,16 +7,10 @@ export async function GET() {
   try {
     const scores = await getNpsScores();
 
-    // Filter out our own pipeline smoke-test rows and any clearly-bogus vendor names.
-    // 'low-nps-slack-test' is a QA touchpoint used to test the low-NPS Slack
-    // alert wiring — always TestVendorCo/Test Hospitality Ltd, not real data.
-    // Any vendor prefixed with '__' is treated as a diagnostic/test marker
-    // (__e2e_check__, __diag_vendor__, etc.) — keeps the top-vendors ranking
-    // clean without having to enumerate each test name individually.
-    const TEST_TOUCHPOINTS = new Set(['pipeline-smoke-test', 'low-nps-slack-test']);
-    const clean = scores.filter(
-      s => !(s.vendor ?? '').trim().startsWith('__') && !TEST_TOUCHPOINTS.has(s.touchpoint ?? '')
-    );
+    // Drop pipeline smoke-test rows and diagnostic vendor markers. Shared with
+    // the partner score dashboards via excludeTestNpsRows so a rating can never
+    // be counted in one place and filtered out in the other.
+    const clean = excludeTestNpsRows(scores);
 
     const vendorRollup = rollupNpsByVendor(clean);
 

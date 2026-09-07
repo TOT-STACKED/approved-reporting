@@ -8,7 +8,7 @@ import {
 } from 'recharts';
 import ConversionTimeline from '@/components/ConversionTimeline';
 import ConversionFunnelStrip from '@/components/ConversionFunnelStrip';
-import PartnerNps, { type PartnerNpsData } from '@/components/PartnerNps';
+import { usePartnerScore, ScoreHeadline, ScoreDetail } from '@/components/VendorScoreDashboard';
 import StacksDashboard from '@/components/StacksDashboard';
 import StackCollectSection from '@/components/StackCollectSection';
 import AskBox from '@/components/AskBox';
@@ -59,7 +59,7 @@ interface PartnerDetail {
   sourceBreakdown: Record<string, number>;
   ownerBreakdown: Record<string, number>;
   leads: Lead[];
-  recentLeads: Lead[];
+  recentLeadCount: number;
 }
 
 type SortCol = 'businessName' | 'source' | 'date';
@@ -87,11 +87,13 @@ function SortableTh({
 export default function PartnerPage() {
   const params = useParams();
   const slug = params.slug as string;
+  // Same split as the partner-facing page, so the team reads it in the same
+  // order the partner does.
+  const { score, state: scoreState } = usePartnerScore(`/api/partners/${slug}/score`);
   const [partner, setPartner] = useState<PartnerDetail | null>(null);
   const [metrics, setMetrics] = useState<MetricsEntry[]>([]);
   // any — the shape lives inside StackCollectSection; page just passes it through.
   const [stackCollect, setStackCollect] = useState<any>(null);
-  const [nps, setNps] = useState<PartnerNpsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
 
@@ -109,7 +111,6 @@ export default function PartnerPage() {
           setPartner(data.partner);
           setMetrics(data.metrics || []);
           setStackCollect(data.stackCollect || null);
-          setNps(data.nps || null);
           setLoading(false);
           return;
         }
@@ -277,6 +278,10 @@ export default function PartnerPage() {
         </button>
       </div>
 
+      {/* Score leads the page here too, so the team reads it in the same order
+          the partner does. */}
+      <ScoreHeadline score={score} />
+
       {/* Narrative Input */}
       {showNarrative && (
         <div className="bg-white rounded-xl border-2 border-brand-orange/40 p-6 mb-8 shadow-sm">
@@ -347,7 +352,7 @@ export default function PartnerPage() {
           <p className="text-3xl font-bold">{malCount}</p>
           <p className="text-sm font-medium opacity-75 mt-1">MAL</p>
           <p className="text-[10px] opacity-60 mt-0.5">Marketing Awareness Leads</p>
-          <p className="text-xs opacity-60 mt-2">{partner.leadCount} total referred · {partner.recentLeads.length} active last 90d</p>
+          <p className="text-xs opacity-60 mt-2">{partner.leadCount} total referred · {partner.recentLeadCount} active last 90d</p>
         </div>
       </div>
 
@@ -733,9 +738,10 @@ export default function PartnerPage() {
         <StackCollectSection partnerName={partner.name} data={stackCollect} />
       )}
 
-      {/* Partner NPS */}
-      {nps && partner && (
-        <PartnerNps data={nps} partnerName={partner.name} />
+      {/* Score Intelligence — the same view the partner sees on their own
+          link, so the team can read it before getting on a call with them. */}
+      {partner && (
+        <ScoreDetail score={score} state={scoreState} partnerName={partner.name} />
       )}
 
       {/* Marketplace Stacks (general, same data shown on main dashboard — recent reviews hidden) */}

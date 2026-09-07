@@ -2,7 +2,7 @@
 
 import { Fragment, useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
-import PartnerNps, { type PartnerNpsData } from '@/components/PartnerNps';
+import { usePartnerScore, ScoreHeadline, ScoreDetail } from '@/components/VendorScoreDashboard';
 import ConversionTimeline from '@/components/ConversionTimeline';
 import ConversionFunnelStrip from '@/components/ConversionFunnelStrip';
 import StacksDashboard from '@/components/StacksDashboard';
@@ -67,7 +67,7 @@ interface PartnerDetail {
   sourceBreakdown: Record<string, number>;
   ownerBreakdown: Record<string, number>;
   leads: Lead[];
-  recentLeads: Lead[];
+  recentLeadCount: number;
 }
 
 type SortCol = 'businessName' | 'source' | 'date';
@@ -95,12 +95,14 @@ function SortableTh({
 export default function SecurePartnerPage() {
   const params = useParams();
   const token = params.token as string;
+  // One fetch, two render sites: the headline sits above the pipeline boxes,
+  // the analysis further down.
+  const { score, state: scoreState } = usePartnerScore(`/api/p/${token}/score`);
   const [partner, setPartner] = useState<PartnerDetail | null>(null);
   const [metrics, setMetrics] = useState<MetricsEntry[]>([]);
   const [activities, setActivities] = useState<Activity[]>([]);
   // any — the shape lives inside StackCollectSection; page just passes it through.
   const [stackCollect, setStackCollect] = useState<any>(null);
-  const [nps, setNps] = useState<PartnerNpsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [unauthorized, setUnauthorized] = useState(false);
   const [generating, setGenerating] = useState(false);
@@ -193,7 +195,6 @@ export default function SecurePartnerPage() {
           setMetrics(data.metrics || []);
           setActivities(data.activities || []);
           setStackCollect(data.stackCollect || null);
-          setNps(data.nps || null);
           setLoading(false);
           return;
         }
@@ -323,6 +324,10 @@ export default function SecurePartnerPage() {
           </button>
         </div>
 
+        {/* The score leads the page — it's what the tier is for. Renders
+            nothing until it's loaded, so the pipeline boxes never jump. */}
+        <ScoreHeadline score={score} />
+
         {/* Narrative Input */}
         {showNarrative && (
           <div className="bg-white rounded-xl border-2 border-brand-orange/40 p-5 sm:p-6 mb-8 shadow-sm">
@@ -353,7 +358,7 @@ export default function SecurePartnerPage() {
             <p className="text-2xl sm:text-3xl font-bold">{malCount}</p>
             <p className="text-xs sm:text-sm font-medium opacity-75 mt-1">MAL</p>
             <p className="text-[10px] opacity-60 mt-0.5">Marketing Awareness Leads</p>
-            <p className="text-[10px] sm:text-xs opacity-60 mt-2">{partner.leadCount} total referred · {partner.recentLeads.length} active last 90d</p>
+            <p className="text-[10px] sm:text-xs opacity-60 mt-2">{partner.leadCount} total referred · {partner.recentLeadCount} active last 90d</p>
           </div>
           <button
             type="button"
@@ -427,7 +432,7 @@ export default function SecurePartnerPage() {
             the team clicked above. Sits directly under the KPI cards. */}
         <div className="bg-white rounded-xl border border-gray-200 p-5 sm:p-6 mb-6 sm:mb-8">
           {(() => {
-            // Use the full partner.leads (all-time), not partner.recentLeads
+            // Use the full partner.leads (all-time), not just the last 90 days
             // (last-90-day window) — partners want to see every lead at the
             // selected stage, not just recent ones.
             const stageRows = partner.leads.filter(
@@ -736,9 +741,11 @@ export default function SecurePartnerPage() {
           <StackCollectSection partnerName={partner.name} data={stackCollect} />
         )}
 
-        {/* Partner NPS */}
-        {nps && partner && (
-          <PartnerNps data={nps} partnerName={partner.name} />
+        {/* Score Intelligence — segment breakdown, category position, trend,
+            and the ratings behind them. The headline figure for this data is
+            up at the top of the page. */}
+        {partner && (
+          <ScoreDetail score={score} state={scoreState} partnerName={partner.name} />
         )}
 
         {/* Marketplace Stacks (same general view as the main dashboard — recent reviews hidden) */}

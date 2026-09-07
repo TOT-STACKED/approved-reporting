@@ -1,3 +1,5 @@
+import { cache } from 'react';
+
 const SUPABASE_URL = process.env.STACKCOLLECT_SUPABASE_URL!;
 const SUPABASE_KEY = process.env.STACKCOLLECT_SUPABASE_KEY!;
 
@@ -265,11 +267,43 @@ function isTestSubmission(businessName: string | null | undefined): boolean {
   return TEST_PATTERNS.some(p => p.test(businessName));
 }
 
-export async function getBusinessSubmissions(): Promise<BusinessSubmission[]> {
-  const all = await supabaseFetchAll('business_submissions', 'select=*&order=created_at.desc');
-  // Filter out test submissions
-  return all.filter(b => !isTestSubmission(b.business_name));
-}
+// Columns every consumer needs. `select=*` used to pull two long free-text
+// columns — biggest_challenge and the AI-written recommendations — on every
+// read, including partner page loads that never render either. They're now
+// opt-in via `includeNarrative`, which only /api/tech-check needs.
+const SUBMISSION_COLUMNS = [
+  'id', 'business_name', 'industry', 'size', 'location', 'contact_name',
+  'contact_email', 'role', 'created_at', 'phone_number', 'number_of_locations',
+  'vertical', 'submission_type', 'brand_trading_name', 'site_count',
+].join(',');
+
+// Wrapped in React's cache() so the several callers that each need the full
+// submission list inside one request share a single read + filter pass. The
+// underlying fetch is already revalidated for 5 minutes, but the JSON parse
+// and test-row filter over every row were being repeated per call.
+// The parameter is a primitive, not an options object, because cache() keys
+// on argument identity — an object literal would defeat the dedupe.
+export const getBusinessSubmissions = cache(
+  async (includeNarrative = false): Promise<BusinessSubmission[]> => {
+    const columns = includeNarrative
+      ? `${SUBMISSION_COLUMNS},biggest_challenge,recommendations`
+      : SUBMISSION_COLUMNS;
+    const all = await supabaseFetchAll(
+      'business_submissions',
+      `select=${columns}&order=created_at.desc`
+    );
+    // Filter out test submissions. The two narrative columns are normalised to
+    // null when not selected so the returned shape matches BusinessSubmission
+    // either way and callers never see `undefined`.
+    return all
+      .filter(b => !isTestSubmission(b.business_name))
+      .map(b => ({
+        ...b,
+        biggest_challenge: b.biggest_challenge ?? null,
+        recommendations: b.recommendations ?? null,
+      }));
+  }
+);
 
 // Tool names we never want to surface in the portal — placeholder/empty
 // values that pollute the rankings.
@@ -282,7 +316,7 @@ function isMeaningfulTool(toolName: string | null | undefined): boolean {
   return !NA_TOOL_PATTERN.test(t);
 }
 
-export async function getTechStackEntries(): Promise<TechStackEntry[]> {
+export const getTechStackEntries = cache(async (): Promise<TechStackEntry[]> => {
   const [entries, validBusinesses] = await Promise.all([
     supabaseFetchAll('tech_stack_entries', 'select=*&order=created_at.desc'),
     getBusinessSubmissions(),
@@ -294,7 +328,7 @@ export async function getTechStackEntries(): Promise<TechStackEntry[]> {
   return entries.filter(e =>
     validIds.has(e.submission_id) && isMeaningfulTool(e.tool_name)
   );
-}
+});
 
 export async function getToolUsageStats(): Promise<ToolUsageStat[]> {
   const all = await supabaseFetchAll('analytics_tool_usage', 'select=*&order=usage_count.desc');
@@ -305,12 +339,19 @@ export async function getPOSMarketShare(): Promise<POSMarketShare[]> {
   return supabaseFetchAll('analytics_pos_systems', 'select=*&order=market_share_percentage.desc');
 }
 
-export async function getNpsScores(params: { source?: NpsScore['source']; limit?: number } = {}): Promise<NpsScore[]> {
+// cache()'d for the same reason as getBusinessSubmissions: several callers
+// need the whole table inside one request. Every call site is argument-free,
+// so they all share one read.
+export const getNpsScores = cache(async (params: { source?: NpsScore['source']; limit?: number } = {}): Promise<NpsScore[]> => {
   const qs: string[] = ['select=*', 'order=created_at.desc'];
   if (params.source) qs.push(`source=eq.${params.source}`);
 
-  // NPS lands in near real-time — bypass the 5-min supabaseFetch cache so
-  // the dashboard picks up submissions as they arrive.
+  // NPS lands in near real-time, so this deliberately doesn't sit on the
+  // 5-minute supabaseFetch cache. It used to be `no-store`, which meant the
+  // full table was re-read on every single request; 60s keeps the dashboard
+  // effectively live while stopping a partner page load from paging the whole
+  // table twice. Drop back to 'no-store' if a rating ever needs to appear
+  // within the same minute it lands.
   const rows: NpsScore[] = [];
   let offset = 0;
   const pageSize = 1000;
@@ -319,7 +360,7 @@ export async function getNpsScores(params: { source?: NpsScore['source']; limit?
       `${SUPABASE_URL}/rest/v1/nps_scores?${qs.join('&')}&limit=${pageSize}&offset=${offset}`,
       {
         headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` },
-        cache: 'no-store',
+        next: { revalidate: 60 },
       }
     );
     if (!res.ok) break;
@@ -331,7 +372,7 @@ export async function getNpsScores(params: { source?: NpsScore['source']; limit?
   // Strip test entries by company name so dashboards aren't polluted.
   const cleaned = rows.filter(s => !isTestSubmission(s.company));
   return typeof params.limit === 'number' ? cleaned.slice(0, params.limit) : cleaned;
-}
+});
 
 // Roll scores up per vendor into NPS (%promoters − %detractors × 100).
 // Grouping is case/whitespace-insensitive so "Dojo", "dojo" and "DOJO " all
@@ -613,10 +654,90 @@ export async function getPartnerStackCollectData(partnerName: string): Promise<P
   };
 }
 
-export interface PartnerNpsRollup {
+// ---------------------------------------------------------------------------
+// Vendor Score Intelligence — the £249 tier's core deliverable.
+//
+// The monthly report is a broadcast product: every partner gets the same PDF.
+// This is the opposite — a partner-specific read of their own SOS, cut three
+// ways that a report can't do:
+//
+//   1. bySegment / bySiteBand — where their product-market fit is weakest.
+//      nps_scores.submission_id joins to business_submissions, which carries
+//      the venue type and site count the operator gave at step 1 of the stack
+//      review (before they rated anything), so the segment is never inferred.
+//   2. categories — their SOS against the category average and the category
+//      leader's SOS. The leader is deliberately ANONYMOUS: partners get the
+//      number to aim at, not a rival's name. That's what keeps operators
+//      willing to rate honestly and keeps us out of comparative-advertising
+//      arguments.
+//   3. trend — monthly SOS plus a rolling all-time SOS. With our response
+//      volume the monthly figure is noisy, so `cumulativeSos` is the line to
+//      show a partner: it moves slowly and it moves for real reasons.
+//
+// NOT here, deliberately: per-dimension scores (onboarding / support / value).
+// The stack review captures exactly one 0–10 "would you recommend?" per vendor
+// per submission, so a dimension breakdown would be invented, not measured.
+// Adding it means new questions on the operator form and a schema change.
+
+// A vendor needs this many responses in a slice before we'll rank or publish
+// a score for it. Matches SosLeagueTable's threshold so a partner never sees
+// a number here that the internal league table considers too thin to rank.
+export const MIN_SCORE_RESPONSES = 2;
+
+// SOS (Stacked Operator Score) — a 0–5 operator-facing expression of the same
+// 0–10 ratings NPS is built from. Single definition, used everywhere below.
+export function sosFromAvg(avg: number): number {
+  return Math.round((avg / 2) * 10) / 10;
+}
+
+// Diagnostic and smoke-test rows that must never reach a partner's dashboard
+// or a vendor aggregate. Vendors prefixed '__' are diagnostic markers
+// (__e2e_check__, __diag_vendor__); the two touchpoints are QA fixtures used
+// to test the low-NPS Slack alert and the insert pipeline.
+const TEST_NPS_TOUCHPOINTS = new Set(['pipeline-smoke-test', 'low-nps-slack-test']);
+
+export function excludeTestNpsRows(scores: NpsScore[]): NpsScore[] {
+  return scores.filter(
+    s => !(s.vendor ?? '').trim().startsWith('__') && !TEST_NPS_TOUCHPOINTS.has(s.touchpoint ?? '')
+  );
+}
+
+export interface ScoreSlice {
+  key: string;              // stable id for React keys / sorting
+  label: string;            // operator-facing label ('QSR / fast casual')
+  sos: number | null;       // null when there are no responses at all
   count: number;
+  provisional: boolean;     // count < MIN_SCORE_RESPONSES — show, but caveat it
+  vsOverall: number | null; // SOS delta against the partner's own overall SOS
+}
+
+export interface CategoryPosition {
+  category: string;
+  sos: number;              // partner's SOS in this category
+  count: number;            // partner's responses in this category
+  categoryAverage: number;  // response-weighted mean SOS of every rating here
+  leaderSos: number | null; // best-scoring ranked vendor — name withheld
+  rank: number;             // partner's rank among ranked vendors (0 = unranked)
+  totalRanked: number;      // vendors in this category clearing MIN_SCORE_RESPONSES
+  gapToAverage: number;     // partner SOS − category average
+  gapToLeader: number | null;
+}
+
+export interface ScoreTrendPoint {
+  month: string;              // YYYY-MM
+  sos: number | null;         // that month's SOS, null if no responses
+  count: number;              // responses that month
+  cumulativeSos: number | null; // rolling all-time SOS up to and including this month
+  cumulativeCount: number;
+}
+
+// The raw sentiment detail that used to be its own NPS card. Folded in here
+// because both were computed from the same nps_scores rows via two separate
+// full-table reads, and because showing a partner an SOS of 3.6 next to an NPS
+// of 27 invited "so which one is my score?" every time.
+export interface PartnerSentiment {
   nps: number | null;
-  avg: number | null;
+  avg: number | null;              // mean 0–10 rating, the SOS before halving
   promoters: number;
   passives: number;
   detractors: number;
@@ -633,48 +754,281 @@ export interface PartnerNpsRollup {
   }>;
 }
 
-export async function getPartnerNpsRollup(partnerName: string): Promise<PartnerNpsRollup> {
-  const terms = matchTermsForPartner(partnerName);
-  const scores = await getNpsScores();
+export interface PartnerScoreIntelligence {
+  overall: { sos: number | null; avg: number | null; count: number };
+  sentiment: PartnerSentiment;
+  bySegment: ScoreSlice[];    // venue type
+  bySiteBand: ScoreSlice[];   // site-count band
+  categories: CategoryPosition[];
+  trend: ScoreTrendPoint[];
+  // Movement across the trend window, on the rolling figure. Null until there
+  // are two months with data — an honest "not yet" beats a fake delta.
+  movement: { from: number; to: number; delta: number; months: number } | null;
+  // Responses we couldn't segment (no submission_id — pre-migration rows and
+  // anything arriving from the support bot rather than the stack review).
+  // Surfaced so the segment totals visibly reconcile against `overall.count`.
+  unsegmented: number;
+  minResponses: number;
+  marketResponses: number;    // every clean rating on the platform, for context
+}
 
-  // Same word-boundary match as the tech-stack side so 'sky' doesn't grab
-  // 'Skywire' etc. Keeps NPS attribution in sync with StackCollect ranks.
-  const termPatterns = terms.map(term => {
+// Venue types in the order the operator sees them on the stack review, so a
+// partner's segment table reads the same way the funnel does. Labels must
+// match business_submissions.vertical exactly (written by slack-notify's
+// VERTICAL_LABEL map).
+const VENUE_SEGMENTS: { key: string; label: string }[] = [
+  { key: 'indie', label: 'Independent restaurant' },
+  { key: 'group', label: 'Multi-site restaurant group' },
+  { key: 'bar',   label: 'Bar / pub' },
+  { key: 'qsr',   label: 'QSR / fast casual' },
+  { key: 'hotel', label: 'Hotel F&B' },
+  { key: 'other', label: 'Other' },
+];
+const VENUE_LABEL_TO_KEY: Record<string, string> = Object.fromEntries(
+  VENUE_SEGMENTS.map(s => [s.label.toLowerCase(), s.key])
+);
+
+const SITE_BANDS: { key: string; label: string; test: (sites: number) => boolean }[] = [
+  { key: '1',    label: 'Single site',  test: n => n === 1 },
+  { key: '2-5',  label: '2–5 sites',    test: n => n >= 2 && n <= 5 },
+  { key: '6-20', label: '6–20 sites',   test: n => n >= 6 && n <= 20 },
+  { key: '20+',  label: '20+ sites',    test: n => n > 20 },
+];
+
+// Site count comes from two places: `site_count` (exact integer, newer rows)
+// and `number_of_locations` (a band label like '2–5 sites', older rows). Prefer
+// the exact number; fall back to the first integer in the label, which lands
+// every band on its lower bound and therefore in the right bucket.
+function siteBandKey(sub: { site_count: number | null; number_of_locations: string | null }): string | null {
+  let n: number | null = typeof sub.site_count === 'number' && sub.site_count > 0 ? sub.site_count : null;
+  if (n === null && sub.number_of_locations) {
+    const m = sub.number_of_locations.match(/\d+/);
+    if (m) n = parseInt(m[0], 10);
+  }
+  if (n === null || !Number.isFinite(n) || n < 1) return null;
+  return SITE_BANDS.find(b => b.test(n as number))?.key ?? null;
+}
+
+// Turn a bucket of raw 0–10 ratings into a publishable slice.
+function toSlice(
+  key: string,
+  label: string,
+  ratings: number[],
+  overallSos: number | null
+): ScoreSlice {
+  if (ratings.length === 0) {
+    return { key, label, sos: null, count: 0, provisional: true, vsOverall: null };
+  }
+  const sos = sosFromAvg(ratings.reduce((a, b) => a + b, 0) / ratings.length);
+  return {
+    key,
+    label,
+    sos,
+    count: ratings.length,
+    provisional: ratings.length < MIN_SCORE_RESPONSES,
+    vsOverall: overallSos === null ? null : Number((sos - overallSos).toFixed(1)),
+  };
+}
+
+export async function getPartnerScoreIntelligence(partnerName: string): Promise<PartnerScoreIntelligence> {
+  const [rawScores, businesses] = await Promise.all([
+    getNpsScores(),
+    getBusinessSubmissions(),
+  ]);
+  const scores = excludeTestNpsRows(rawScores);
+
+  // Same word-boundary matching the rest of the partner pages use, so this
+  // dashboard and the NPS rollup above never disagree about which ratings
+  // belong to the partner.
+  const termPatterns = matchTermsForPartner(partnerName).map(term => {
     const escaped = term.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     return new RegExp(`\\b${escaped}\\b`, 'i');
   });
-  const matched = scores.filter(s => {
-    const v = (s.vendor ?? '').trim();
-    if (!v) return false;
-    return termPatterns.some(re => re.test(v));
-  });
+  const isPartnerVendor = (vendor: string | null) => {
+    const v = (vendor ?? '').trim();
+    return !!v && termPatterns.some(re => re.test(v));
+  };
 
-  const all = matched.map(s => s.score);
-  const promoters  = all.filter(s => s >= 9).length;
-  const passives   = all.filter(s => s === 7 || s === 8).length;
-  const detractors = all.filter(s => s <= 6).length;
+  const mine = scores.filter(s => isPartnerVendor(s.vendor));
+  const myRatings = mine.map(s => s.score);
+  const overallSos = myRatings.length
+    ? sosFromAvg(myRatings.reduce((a, b) => a + b, 0) / myRatings.length)
+    : null;
+  const overall = {
+    sos: overallSos,
+    avg: myRatings.length
+      ? Number((myRatings.reduce((a, b) => a + b, 0) / myRatings.length).toFixed(1))
+      : null,
+    count: myRatings.length,
+  };
+
+  // --- Sentiment detail ----------------------------------------------------
+  // Same rows, no extra read: `mine` is already every rating for this partner.
+  const promoters  = myRatings.filter(v => v >= 9).length;
+  const passives   = myRatings.filter(v => v === 7 || v === 8).length;
+  const detractors = myRatings.filter(v => v <= 6).length;
   const bySource: Record<string, number> = {};
-  for (const s of matched) bySource[s.source] = (bySource[s.source] || 0) + 1;
+  for (const r of mine) bySource[r.source] = (bySource[r.source] || 0) + 1;
 
-  const recent = matched.slice(0, 10).map(s => ({
-    id: s.id,
-    created_at: s.created_at,
-    source: s.source,
-    touchpoint: s.touchpoint,
-    score: s.score,
-    vendor: s.vendor,
-    company: s.company,
-    comment: s.comment,
-  }));
-
-  return {
-    count: matched.length,
-    nps: all.length ? Math.round(((promoters - detractors) / all.length) * 100) : null,
-    avg: all.length ? Number((all.reduce((a, b) => a + b, 0) / all.length).toFixed(1)) : null,
+  const sentiment: PartnerSentiment = {
+    nps: myRatings.length
+      ? Math.round(((promoters - detractors) / myRatings.length) * 100)
+      : null,
+    avg: overall.avg,
     promoters,
     passives,
     detractors,
     bySource,
-    recent,
+    // Already ordered newest-first by getNpsScores.
+    recent: mine.slice(0, 10).map(r => ({
+      id: r.id,
+      created_at: r.created_at,
+      source: r.source,
+      touchpoint: r.touchpoint,
+      score: r.score,
+      vendor: r.vendor,
+      company: r.company,
+      comment: r.comment,
+    })),
+  };
+
+  // --- 1. Segment breakdown ------------------------------------------------
+  const subById = new Map(businesses.map(b => [b.id, b]));
+  const bySegmentRatings: Record<string, number[]> = {};
+  const bySiteRatings: Record<string, number[]> = {};
+  let unsegmented = 0;
+
+  for (const s of mine) {
+    const sub = s.submission_id ? subById.get(s.submission_id) : undefined;
+    if (!sub) { unsegmented++; continue; }
+
+    const segKey = VENUE_LABEL_TO_KEY[(sub.vertical ?? '').trim().toLowerCase()] ?? 'other';
+    (bySegmentRatings[segKey] ||= []).push(s.score);
+
+    const bandKey = siteBandKey(sub);
+    if (bandKey) (bySiteRatings[bandKey] ||= []).push(s.score);
+  }
+
+  // Keep only segments the partner actually has ratings in — an empty row for
+  // every venue type makes a thin dataset look like a broken dashboard.
+  const bySegment = VENUE_SEGMENTS
+    .filter(s => (bySegmentRatings[s.key]?.length ?? 0) > 0)
+    .map(s => toSlice(s.key, s.label, bySegmentRatings[s.key], overallSos))
+    .sort((a, b) => (b.sos ?? 0) - (a.sos ?? 0));
+
+  const bySiteBand = SITE_BANDS
+    .filter(b => (bySiteRatings[b.key]?.length ?? 0) > 0)
+    .map(b => toSlice(b.key, b.label, bySiteRatings[b.key], overallSos));
+
+  // --- 2. Category position ------------------------------------------------
+  // Categories are labels on individual ratings, so a partner can legitimately
+  // appear in more than one (a POS with built-in inventory, say). Position is
+  // computed per category against every other vendor rated in it.
+  const myCategories = new Set(
+    mine.map(s => (s.category ?? '').trim()).filter(Boolean)
+  );
+
+  const categories: CategoryPosition[] = [];
+  for (const category of myCategories) {
+    const here = scores.filter(s => (s.category ?? '').trim() === category);
+
+    // Response-weighted category average: the mean of every rating given in
+    // this category. With our volume this is far steadier than averaging
+    // vendor means, where one 2-response vendor can swing the benchmark.
+    const allHere = here.map(s => s.score);
+    const categoryAverage = sosFromAvg(allHere.reduce((a, b) => a + b, 0) / allHere.length);
+
+    // Rank vendors that clear the response threshold. Vendor keys fold case
+    // and whitespace, matching rollupNpsByVendor.
+    const byVendor = new Map<string, number[]>();
+    for (const s of here) {
+      const key = (s.vendor ?? '').trim().toLowerCase();
+      if (!key) continue;
+      if (!byVendor.has(key)) byVendor.set(key, []);
+      byVendor.get(key)!.push(s.score);
+    }
+    const ranked = Array.from(byVendor.entries())
+      .filter(([, arr]) => arr.length >= MIN_SCORE_RESPONSES)
+      .map(([key, arr]) => ({
+        key,
+        sos: sosFromAvg(arr.reduce((a, b) => a + b, 0) / arr.length),
+        count: arr.length,
+      }))
+      .sort((a, b) => (b.sos - a.sos) || (b.count - a.count));
+
+    const myRatingsHere = here.filter(s => isPartnerVendor(s.vendor)).map(s => s.score);
+    if (myRatingsHere.length === 0) continue;
+    const mySos = sosFromAvg(myRatingsHere.reduce((a, b) => a + b, 0) / myRatingsHere.length);
+
+    const myRankIndex = ranked.findIndex(r => isPartnerVendor(r.key));
+    const leaderSos = ranked.length > 0 ? ranked[0].sos : null;
+
+    categories.push({
+      category,
+      sos: mySos,
+      count: myRatingsHere.length,
+      categoryAverage,
+      leaderSos,
+      rank: myRankIndex >= 0 ? myRankIndex + 1 : 0,
+      totalRanked: ranked.length,
+      gapToAverage: Number((mySos - categoryAverage).toFixed(1)),
+      gapToLeader: leaderSos === null ? null : Number((mySos - leaderSos).toFixed(1)),
+    });
+  }
+  categories.sort((a, b) => b.count - a.count);
+
+  // --- 3. Trend ------------------------------------------------------------
+  const months = lastNMonths(12);
+  const monthlyRatings: Record<string, number[]> = Object.fromEntries(months.map(m => [m, []]));
+  // Ratings older than the window still count towards the rolling figure —
+  // otherwise a partner's cumulative SOS would appear to reset at 12 months.
+  const windowStart = months[0];
+  let priorSum = 0;
+  let priorCount = 0;
+  for (const s of mine) {
+    const k = monthKey(s.created_at);
+    if (!k) continue;
+    if (k in monthlyRatings) monthlyRatings[k].push(s.score);
+    else if (k < windowStart) { priorSum += s.score; priorCount++; }
+  }
+
+  let runningSum = priorSum;
+  let runningCount = priorCount;
+  const trend: ScoreTrendPoint[] = months.map(month => {
+    const arr = monthlyRatings[month];
+    runningSum += arr.reduce((a, b) => a + b, 0);
+    runningCount += arr.length;
+    return {
+      month,
+      sos: arr.length ? sosFromAvg(arr.reduce((a, b) => a + b, 0) / arr.length) : null,
+      count: arr.length,
+      cumulativeSos: runningCount ? sosFromAvg(runningSum / runningCount) : null,
+      cumulativeCount: runningCount,
+    };
+  });
+
+  // Movement on the rolling figure, between the first and last months that
+  // actually have a value. Needs two distinct points to mean anything.
+  const withValue = trend.filter(p => p.cumulativeSos !== null);
+  const movement = withValue.length >= 2
+    ? {
+        from: withValue[0].cumulativeSos!,
+        to: withValue[withValue.length - 1].cumulativeSos!,
+        delta: Number((withValue[withValue.length - 1].cumulativeSos! - withValue[0].cumulativeSos!).toFixed(1)),
+        months: withValue.length,
+      }
+    : null;
+
+  return {
+    overall,
+    sentiment,
+    bySegment,
+    bySiteBand,
+    categories,
+    trend,
+    movement,
+    unsegmented,
+    minResponses: MIN_SCORE_RESPONSES,
+    marketResponses: scores.length,
   };
 }

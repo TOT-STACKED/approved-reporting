@@ -142,6 +142,33 @@ export interface PartnerDetail extends Partner {
   recentLeads: Lead[];
 }
 
+// What the browser actually gets. Two things are stripped on the way out:
+//
+//   • `recentLeads` — the client only ever read its `.length`, but the full
+//     array was ~100 KB of leads already present in `leads`. Now a count.
+//   • `Lead.location` — in the payload for every lead, rendered by nothing.
+//
+// The server-side shape (PartnerDetail) keeps both, because the report
+// generator in /api/report walks the real recentLeads rows.
+export type ClientLead = Omit<Lead, 'location'>;
+
+export interface ClientPartnerDetail extends Partner {
+  leads: ClientLead[];
+  stageBreakdown: Record<string, number>;
+  sourceBreakdown: Record<string, number>;
+  ownerBreakdown: Record<string, number>;
+  recentLeadCount: number;
+}
+
+export function toClientPartner(detail: PartnerDetail): ClientPartnerDetail {
+  const { recentLeads, leads, ...rest } = detail;
+  return {
+    ...rest,
+    leads: leads.map(({ location: _location, ...lead }) => lead),
+    recentLeadCount: recentLeads.length,
+  };
+}
+
 export interface Lead {
   id: string;
   businessName: string;

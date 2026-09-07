@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
-import { getPartnerDetail, emptyPartnerDetail } from '@/lib/airtable';
-import { getPartnerStackCollectData, getPartnerNpsRollup } from '@/lib/stackcollect';
+import { getPartnerDetail, emptyPartnerDetail, toClientPartner } from '@/lib/airtable';
+import { getPartnerStackCollectData } from '@/lib/stackcollect';
 
 export const dynamic = 'force-dynamic';
 
@@ -33,13 +33,18 @@ export async function GET(
     const detail = await getPartnerDetail(slug);
     const partner = detail || emptyPartnerDetail(slug);
 
-    const [stackCollect, nps] = await Promise.all([
-      getPartnerStackCollectData(partner.name),
-      getPartnerNpsRollup(partner.name),
-    ]);
+    // NPS no longer comes down here. It's computed from the same rows as the
+    // score dashboard and served by ./score, so the partner page reads
+    // nps_scores once per load instead of twice.
+    const stackCollect = await getPartnerStackCollectData(partner.name);
 
-    return NextResponse.json({ partner, stackCollect, nps, empty: !detail });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({
+      partner: toClientPartner(partner),
+      stackCollect,
+      empty: !detail,
+    });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'unknown error';
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

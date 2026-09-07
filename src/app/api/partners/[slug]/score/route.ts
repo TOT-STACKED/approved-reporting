@@ -1,8 +1,12 @@
 import { NextResponse } from 'next/server';
-import { getPartnerDetail, toClientPartner } from '@/lib/airtable';
-import { getPartnerStackCollectData } from '@/lib/stackcollect';
+import { getPartnerDetail } from '@/lib/airtable';
+import { getPartnerScoreIntelligence } from '@/lib/stackcollect';
 
 export const dynamic = 'force-dynamic';
+
+// Internal twin of /api/p/[token]/score — same payload, session-authed rather
+// than token-authed, so the team can see exactly what a partner sees before
+// getting on a call with them.
 
 export async function GET(
   request: Request,
@@ -16,10 +20,8 @@ export async function GET(
       return NextResponse.json({ error: 'Partner not found' }, { status: 404 });
     }
 
-    // NPS is served by ./score now — same rows, one read. See the token route.
-    const stackCollect = await getPartnerStackCollectData(partner.name);
-
-    return NextResponse.json({ partner: toClientPartner(partner), stackCollect });
+    const score = await getPartnerScoreIntelligence(partner.name);
+    return NextResponse.json({ partner: { name: partner.name }, score });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'unknown error';
     return NextResponse.json({ error: message }, { status: 500 });

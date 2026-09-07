@@ -71,7 +71,7 @@ export async function GET() {
   try {
     const [entries, businesses, whatsapp, knowledgeBase, npsAll] = await Promise.all([
       getTechStackEntries(),
-      getBusinessSubmissions(),
+      getBusinessSubmissions(true),
       getWhatsappResponses(),
       getKnowledgeBaseResponses(),
       getNpsScores(),
