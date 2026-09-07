@@ -733,7 +733,20 @@ export function ScoreDetail({
             {categories.map(c => (
               <div key={c.category}>
                 <div className="flex items-baseline justify-between gap-3 mb-1">
-                  <span className="text-sm font-medium text-gray-900">{c.category}</span>
+                  <span className="text-sm font-medium text-gray-900">
+                    {c.category}
+                    {/* Same caveat the segment rows carry. Without it a
+                        category score built on one response reads with the
+                        same weight as one built on twenty. */}
+                    {c.count < minResponses && (
+                      <span
+                        className="ml-1.5 text-[10px] font-normal text-gray-400"
+                        title={`Under ${minResponses} responses — indicative only`}
+                      >
+                        provisional
+                      </span>
+                    )}
+                  </span>
                   <span className="text-xs text-gray-400 tabular-nums whitespace-nowrap">
                     {c.rank > 0 ? `#${c.rank} of ${c.totalRanked} ranked` : 'not yet ranked'}
                     <span className="text-gray-300"> · {c.count} {c.count === 1 ? 'review' : 'reviews'}</span>
