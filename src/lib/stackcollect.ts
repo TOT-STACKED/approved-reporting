@@ -514,6 +514,81 @@ export interface PartnerCompetitor {
   sharedCategories: number;    // how many of partner's categories this competitor appears in
 }
 
+// ---------------------------------------------------------------------------
+// Marketplace operator counts.
+//
+// The marketplace tile and this portal have always disagreed about how many
+// operators use a partner. The marketplace counts distinct operator BRANDS
+// (multi-site chains collapsed through Venues."Brand override" in Airtable),
+// while everything below counts stack-review submissions. Both are true, but a
+// partner looking at both pages sees two answers to what reads like one
+// question — Fourth was 54 on the marketplace and 112 here.
+//
+// We deliberately do NOT reimplement brand grouping in this file. Two
+// codebases independently computing "distinct brands" drift apart the moment
+// their name normalisation, test-row filtering or cache windows differ, and
+// Airtable only holds venues that tech-usage-sync has created, so a local join
+// would have coverage gaps too. Instead we read the exact field the
+// marketplace renders. One number, one source, guaranteed to match.
+const MP_BASE = process.env.MARKETPLACE_AIRTABLE_BASE_ID;
+const MP_KEY = process.env.MARKETPLACE_AIRTABLE_KEY;
+const MP_PARTNERS_TABLE = process.env.MARKETPLACE_PARTNERS_TABLE || 'Partners';
+
+export interface MarketplaceCounts {
+  operators: number | null;   // Partners."Operators (brands)"
+  venues: number | null;      // Partners."Venues using"
+}
+
+// The marketplace Partners table is ~60 rows, so one read builds the whole map
+// and cache() shares it across every caller in the request.
+const getMarketplaceCountsByName = cache(async (): Promise<Map<string, MarketplaceCounts>> => {
+  const out = new Map<string, MarketplaceCounts>();
+  if (!MP_BASE || !MP_KEY) return out;
+  try {
+    let offset: string | undefined;
+    do {
+      const url = new URL(
+        `https://api.airtable.com/v0/${MP_BASE}/${encodeURIComponent(MP_PARTNERS_TABLE)}`
+      );
+      url.searchParams.set('pageSize', '100');
+      for (const f of ['Name', 'Operators (brands)', 'Venues using']) {
+        url.searchParams.append('fields[]', f);
+      }
+      if (offset) url.searchParams.set('offset', offset);
+      const res = await fetch(url.toString(), {
+        headers: { Authorization: `Bearer ${MP_KEY}` },
+        next: { revalidate: 300 },
+      });
+      if (!res.ok) return out;
+      const data = await res.json();
+      for (const r of data.records ?? []) {
+        const name = (r.fields?.Name ?? '').toString().trim().toLowerCase();
+        if (!name) continue;
+        const ops = r.fields?.['Operators (brands)'];
+        const ven = r.fields?.['Venues using'];
+        out.set(name, {
+          operators: typeof ops === 'number' ? ops : null,
+          venues: typeof ven === 'number' ? ven : null,
+        });
+      }
+      offset = data.offset;
+    } while (offset);
+  } catch {
+    // Marketplace unreachable. The page still renders on review-based counts;
+    // the operator tile just falls back rather than the whole section failing.
+    return out;
+  }
+  return out;
+});
+
+// Partner names are the join key everywhere else in this file (see
+// PARTNER_VENDOR_ALIASES), so we match on name rather than slug — the portal
+// CRM base and the marketplace base don't share slugs.
+export async function getMarketplaceCounts(partnerName: string): Promise<MarketplaceCounts | null> {
+  const map = await getMarketplaceCountsByName();
+  return map.get(partnerName.trim().toLowerCase()) ?? null;
+}
+
 export interface PartnerStackData {
   mentions: number;                       // category-level picks of this partner
   uniqueReviewsWithPartner: number;       // distinct submissions mentioning partner
@@ -524,6 +599,12 @@ export interface PartnerStackData {
   monthlyMentions: { month: string; count: number }[]; // last 12 months
   categoryRankings: PartnerCategoryRanking[];
   topCompetitors: PartnerCompetitor[];    // top 5 rivals in partner's categories
+  // Distinct operator brands / physical sites, read straight off the
+  // marketplace Partners record so this page and the marketplace tile can
+  // never disagree. null when the partner isn't on the marketplace or
+  // Airtable is unreachable — the UI falls back to the review-based count.
+  marketplaceOperators: number | null;
+  marketplaceVenues: number | null;
 }
 
 // Build a "YYYY-MM" key from an ISO date string. Returns null on invalid input.
@@ -546,9 +627,10 @@ function lastNMonths(count: number): string[] {
 }
 
 export async function getPartnerStackCollectData(partnerName: string): Promise<PartnerStackData> {
-  const [entries, businesses] = await Promise.all([
+  const [entries, businesses, marketplace] = await Promise.all([
     getTechStackEntries(),
     getBusinessSubmissions(),
+    getMarketplaceCounts(partnerName),
   ]);
 
   const matchTerms = matchTermsForPartner(partnerName);
@@ -651,6 +733,8 @@ export async function getPartnerStackCollectData(partnerName: string): Promise<P
     monthlyMentions,
     categoryRankings,
     topCompetitors,
+    marketplaceOperators: marketplace?.operators ?? null,
+    marketplaceVenues: marketplace?.venues ?? null,
   };
 }
 

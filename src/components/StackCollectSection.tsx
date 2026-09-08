@@ -25,6 +25,12 @@ interface PartnerStackData {
     shareInCategory: number;
   }[];
   topCompetitors?: { tool: string; count: number; sharedCategories: number }[];
+  // Distinct operator brands, read off the marketplace Partners record by
+  // getPartnerStackCollectData so this page shows the identical figure to the
+  // public marketplace tile. Optional like the rest: an older API response
+  // simply falls back to the review-based count.
+  marketplaceOperators?: number | null;
+  marketplaceVenues?: number | null;
 }
 
 interface Props {
@@ -50,7 +56,15 @@ function buildHeadline(partnerName: string, d: PartnerStackData): string {
     : top.length === 1
       ? ` Strongest in ${top[0].category} (${top[0].partnerCount} picks, ranked #${top[0].rank || '—'} of ${top[0].totalTools}).`
       : ` Strongest in ${top[0].category} (#${top[0].rank || '—'} of ${top[0].totalTools}) and ${top[1].category} (#${top[1].rank || '—'} of ${top[1].totalTools}).`;
-  return `${partnerName} was chosen by ${d.uniqueReviewsWithPartner} of ${d.totalReviews} operators (${d.marketShare}% share), with ${d.mentions} category picks across ${d.categories.length} categories.${catPhrase}`;
+  // Operator brands lead when we have them: that's the figure on the public
+  // marketplace tile, so it's the one a partner cross-checks first. The rest
+  // of the sentence is explicitly review-based — the two are different units
+  // and used to be conflated under the single word "operators".
+  const ops = typeof d.marketplaceOperators === 'number' ? d.marketplaceOperators : null;
+  const opsPhrase = ops !== null
+    ? `${partnerName} is used by ${ops} operator brand${ops === 1 ? '' : 's'} on the marketplace. Chosen in`
+    : `${partnerName} was chosen in`;
+  return `${opsPhrase} ${d.uniqueReviewsWithPartner} of ${d.totalReviews} stack reviews (${d.marketShare}% share), with ${d.mentions} category picks across ${d.categories.length} categories.${catPhrase}`;
 }
 
 // Plain-SVG 12-month sparkline. Renders a flat zero baseline if the partner
@@ -137,12 +151,22 @@ export default function StackCollectSection({ partnerName, data: raw }: Props) {
           <p className="text-[10px] sm:text-xs text-gray-500 mt-1 leading-tight">Category picks<br /><span className="text-gray-400">across your categories</span></p>
         </div>
         <div className="bg-brand-cream rounded-lg p-3 sm:p-4 text-center">
-          <p className="text-xl sm:text-2xl font-bold text-brand-green tabular-nums">{data.uniqueReviewsWithPartner}</p>
-          <p className="text-[10px] sm:text-xs text-gray-500 mt-1 leading-tight">Operators chose you<br /><span className="text-gray-400">unique reviews</span></p>
+          <p className="text-xl sm:text-2xl font-bold text-brand-green tabular-nums">
+            {typeof data.marketplaceOperators === 'number'
+              ? data.marketplaceOperators
+              : data.uniqueReviewsWithPartner}
+          </p>
+          <p className="text-[10px] sm:text-xs text-gray-500 mt-1 leading-tight">
+            {typeof data.marketplaceOperators === 'number' ? (
+              <>Operator brands<br /><span className="text-gray-400">as shown on the marketplace</span></>
+            ) : (
+              <>Operators chose you<br /><span className="text-gray-400">unique reviews</span></>
+            )}
+          </p>
         </div>
         <div className="bg-brand-cream rounded-lg p-3 sm:p-4 text-center">
           <p className="text-xl sm:text-2xl font-bold text-brand-green tabular-nums">{data.marketShare}%</p>
-          <p className="text-[10px] sm:text-xs text-gray-500 mt-1 leading-tight">Share of reviews<br /><span className="text-gray-400">{data.uniqueReviewsWithPartner} of {data.totalReviews}</span></p>
+          <p className="text-[10px] sm:text-xs text-gray-500 mt-1 leading-tight">Share of reviews<br /><span className="text-gray-400">{data.uniqueReviewsWithPartner} of {data.totalReviews} reviews</span></p>
         </div>
         <div className="bg-brand-cream rounded-lg p-3 sm:p-4 text-center">
           <p className="text-xl sm:text-2xl font-bold text-brand-green tabular-nums">{data.totalReviews}</p>
