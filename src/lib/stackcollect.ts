@@ -437,7 +437,9 @@ export async function getStackCollectStats(): Promise<StackCollectStats> {
 // used across tech_stack_entries and nps_scores. Shared between the stack
 // breakdown and the NPS rollup so partner pages stay in sync.
 export const PARTNER_VENDOR_ALIASES: Record<string, string[]> = {
-  'sky': ['sky'],
+  // Keyed on the partner's Airtable Name. Partner record is "Sky Business",
+  // so the old 'sky' key never fired.
+  'sky business': ['sky', 'sky business'],
   'workforce': ['workforce'],
   'workforce.com': ['workforce', 'workforce.com'],
   'bizimply': ['bizimply'],
@@ -447,7 +449,8 @@ export const PARTNER_VENDOR_ALIASES: Record<string, string[]> = {
   // separately in NPS. Fold it under Lightspeed so their score reflects both.
   'lightspeed': ['lightspeed', 'lightspeed payments'],
   'nory': ['nory'],
-  'cinchio': ['cinchio'],
+  // Partner record is "Cinchio Solutions" — old 'cinchio' key never fired.
+  'cinchio solutions': ['cinchio', 'cinchio solutions'],
   'wrs': ['wrs'],
   'urocked': ['urocked'],
   'deputy': ['deputy'],
@@ -466,7 +469,9 @@ export const PARTNER_VENDOR_ALIASES: Record<string, string[]> = {
   'toast': ['toast'],
   'como': ['como'],
   'storekit': ['storekit'],
-  'seven rooms': ['sevenrooms', 'seven rooms', '7rooms'],
+  // Partner record is "SevenRooms" (one word) — the old 'seven rooms' key
+  // never fired, so the multi-spelling rollup was never actually applied.
+  'sevenrooms': ['sevenrooms', 'seven rooms', '7rooms'],
   'leat': ['leat'],
   // Operators occasionally type "SumUp POS" (the till product) as a distinct
   // vendor. Same company as SumUp payments; roll them up.
@@ -489,8 +494,17 @@ export const PARTNER_VENDOR_ALIASES: Record<string, string[]> = {
   // Revvue trades as Revvue.ai and is tagged "Revvue ai" in Airtable —
   // operators type all three spellings in stack reviews.
   'revvue': ['revvue', 'revvue ai', 'revvue.ai'],
-  'feedality': ['feedality'],
+  // Partner record is spelled "Feedelity"; the key was misspelled, so this
+  // entry never fired. Keep the old spelling as a matchable alias.
+  'feedelity': ['feedelity', 'feedality'],
   'flock x': ['flock x', 'flockx'],
+  // Added after auditing Tech Usage for tool names that matched no partner.
+  // Row counts are the orphaned Tech Usage rows each one reclaims.
+  'rotaready': ['rotaready', 'rota ready'],                       // 52 rows
+  'cpl learning': ['cpl learning', 'cpl'],                        // 11 rows
+  'tahola, an ometis company': ['tahola', 'tahola, an ometis company'], // 10 rows
+  'captive wifi': ['captive wifi', 'captive'],                    //  2 rows
+  'vita mojo': ['vita mojo', 'vitamojo', 'vita'],                 //  2 rows
 };
 
 export function matchTermsForPartner(partnerName: string): string[] {
