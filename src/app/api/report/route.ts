@@ -1,5 +1,8 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, type NextRequest } from 'next/server';
 import { getPartnerDetail } from '@/lib/airtable';
+import { slugForToken } from '@/lib/partner-auth';
+import { SESSION_COOKIE, verifySessionToken } from '@/lib/session';
+import { tierForSlug, canSeeLeadDetail } from '@/lib/partner-tier';
 import { getPartnerStackCollectData } from '@/lib/stackcollect';
 import {
   INK, MUTED, DIM, BORDER, BG, SURFACE_2, PRIMARY, POSITIVE, SERIES, LEAD_STATUS_COLORS,
@@ -30,9 +33,26 @@ function medianDaysToStatus(
   return { median, count: gaps.length };
 }
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
-    const { slug, narrativeContext } = await request.json();
+    const { slug: bodySlug, token, narrativeContext } = await request.json();
+
+    // This route is public (the button lives on token-gated partner pages),
+    // so it has to establish who's asking rather than trust the slug in the
+    // body. A signed-in team member may name any partner; a partner may only
+    // reach the slug their own token resolves to.
+    const teamMember = await verifySessionToken(
+      process.env.SESSION_SECRET || '',
+      request.cookies.get(SESSION_COOKIE)?.value
+    );
+    const slug = teamMember ? bodySlug : (typeof token === 'string' ? slugForToken(token) : null);
+    if (!slug) {
+      return NextResponse.json({ error: 'Not authorised' }, { status: 401 });
+    }
+
+    // A partner's own report follows their tier; the team's copy is always
+    // the full one, because that's the view they work from internally.
+    const withLeadDetail = teamMember || canSeeLeadDetail(tierForSlug(slug));
 
     const partner = await getPartnerDetail(slug);
     if (!partner) {
@@ -275,7 +295,7 @@ export async function POST(request: Request) {
   </table>` : ''}
 
   <!-- Recently Active Leads (MQL+, max 10 — mirrors dashboard) -->
-  ${recentLeads.length > 0 ? `
+  ${withLeadDetail && recentLeads.length > 0 ? `
   <h2>Recently Active Leads</h2>
   <p style="color:${MUTED};font-size:12px;margin:0 0 8px 0">Top 10 most recently updated leads at MQL or above</p>
   <table>

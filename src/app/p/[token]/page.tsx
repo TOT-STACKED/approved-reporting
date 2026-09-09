@@ -9,6 +9,8 @@ import StacksDashboard from '@/components/StacksDashboard';
 import StackCollectSection from '@/components/StackCollectSection';
 import AskBox from '@/components/AskBox';
 import LeadStatusGlossary from '@/components/LeadStatusGlossary';
+import LockedLeadDetail from '@/components/LockedLeadDetail';
+import type { PartnerTier } from '@/lib/partner-tier';
 import { LEAD_STATUS_EXPLAINER } from '@/lib/lead-status';
 import {
   PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis,
@@ -107,6 +109,9 @@ export default function SecurePartnerPage() {
   const [activities, setActivities] = useState<Activity[]>([]);
   // any — the shape lives inside StackCollectSection; page just passes it through.
   const [stackCollect, setStackCollect] = useState<any>(null);
+  // Set by the API, which is also where the gate is enforced — this only
+  // decides what the page draws.
+  const [tier, setTier] = useState<PartnerTier>('approved');
   const [loading, setLoading] = useState(true);
   const [unauthorized, setUnauthorized] = useState(false);
   const [generating, setGenerating] = useState(false);
@@ -199,6 +204,7 @@ export default function SecurePartnerPage() {
           setMetrics(data.metrics || []);
           setActivities(data.activities || []);
           setStackCollect(data.stackCollect || null);
+          setTier(data.tier === 'promote' ? 'promote' : 'approved');
           setLoading(false);
           return;
         }
@@ -221,7 +227,7 @@ export default function SecurePartnerPage() {
       const res = await fetch('/api/report', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ partnerName: partner.name, slug: partner.slug, narrativeContext: narrativeInput }),
+        body: JSON.stringify({ partnerName: partner.name, token, narrativeContext: narrativeInput }),
       });
       const html = await res.text();
       setReportHtml(html);
@@ -434,8 +440,11 @@ export default function SecurePartnerPage() {
           );
         })()}
 
-        {/* Lead Progress — the interactive table, scoped to whichever stage
-            the team clicked above. Sits directly under the KPI cards. */}
+        {/* Lead Progress. On Promote the rows never arrive from the API, so
+            this renders the locked panel instead of an empty table. */}
+        {tier === 'promote' && <LockedLeadDetail mqlCount={mqlCount} sqlCount={sqlCount} />}
+
+        {tier === 'approved' && (
         <div className="bg-white rounded-xl border border-gray-200 p-5 sm:p-6 mb-6 sm:mb-8">
           {(() => {
             // Use the full partner.leads (all-time), not just the last 90 days
@@ -628,6 +637,7 @@ export default function SecurePartnerPage() {
             );
           })()}
         </div>
+        )}
 
         <LeadStatusGlossary className="mb-6 sm:mb-8" />
 

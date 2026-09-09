@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getPartnerDetail, emptyPartnerDetail, toClientPartner } from '@/lib/airtable';
 import { getPartnerStackCollectData } from '@/lib/stackcollect';
+import { tierForSlug, canSeeLeadDetail } from '@/lib/partner-tier';
 
 export const dynamic = 'force-dynamic';
 
@@ -38,8 +39,17 @@ export async function GET(
     // nps_scores once per load instead of twice.
     const stackCollect = await getPartnerStackCollectData(partner.name);
 
+    // Tier gate. Promote pays for Intelligence and their own pipeline
+    // numbers, not for who the leads are — so the rows never leave the
+    // server. statusBreakdown and leadCount are aggregates and stay: the
+    // count is the whole point of the upsell.
+    const tier = tierForSlug(slug);
+    const client = toClientPartner(partner);
+    const payload = canSeeLeadDetail(tier) ? client : { ...client, leads: [], recentLeadCount: 0 };
+
     return NextResponse.json({
-      partner: toClientPartner(partner),
+      partner: payload,
+      tier,
       stackCollect,
       empty: !detail,
     });

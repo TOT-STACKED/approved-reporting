@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getPartnerDetail, toClientPartner } from '@/lib/airtable';
 import { getPartnerStackCollectData } from '@/lib/stackcollect';
+import { tierForSlug } from '@/lib/partner-tier';
 
 export const dynamic = 'force-dynamic';
 
@@ -19,7 +20,9 @@ export async function GET(
     // NPS is served by ./score now — same rows, one read. See the token route.
     const stackCollect = await getPartnerStackCollectData(partner.name);
 
-    return NextResponse.json({ partner: toClientPartner(partner), stackCollect });
+    // The team always sees everything here; the tier rides along so the page
+    // can say what the partner's own link shows them.
+    return NextResponse.json({ partner: toClientPartner(partner), stackCollect, tier: tierForSlug(slug) });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'unknown error';
     return NextResponse.json({ error: message }, { status: 500 });

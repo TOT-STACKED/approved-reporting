@@ -14,6 +14,7 @@ import StacksDashboard from '@/components/StacksDashboard';
 import StackCollectSection from '@/components/StackCollectSection';
 import AskBox from '@/components/AskBox';
 import LeadStatusGlossary from '@/components/LeadStatusGlossary';
+import type { PartnerTier } from '@/lib/partner-tier';
 import { LEAD_STATUS_EXPLAINER } from '@/lib/lead-status';
 
 const STATUS_COLORS = LEAD_STATUS_COLORS;
@@ -99,6 +100,7 @@ export default function PartnerPage() {
   const [metrics, setMetrics] = useState<MetricsEntry[]>([]);
   // any — the shape lives inside StackCollectSection; page just passes it through.
   const [stackCollect, setStackCollect] = useState<any>(null);
+  const [tier, setTier] = useState<PartnerTier>('approved');
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
 
@@ -116,6 +118,7 @@ export default function PartnerPage() {
           setPartner(data.partner);
           setMetrics(data.metrics || []);
           setStackCollect(data.stackCollect || null);
+          setTier(data.tier === 'promote' ? 'promote' : 'approved');
           setLoading(false);
           return;
         }
@@ -273,6 +276,13 @@ export default function PartnerPage() {
           <a href="/" className="text-sm text-gray-500 hover:text-gray-700">&larr; Back to Dashboard</a>
           <h1 className="font-display text-4xl sm:text-5xl tracking-tight leading-[0.95] text-brand-green mt-2">{partner.name}</h1>
           <p className="text-gray-500">{partner.leadCount} total leads referred</p>
+          {/* Which plan their own link renders. Only worth saying when it
+              isn't the full one — Approved is the default. */}
+          {tier === 'promote' && (
+            <p className="mt-2 inline-flex items-center gap-1.5 text-[11px] uppercase tracking-[0.12em] bg-brand-lavender text-brand-green px-2.5 py-1 rounded-full">
+              Promote · partner sees no lead detail
+            </p>
+          )}
         </div>
         <button
           onClick={() => setShowNarrative(true)}
