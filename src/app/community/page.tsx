@@ -83,7 +83,7 @@ export default function CommunityPage() {
         <p className="text-xs sm:text-sm uppercase tracking-wider opacity-80 mb-2">Marketplace Community Update</p>
         <h1 className="font-display text-4xl sm:text-5xl tracking-tight leading-[0.95] text-brand-green mb-4">What we&apos;re doing for our marketplace partners</h1>
         <p className="text-sm sm:text-base opacity-90 max-w-2xl">
-          A snapshot of lead generation, tech stack trends, upcoming events and podcast activity across the Tech on Toast community.
+          A snapshot of lead generation, operator intelligence trends, upcoming events and podcast activity across the Tech on Toast community.
           Same view for every partner — no individual data, just what we&apos;re up to as a network.
         </p>
       </div>
@@ -128,12 +128,12 @@ export default function CommunityPage() {
         </div>
       </section>
 
-      {/* Tech Stack Trends */}
+      {/* Intelligence Trends */}
       <section className="mb-8">
         <div className="flex items-center justify-between mb-3">
           <div>
-            <h2 className="text-lg font-bold text-gray-900">Tech Stack Review Trends</h2>
-            <p className="text-xs text-gray-500">What hospitality operators are running, gathered via StackCollect</p>
+            <h2 className="text-lg font-bold text-gray-900">Intelligence Trends</h2>
+            <p className="text-xs text-gray-500">What hospitality operators are running, gathered via Intelligence</p>
           </div>
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">

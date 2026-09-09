@@ -49,7 +49,7 @@ const PERIOD_LABELS: Record<Period, string> = {
 };
 
 const SOURCE_LABELS: Record<'techstackreview' | 'toast-support-bot', string> = {
-  'techstackreview': 'Stack Review',
+  'techstackreview': 'Intelligence Review',
   'toast-support-bot': 'Support Chat',
 };
 
@@ -164,7 +164,7 @@ export default function NpsDashboard() {
         </div>
         <div className="bg-white rounded-xl border border-gray-200 p-6">
           <p className="text-sm text-gray-500">
-            No NPS responses yet. Once operators rate products in the stack review or vendors in the support chat,
+            No NPS responses yet. Once operators rate products in an intelligence review or vendors in the support chat,
             they&apos;ll show up here.
           </p>
         </div>

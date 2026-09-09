@@ -101,7 +101,7 @@ export default function AnalyticsPage() {
     <div>
       <div className="mb-6 sm:mb-8">
         <h1 className="font-display text-4xl sm:text-5xl tracking-tight leading-[0.95] text-brand-green">Analytics</h1>
-        <p className="text-gray-500 mt-1 text-sm">Visual breakdown of traffic, pipeline, and tech stack data</p>
+        <p className="text-gray-500 mt-1 text-sm">Visual breakdown of traffic, pipeline, and intelligence data</p>
       </div>
 
       {/* Summary KPIs — match the main dashboard */}
@@ -111,7 +111,7 @@ export default function AnalyticsPage() {
           { label: 'MQL', value: data.summary.mqlCount.toLocaleString(), bg: 'bg-brand-yellow', text: 'text-brand-green' },
           { label: 'SQL', value: data.summary.sqlCount.toLocaleString(), bg: 'bg-brand-orange', text: 'text-white' },
           { label: 'Closed Won', value: data.summary.closedWon.toLocaleString(), bg: 'bg-brand-green', text: 'text-white' },
-          { label: 'Stack Reviews', value: data.summary.totalReviews.toLocaleString(), bg: 'bg-brand-lavender', text: 'text-brand-green' },
+          { label: 'Intelligence Reviews', value: data.summary.totalReviews.toLocaleString(), bg: 'bg-brand-lavender', text: 'text-brand-green' },
           { label: 'Tool Entries', value: data.summary.totalToolEntries.toLocaleString(), bg: 'bg-brand-pink', text: 'text-white' },
         ].map(kpi => {
           const tooltip = LEAD_STATUS_EXPLAINER[kpi.label as LeadStatusCode];
@@ -205,7 +205,7 @@ export default function AnalyticsPage() {
 
         {/* Top Tools */}
         {data.topTools.length > 0 && (
-          <ChartCard title="Top Tools (StackCollect)" subtitle="Most selected tools across all tech stack reviews">
+          <ChartCard title="Top Tools (Intelligence)" subtitle="Most selected tools across all intelligence reviews">
             <div className="overflow-y-auto max-h-[500px] -mx-4 sm:-mx-6 px-4 sm:px-6">
               <ResponsiveContainer width="100%" height={Math.max(300, data.topTools.length * 30)}>
                 <BarChart data={data.topTools} layout="vertical" margin={{ left: 0 }}>
@@ -220,9 +220,9 @@ export default function AnalyticsPage() {
           </ChartCard>
         )}
 
-        {/* Tech Stack Categories */}
+        {/* Intelligence Categories */}
         {data.categoryData.length > 0 && (
-          <ChartCard title="Tech Stack Categories" subtitle="Tool selections grouped by category">
+          <ChartCard title="Intelligence Categories" subtitle="Tool selections grouped by category">
             <div className="overflow-y-auto max-h-[500px] -mx-4 sm:-mx-6 px-4 sm:px-6">
               <ResponsiveContainer width="100%" height={Math.max(300, data.categoryData.length * 30)}>
                 <BarChart data={data.categoryData} layout="vertical" margin={{ left: 0 }}>

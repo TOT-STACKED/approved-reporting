@@ -85,7 +85,7 @@ export async function POST(request: Request) {
       }
 
       if (stackCollect && stackCollect.mentions > 0) {
-        parts.push(`On the marketplace, ${partner.name} was selected ${stackCollect.mentions} time${stackCollect.mentions === 1 ? '' : 's'} by operators completing tech stack reviews on StackCollect, representing a ${stackCollect.marketShare}% market share across ${stackCollect.totalReviews} total reviews.`);
+        parts.push(`On the marketplace, ${partner.name} was selected ${stackCollect.mentions} time${stackCollect.mentions === 1 ? '' : 's'} by operators completing intelligence reviews, representing a ${stackCollect.marketShare}% market share across ${stackCollect.totalReviews} total reviews.`);
       }
 
       if (narrativeContext && narrativeContext.trim()) {
@@ -177,7 +177,7 @@ export async function POST(request: Request) {
   </style>
 </head>
 <body>
-  <h1>${partner.name} - Partner Value Report</h1>
+  <h1>${partner.name} - Intelligence Report</h1>
   <div class="subtitle">${monthYear} | Generated ${now.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}</div>
   <div class="tagline">Here's what Tech on Toast delivered for ${partner.name} this month</div>
 
@@ -229,9 +229,9 @@ export async function POST(request: Request) {
     </div>
   </div>
 
-  <!-- StackCollect Marketplace Presence -->
+  <!-- Intelligence: Marketplace Presence -->
   ${stackCollect && stackCollect.mentions > 0 ? `
-  <h2>StackCollect - Marketplace Presence</h2>
+  <h2>Intelligence - Marketplace Presence</h2>
   <div class="kpi-grid">
     <div class="kpi" style="background:#4f46e5"><div class="value">${stackCollect.mentions}</div><div class="label">Times Selected by Operators</div></div>
     <div class="kpi" style="background:#6366f1"><div class="value">${stackCollect.marketShare}%</div><div class="label">Market Share</div></div>

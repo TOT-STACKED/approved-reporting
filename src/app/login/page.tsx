@@ -15,7 +15,7 @@ const PORTAL_SECTIONS = [
   },
   {
     title: 'NPS feedback',
-    body: 'Net Promoter Score across every touchpoint — stack reviews and support chat — broken down by vendor.',
+    body: 'Net Promoter Score across every touchpoint — intelligence reviews and support chat — broken down by vendor.',
   },
   {
     title: 'Community activity',

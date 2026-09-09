@@ -748,7 +748,7 @@ export default function SecurePartnerPage() {
           </div>
         )}
 
-        {/* StackCollect */}
+        {/* Intelligence — marketplace presence */}
         {stackCollect && partner && (
           <StackCollectSection partnerName={partner.name} data={stackCollect} />
         )}

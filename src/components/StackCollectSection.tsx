@@ -1,4 +1,4 @@
-// Per-partner StackCollect block. Shared between the internal /partners/[slug]
+// Per-partner Intelligence block (marketplace presence). Shared between the internal /partners/[slug]
 // page and the partner-facing /p/[token] page so they stay in sync. The
 // numbers all come pre-computed from getPartnerStackCollectData — this file
 // is pure presentation.
@@ -48,7 +48,7 @@ function fmtMonth(ym: string): string {
 // rankings are sparse — falls back gracefully if leader data isn't available.
 function buildHeadline(partnerName: string, d: PartnerStackData): string {
   if (d.uniqueReviewsWithPartner === 0) {
-    return `${partnerName} hasn't been selected in any StackCollect reviews yet.`;
+    return `${partnerName} hasn't been selected in any intelligence reviews yet.`;
   }
   const top = (d.categoryRankings ?? []).slice(0, 2);
   const catPhrase = top.length === 0
@@ -64,7 +64,7 @@ function buildHeadline(partnerName: string, d: PartnerStackData): string {
   const opsPhrase = ops !== null
     ? `${partnerName} is used by ${ops} operator brand${ops === 1 ? '' : 's'} on the marketplace. Chosen in`
     : `${partnerName} was chosen in`;
-  return `${opsPhrase} ${d.uniqueReviewsWithPartner} of ${d.totalReviews} stack reviews (${d.marketShare}% share), with ${d.mentions} category picks across ${d.categories.length} categories.${catPhrase}`;
+  return `${opsPhrase} ${d.uniqueReviewsWithPartner} of ${d.totalReviews} intelligence reviews (${d.marketShare}% share), with ${d.mentions} category picks across ${d.categories.length} categories.${catPhrase}`;
 }
 
 // Plain-SVG 12-month sparkline. Renders a flat zero baseline if the partner
@@ -139,7 +139,7 @@ export default function StackCollectSection({ partnerName, data: raw }: Props) {
   return (
     <div className="bg-white rounded-xl border border-gray-200 p-5 sm:p-6 mb-6 sm:mb-8">
       <h2 className="font-semibold text-gray-900 mb-1">
-        StackCollect — Tech Stack Reviews
+        Intelligence — Your Marketplace Presence
         <span className="text-gray-400 font-normal ml-2 text-sm">from techontoast.community</span>
       </h2>
       <p className="text-sm text-gray-600 mb-4 leading-relaxed">{headline}</p>

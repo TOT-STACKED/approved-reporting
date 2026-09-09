@@ -154,7 +154,7 @@ function monthShort(month: string): string {
 }
 
 const SOURCE_LABELS: Record<string, string> = {
-  'techstackreview': 'Stack Review',
+  'techstackreview': 'Intelligence Review',
   'toast-support-bot': 'Support Chat',
 };
 
@@ -610,6 +610,21 @@ export function ScoreHeadline({ score }: { score: ScoreIntelligence | null }) {
           </a>
         </div>
       </div>
+
+      {/* Why the number is out of 5 and not an NPS. Operators are asked the
+          standard 0–10 "would you recommend?" question, so an NPS exists — but
+          −100 to +100 is a scale almost nobody reads correctly at a glance, so
+          we publish the same responses as a plain 0–5 score instead. */}
+      <p className="text-xs text-gray-500 leading-relaxed mt-4 pt-3 border-t border-gray-100 max-w-3xl">
+        <span className="font-medium text-gray-700">Why 0–5 and not NPS?</span>{' '}
+        Operators answer the standard 0–10 &ldquo;how likely are you to recommend?&rdquo;
+        question — the same question a Net Promoter Score is built from. NPS then compresses
+        those answers into a −100 to +100 figure that&apos;s genuinely hard to read: it hides
+        how people actually scored you, and a −100 to +100 number means little to an operator.
+        So we publish the same responses as the Stacked Operator Score (SOS) — the average
+        0–10 rating, halved onto a 0–5 scale everyone already understands. Nothing is
+        weighted or filtered on the way: {fmt(sos)} out of 5 is simply what operators gave you.
+      </p>
     </Card>
   );
 }
@@ -662,7 +677,7 @@ export function ScoreDetail({
         <p className="text-sm text-gray-500 max-w-2xl">
           No operator has rated {partnerName}{' '}
           yet. Ratings arrive when an operator picks you
-          in a Stack Review and scores you 0–10 on whether they&apos;d recommend you — so this
+          in an Intelligence Review and scores you 0–10 on whether they&apos;d recommend you — so this
           fills in as review volume builds. Everything below unlocks on your first rating.
         </p>
       </Card>
@@ -679,7 +694,7 @@ export function ScoreDetail({
         <p className="text-xs text-gray-500 mt-0.5 max-w-3xl">
           Your own operator score, cut by who&apos;s rating you, where you sit in your
           categories, and which way it&apos;s moving. Built from the 0–10 &ldquo;would you
-          recommend?&rdquo; rating operators give each tool in their Stack Review.
+          recommend?&rdquo; rating operators give each tool in their Intelligence Review.
           Competitors are never named.
         </p>
       </div>
@@ -689,7 +704,7 @@ export function ScoreDetail({
         <h3 className="font-semibold text-gray-900 mb-1">Who rates you, and how</h3>
         <p className="text-xs text-gray-500 mb-4 max-w-3xl">
           Segment comes from the venue type and site count the operator gives at the start of
-          their Stack Review — before they rate anything — so it&apos;s declared, not inferred.
+          their Intelligence Review — before they rate anything — so it&apos;s declared, not inferred.
           The segment scoring lowest is where your onboarding or support model fits worst.
         </p>
 

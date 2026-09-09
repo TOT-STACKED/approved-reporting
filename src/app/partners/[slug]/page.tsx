@@ -746,7 +746,7 @@ export default function PartnerPage() {
       )}
 
 
-      {/* StackCollect / Tech Stack Reviews */}
+      {/* Intelligence — marketplace presence */}
       {stackCollect && partner && (
         <StackCollectSection partnerName={partner.name} data={stackCollect} />
       )}
@@ -757,7 +757,7 @@ export default function PartnerPage() {
         <ScoreDetail score={score} state={scoreState} partnerName={partner.name} />
       )}
 
-      {/* Marketplace Stacks (general, same data shown on main dashboard — recent reviews hidden) */}
+      {/* Market Intelligence (general, same data shown on main dashboard — recent reviews hidden) */}
       <div className="mb-8">
         <StacksDashboard hideRecentReviews />
       </div>
