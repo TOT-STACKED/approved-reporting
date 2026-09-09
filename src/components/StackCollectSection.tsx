@@ -203,7 +203,7 @@ export default function StackCollectSection({ partnerName, data: raw, categorySc
         <div className="mb-5">
           <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider mb-2">Where you rank, by category</p>
           <div className="overflow-x-auto -mx-5 sm:-mx-6">
-            <table className="w-full text-xs sm:text-sm min-w-[620px]">
+            <table className="w-full text-xs sm:text-sm min-w-[560px]">
               <thead>
                 <tr className="border-b border-gray-100">
                   <th className="text-left py-2 px-5 sm:px-6 text-gray-500 font-medium">Category</th>
@@ -234,14 +234,9 @@ export default function StackCollectSection({ partnerName, data: raw, categorySc
                       {anyScores && (
                         <td className="py-2 px-2 text-center tabular-nums">
                           {cs ? (
-                            <>
-                              <span className="font-semibold" style={{ color: scoreTone(cs.sos, 'text') }}>
-                                {cs.sos.toFixed(1)}
-                              </span>
-                              <span className="text-gray-400 text-[10px] ml-1">
-                                vs {cs.categoryAverage.toFixed(1)} avg
-                              </span>
-                            </>
+                            <span className="font-semibold" style={{ color: scoreTone(cs.sos, 'text') }}>
+                              {cs.sos.toFixed(1)}
+                            </span>
                           ) : (
                             <span className="text-gray-300" title="No operator ratings in this category yet">—</span>
                           )}
