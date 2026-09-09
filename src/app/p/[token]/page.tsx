@@ -10,6 +10,7 @@ import StackCollectSection from '@/components/StackCollectSection';
 import AskBox from '@/components/AskBox';
 import LeadStatusGlossary from '@/components/LeadStatusGlossary';
 import LockedLeadDetail from '@/components/LockedLeadDetail';
+import AccountSetupCard from '@/components/AccountSetupCard';
 import type { PartnerTier } from '@/lib/partner-tier';
 import { LEAD_STATUS_EXPLAINER } from '@/lib/lead-status';
 import {
@@ -98,9 +99,12 @@ function SortableTh({
   );
 }
 
-export default function SecurePartnerPage() {
+// `tokenOverride` lets /dashboard render this same view from a signed-in
+// session instead of a token in the URL. Everything below is unchanged: the
+// token is still what the API calls carry, it just isn't in the address bar.
+export default function SecurePartnerPage({ tokenOverride }: { tokenOverride?: string } = {}) {
   const params = useParams();
-  const token = params.token as string;
+  const token = tokenOverride ?? (params.token as string);
   // One fetch, two render sites: the headline sits above the pipeline boxes,
   // the analysis further down.
   const { score, state: scoreState } = usePartnerScore(`/api/p/${token}/score`);
@@ -347,6 +351,11 @@ export default function SecurePartnerPage() {
 
         {/* The score leads the page — it's what the tier is for. Renders
             nothing until it's loaded, so the pipeline boxes never jump. */}
+        {/* Sits above the score, so it's the first thing a partner sees on
+            their link. Hidden when /dashboard renders this view — reaching
+            /dashboard means they already have an account. */}
+        {!tokenOverride && <AccountSetupCard token={token} partnerName={partner.name} />}
+
         <ScoreHeadline score={score} />
 
         {/* Narrative Input */}

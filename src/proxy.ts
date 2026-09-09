@@ -4,6 +4,10 @@ import { SESSION_COOKIE, verifySessionToken } from '@/lib/session';
 // Public paths that must work without a session cookie. Everything else is gated.
 // - /login             : the login page itself
 // - /api/auth/*        : login / logout endpoints
+// - /signin            : partner sign-in page (code to their own email)
+// - /dashboard         : partner dashboard; gated on the partner session cookie,
+//                        which it checks itself and redirects to /signin without
+// - /api/partner/*     : partner sign-in endpoints, each gated on its own credential
 // - /p/<token>         : partner pages already use unguessable 16-char tokens
 // - /api/p/<token>     : partner-page data endpoint, same token check applies upstream
 // - /api/ask           : partner-scoped AI box lives on token-gated partner pages
@@ -13,6 +17,9 @@ import { SESSION_COOKIE, verifySessionToken } from '@/lib/session';
 const PUBLIC_PREFIXES = [
   '/login',
   '/api/auth/',
+  '/signin',
+  '/dashboard',
+  '/api/partner/',
   '/p/',
   '/api/p/',
   '/api/ask',
