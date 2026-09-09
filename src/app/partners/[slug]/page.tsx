@@ -330,6 +330,12 @@ export default function PartnerPage() {
       {/* KPI Cards — MAL → MQL → SQL → Won. MQL / SQL / Won are click-to-filter
           the Lead Progress table below; active card gets a brand-green ring. */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+        <div className="bg-brand-lavender rounded-2xl p-5 text-brand-green shadow-sm" title={LEAD_STATUS_EXPLAINER.MAL}>
+          <p className="text-3xl font-bold">{malCount}</p>
+          <p className="text-sm font-medium opacity-75 mt-1">MAL</p>
+          <p className="text-[10px] opacity-60 mt-0.5">Marketing Awareness Leads</p>
+          <p className="text-xs opacity-60 mt-2">{partner.leadCount} total referred · {partner.recentLeadCount} active last 90d</p>
+        </div>
         <button
           type="button"
           onClick={() => setStageFilter('MQL')}
@@ -363,12 +369,6 @@ export default function PartnerPage() {
           <p className="text-sm font-medium opacity-90 mt-1">Closed Won</p>
           <p className="text-[10px] opacity-75 mt-0.5">{stageFilter === 'Closed Won' ? 'Showing below' : 'Click to show'}</p>
         </button>
-        <div className="bg-brand-lavender rounded-2xl p-5 text-brand-green shadow-sm" title={LEAD_STATUS_EXPLAINER.MAL}>
-          <p className="text-3xl font-bold">{malCount}</p>
-          <p className="text-sm font-medium opacity-75 mt-1">MAL</p>
-          <p className="text-[10px] opacity-60 mt-0.5">Marketing Awareness Leads</p>
-          <p className="text-xs opacity-60 mt-2">{partner.leadCount} total referred · {partner.recentLeadCount} active last 90d</p>
-        </div>
       </div>
 
       {/* Pipeline conversion rates — under the KPI cards, above the table. */}
