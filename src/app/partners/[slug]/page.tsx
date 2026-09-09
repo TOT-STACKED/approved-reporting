@@ -25,6 +25,13 @@ const STATUS_COLORS: Record<string, string> = {
 };
 const PIE_FALLBACKS = ['#3b82f6', '#f59e0b', '#10b981', '#a855f7', '#ef4444', '#06b6d4', '#ec4899', '#84cc16'];
 
+// Report sections hidden to keep the page clean. Flip any of these to true to
+// bring the section back — the markup below is untouched.
+const SHOW_ASK_AI: boolean = false;
+const SHOW_CONVERSION_TIMELINE: boolean = false;
+const SHOW_LEAD_CHARTS: boolean = false;
+const SHOW_PARTNER_FEEDBACK: boolean = false;
+
 interface Lead {
   id: string;
   businessName: string;
@@ -657,81 +664,87 @@ export default function PartnerPage() {
       <LeadStatusGlossary className="mb-8" />
 
       {/* Partner-scoped AI query box */}
-      <AskBox partnerSlug={partner.slug} partnerName={partner.name} />
+      {SHOW_ASK_AI && <AskBox partnerSlug={partner.slug} partnerName={partner.name} />}
 
       {/* Conversion Timeline */}
-      <div className="mb-8">
-        <ConversionTimeline
-          leads={partner.leads}
-          mqlCount={mqlCount}
-          sqlCount={sqlCount}
-          closedWonCount={closedWon}
-        />
-      </div>
-
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 mb-8">
-        {/* Status Breakdown - Pie chart */}
-        <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-5">
-          <h2 className="font-semibold text-gray-900 mb-2 text-sm">Lead Status</h2>
-          {(() => {
-            const statusData = Object.entries(partner.statusBreakdown)
-              .filter(([s]) => s && s !== 'N/A')
-              .map(([status, count]) => ({ status, count }))
-              .sort((a, b) => b.count - a.count);
-            if (statusData.length === 0) return <p className="text-sm text-gray-400 italic">No status data</p>;
-            return (
-              <ResponsiveContainer width="100%" height={220}>
-                <PieChart>
-                  <Pie
-                    data={statusData}
-                    dataKey="count"
-                    nameKey="status"
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={45}
-                    outerRadius={80}
-                    paddingAngle={2}
-                    label={({ status, count }: any) => `${status}: ${count}`}
-                    labelLine={{ strokeWidth: 1 }}
-                  >
-                    {statusData.map((entry, i) => (
-                      <Cell
-                        key={entry.status}
-                        fill={STATUS_COLORS[entry.status] || PIE_FALLBACKS[i % PIE_FALLBACKS.length]}
-                      />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                </PieChart>
-              </ResponsiveContainer>
-            );
-          })()}
+      {SHOW_CONVERSION_TIMELINE && (
+        <div className="mb-8">
+          <ConversionTimeline
+            leads={partner.leads}
+            mqlCount={mqlCount}
+            sqlCount={sqlCount}
+            closedWonCount={closedWon}
+          />
         </div>
+      )}
 
-        {/* Source Breakdown - Horizontal bar chart */}
-        <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-5">
-          <h2 className="font-semibold text-gray-900 mb-2 text-sm">Lead Sources</h2>
-          {(() => {
-            const sourceData = Object.entries(partner.sourceBreakdown)
-              .map(([source, count]) => ({ source, count }))
-              .sort((a, b) => b.count - a.count)
-              .slice(0, 8);
-            if (sourceData.length === 0) return <p className="text-sm text-gray-400 italic">No source data</p>;
-            return (
-              <ResponsiveContainer width="100%" height={Math.max(200, sourceData.length * 28)}>
-                <BarChart data={sourceData} layout="vertical" margin={{ left: 0, right: 16, top: 4, bottom: 4 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" horizontal={false} />
-                  <XAxis type="number" tick={{ fontSize: 10 }} />
-                  <YAxis dataKey="source" type="category" tick={{ fontSize: 11 }} width={110} />
-                  <Tooltip />
-                  <Bar dataKey="count" fill="#f97316" radius={[0, 4, 4, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            );
-          })()}
+
+
+      {SHOW_LEAD_CHARTS && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 mb-8">
+          {/* Status Breakdown - Pie chart */}
+          <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-5">
+            <h2 className="font-semibold text-gray-900 mb-2 text-sm">Lead Status</h2>
+            {(() => {
+              const statusData = Object.entries(partner.statusBreakdown)
+                .filter(([s]) => s && s !== 'N/A')
+                .map(([status, count]) => ({ status, count }))
+                .sort((a, b) => b.count - a.count);
+              if (statusData.length === 0) return <p className="text-sm text-gray-400 italic">No status data</p>;
+              return (
+                <ResponsiveContainer width="100%" height={220}>
+                  <PieChart>
+                    <Pie
+                      data={statusData}
+                      dataKey="count"
+                      nameKey="status"
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={45}
+                      outerRadius={80}
+                      paddingAngle={2}
+                      label={({ status, count }: any) => `${status}: ${count}`}
+                      labelLine={{ strokeWidth: 1 }}
+                    >
+                      {statusData.map((entry, i) => (
+                        <Cell
+                          key={entry.status}
+                          fill={STATUS_COLORS[entry.status] || PIE_FALLBACKS[i % PIE_FALLBACKS.length]}
+                        />
+                      ))}
+                    </Pie>
+                    <Tooltip />
+                  </PieChart>
+                </ResponsiveContainer>
+              );
+            })()}
+          </div>
+
+          {/* Source Breakdown - Horizontal bar chart */}
+          <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-5">
+            <h2 className="font-semibold text-gray-900 mb-2 text-sm">Lead Sources</h2>
+            {(() => {
+              const sourceData = Object.entries(partner.sourceBreakdown)
+                .map(([source, count]) => ({ source, count }))
+                .sort((a, b) => b.count - a.count)
+                .slice(0, 8);
+              if (sourceData.length === 0) return <p className="text-sm text-gray-400 italic">No source data</p>;
+              return (
+                <ResponsiveContainer width="100%" height={Math.max(200, sourceData.length * 28)}>
+                  <BarChart data={sourceData} layout="vertical" margin={{ left: 0, right: 16, top: 4, bottom: 4 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" horizontal={false} />
+                    <XAxis type="number" tick={{ fontSize: 10 }} />
+                    <YAxis dataKey="source" type="category" tick={{ fontSize: 11 }} width={110} />
+                    <Tooltip />
+                    <Bar dataKey="count" fill="#f97316" radius={[0, 4, 4, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              );
+            })()}
+          </div>
         </div>
-      </div>
+      )}
+
 
       {/* StackCollect / Tech Stack Reviews */}
       {stackCollect && partner && (
@@ -788,7 +801,7 @@ export default function PartnerPage() {
       )}
 
       {/* Partner-submitted feedback (from the /p/<token> "Update status" button) */}
-      {feedback.length > 0 && (
+      {SHOW_PARTNER_FEEDBACK && feedback.length > 0 && (
         <div className="bg-white rounded-xl border border-brand-green/20 p-6 mb-6">
           <h2 className="font-semibold text-brand-green mb-1">Recent partner feedback</h2>
           <p className="text-xs text-gray-500 mb-4">
