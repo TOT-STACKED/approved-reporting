@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getPartnerList, getMarketingActivities, getActivitiesForPartner } from '@/lib/airtable';
+import { tierForSlug } from '@/lib/partner-package';
 
 export const dynamic = 'force-dynamic';
 
@@ -108,7 +109,7 @@ export async function GET() {
       getMarketingActivities(),
     ]);
 
-    const rows: PartnerPerformance[] = partners.map(p => {
+    const rows: PartnerPerformance[] = await Promise.all(partners.map(async p => {
       const nameLower = p.name.trim().toLowerCase();
       const partnerLeads = leads.filter(l =>
         l.partners.some(pr => pr.trim().toLowerCase() === nameLower)
@@ -146,6 +147,9 @@ export async function GET() {
       return {
         name: p.name,
         slug: p.slug,
+        // One cached Airtable read serves the whole table, so this is a map
+        // lookup per row rather than 180 requests.
+        tier: await tierForSlug(p.slug),
         leadCount,
         sqlCount,
         mqlCount,
@@ -164,7 +168,7 @@ export async function GET() {
         daysSinceLastLead: daysSince(lastLeadAt),
         daysSinceLastActivity: daysSince(lastActivityAt),
       };
-    });
+    }));
 
     // Raw totals across all leads (includes unassigned, no double counting)
     // so the page header matches the main dashboard.

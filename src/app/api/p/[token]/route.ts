@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { getPartnerDetail, emptyPartnerDetail, toClientPartner } from '@/lib/airtable';
 import { getPartnerStackCollectData } from '@/lib/stackcollect';
-import { tierForSlug, canSeeLeadDetail } from '@/lib/partner-tier';
+import { canSeeLeadDetail } from '@/lib/partner-tier';
+import { tierForSlug } from '@/lib/partner-package';
 
 export const dynamic = 'force-dynamic';
 
@@ -43,7 +44,7 @@ export async function GET(
     // numbers, not for who the leads are — so the rows never leave the
     // server. statusBreakdown and leadCount are aggregates and stay: the
     // count is the whole point of the upsell.
-    const tier = tierForSlug(slug);
+    const tier = await tierForSlug(slug);
     const client = toClientPartner(partner);
     const payload = canSeeLeadDetail(tier) ? client : { ...client, leads: [], recentLeadCount: 0 };
 

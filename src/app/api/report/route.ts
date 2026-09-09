@@ -2,7 +2,8 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { getPartnerDetail } from '@/lib/airtable';
 import { slugForToken } from '@/lib/partner-auth';
 import { SESSION_COOKIE, verifySessionToken } from '@/lib/session';
-import { tierForSlug, canSeeLeadDetail } from '@/lib/partner-tier';
+import { canSeeLeadDetail } from '@/lib/partner-tier';
+import { tierForSlug } from '@/lib/partner-package';
 import { getPartnerStackCollectData } from '@/lib/stackcollect';
 import {
   INK, MUTED, DIM, BORDER, BG, SURFACE_2, PRIMARY, POSITIVE, SERIES, LEAD_STATUS_COLORS,
@@ -52,7 +53,7 @@ export async function POST(request: NextRequest) {
 
     // A partner's own report follows their tier; the team's copy is always
     // the full one, because that's the view they work from internally.
-    const withLeadDetail = teamMember || canSeeLeadDetail(tierForSlug(slug));
+    const withLeadDetail = teamMember || canSeeLeadDetail(await tierForSlug(slug));
 
     const partner = await getPartnerDetail(slug);
     if (!partner) {

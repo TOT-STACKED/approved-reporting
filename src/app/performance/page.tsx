@@ -25,6 +25,7 @@ interface PartnerPerformance {
   lastActivityAt: string | null;
   daysSinceLastLead: number | null;
   daysSinceLastActivity: number | null;
+  tier: 'promote' | 'approved';
 }
 
 type SortKey =
@@ -260,6 +261,7 @@ export default function PerformancePage() {
               <tr className="bg-gray-50 border-b border-gray-200">
                 <th className="text-left py-3 px-4 font-medium text-gray-700 cursor-pointer select-none"
                     onClick={() => toggleSort('name')}>Partner {sortIcon('name')}</th>
+                <th className="text-center py-3 px-3 font-medium text-gray-700">Package</th>
                 <th className="text-center py-3 px-3 font-medium text-gray-700">Attention</th>
                 <th className="text-right py-3 px-3 font-medium text-gray-700 cursor-pointer select-none"
                     title={LEAD_STATUS_EXPLAINER.MAL}
@@ -299,6 +301,15 @@ export default function PerformancePage() {
                     <span className="flex items-center gap-2">
                       {isPoor && <span className="text-base leading-none" aria-hidden>{badge.emoji}</span>}
                       <a href={`/partners/${r.slug}`} className="hover:text-brand-green">{r.name}</a>
+                    </span>
+                  </td>
+                  <td className="py-3 px-3 text-center">
+                    {/* Straight off the marketplace Package field, so this is
+                        the one place to see who's on what. */}
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] uppercase tracking-[0.1em] font-semibold ${
+                      r.tier === 'promote' ? 'bg-brand-lavender text-brand-green' : 'bg-brand-lime text-brand-green'
+                    }`}>
+                      {r.tier === 'promote' ? 'Promote' : 'Approved'}
                     </span>
                   </td>
                   <td className="py-3 px-3 text-center">

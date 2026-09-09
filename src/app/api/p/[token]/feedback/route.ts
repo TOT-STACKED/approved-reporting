@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { FEEDBACK_STATUS_OPTIONS, insertFeedback, postFeedbackToSlack } from '@/lib/feedback';
-import { tierForSlug, canSeeLeadDetail } from '@/lib/partner-tier';
+import { canSeeLeadDetail } from '@/lib/partner-tier';
+import { tierForSlug } from '@/lib/partner-package';
 
 // Partner-facing. The token in the URL is the credential; we resolve it to
 // a partner_slug via PARTNER_TOKENS before writing.
@@ -26,7 +27,7 @@ export async function POST(
 
     // Reporting a status is a lead action, so it follows the lead gate: a
     // Promote partner can't post about rows they were never sent.
-    if (!canSeeLeadDetail(tierForSlug(partnerSlug))) {
+    if (!canSeeLeadDetail(await tierForSlug(partnerSlug))) {
       return NextResponse.json({ error: 'Lead detail is not part of this plan' }, { status: 403 });
     }
 

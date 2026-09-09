@@ -276,13 +276,20 @@ export default function PartnerPage() {
           <a href="/" className="text-sm text-gray-500 hover:text-gray-700">&larr; Back to Dashboard</a>
           <h1 className="font-display text-4xl sm:text-5xl tracking-tight leading-[0.95] text-brand-green mt-2">{partner.name}</h1>
           <p className="text-gray-500">{partner.leadCount} total leads referred</p>
-          {/* Which plan their own link renders. Only worth saying when it
-              isn't the full one — Approved is the default. */}
-          {tier === 'promote' && (
-            <p className="mt-2 inline-flex items-center gap-1.5 text-[11px] uppercase tracking-[0.12em] bg-brand-lavender text-brand-green px-2.5 py-1 rounded-full">
-              Promote · partner sees no lead detail
-            </p>
-          )}
+          {/* Which plan their own link renders. Always shown: "what does this
+              partner actually see?" shouldn't need a trip to Airtable. Reads
+              live from the Package field on the marketplace Partners table. */}
+          <p
+            className={`mt-2 inline-flex items-center gap-1.5 text-[11px] uppercase tracking-[0.12em] px-2.5 py-1 rounded-full ${
+              tier === 'promote'
+                ? 'bg-brand-lavender text-brand-green'
+                : 'bg-brand-lime text-brand-green'
+            }`}
+          >
+            {tier === 'promote'
+              ? 'Promote · partner sees no lead detail'
+              : 'Approved · partner sees everything'}
+          </p>
         </div>
         <button
           onClick={() => setShowNarrative(true)}
