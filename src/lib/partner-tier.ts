@@ -19,7 +19,8 @@ export type PartnerTier = 'promote' | 'approved';
 
 /** Where the locked panel sends someone who wants the full tier. */
 export const UPGRADE_URL =
-  process.env.NEXT_PUBLIC_UPGRADE_URL || 'https://wearestacked.io/pricing';
+  process.env.NEXT_PUBLIC_UPGRADE_URL ||
+  'https://www.wearestacked.io/choose-character/for-tech-partners';
 
 function tierMap(): Record<string, string> {
   try {
