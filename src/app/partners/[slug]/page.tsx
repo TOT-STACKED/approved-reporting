@@ -748,7 +748,7 @@ export default function PartnerPage() {
 
       {/* Intelligence — marketplace presence */}
       {stackCollect && partner && (
-        <StackCollectSection partnerName={partner.name} data={stackCollect} />
+        <StackCollectSection partnerName={partner.name} data={stackCollect} categoryScores={score?.categories ?? []} />
       )}
 
       {/* Score Intelligence — the same view the partner sees on their own

@@ -750,7 +750,7 @@ export default function SecurePartnerPage() {
 
         {/* Intelligence — marketplace presence */}
         {stackCollect && partner && (
-          <StackCollectSection partnerName={partner.name} data={stackCollect} />
+          <StackCollectSection partnerName={partner.name} data={stackCollect} categoryScores={score?.categories ?? []} />
         )}
 
         {/* Score Intelligence — segment breakdown, category position, trend,

@@ -117,7 +117,7 @@ function scoreBand(sos: number): 'red' | 'amber' | 'green' {
   return 'green';
 }
 
-function scoreTone(sos: number, size: 'display' | 'text' = 'display'): string {
+export function scoreTone(sos: number, size: 'display' | 'text' = 'display'): string {
   const ramp = size === 'text' ? SCORE_TEXT : SCORE_BRIGHT;
   return ramp[scoreBand(sos)];
 }

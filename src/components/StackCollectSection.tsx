@@ -3,6 +3,8 @@
 // numbers all come pre-computed from getPartnerStackCollectData — this file
 // is pure presentation.
 
+import { scoreTone } from './VendorScoreDashboard';
+
 // Type inlined here (not imported) so the component builds even if the
 // stackcollect.ts on GitHub is briefly out of sync. Fields beyond `mentions`
 // are optional so an older API response (without trend/rankings/competitors)
@@ -33,9 +35,20 @@ interface PartnerStackData {
   marketplaceVenues?: number | null;
 }
 
+// Per-category operator score, from getPartnerScoreIntelligence. Optional and
+// keyed by the same category labels the marketplace rankings use, so a partner
+// with no ratings in a category simply gets a dash rather than a missing row.
+interface CategoryScore {
+  category: string;
+  sos: number;
+  count: number;
+  categoryAverage: number;
+}
+
 interface Props {
   partnerName: string;
   data: PartnerStackData;
+  categoryScores?: CategoryScore[];
 }
 
 function fmtMonth(ym: string): string {
@@ -119,7 +132,7 @@ function rankBadgeClass(rank: number): string {
   return 'bg-gray-100 text-gray-700';
 }
 
-export default function StackCollectSection({ partnerName, data: raw }: Props) {
+export default function StackCollectSection({ partnerName, data: raw, categoryScores = [] }: Props) {
   if (raw.mentions === 0) return null;
 
   // Normalize: an older API response (without trend/rankings/competitors)
@@ -135,6 +148,12 @@ export default function StackCollectSection({ partnerName, data: raw }: Props) {
   };
 
   const headline = buildHeadline(partnerName, data);
+
+  // Rank here is by adoption (how often operators pick you); the score column
+  // is satisfaction. They answer different questions, so a partner can lead a
+  // category on picks and sit mid-table on score.
+  const scoreByCategory = new Map(categoryScores.map(c => [c.category, c]));
+  const anyScores = categoryScores.length > 0;
 
   return (
     <div className="bg-white rounded-xl border border-gray-200 p-5 sm:p-6 mb-6 sm:mb-8">
@@ -184,18 +203,22 @@ export default function StackCollectSection({ partnerName, data: raw }: Props) {
         <div className="mb-5">
           <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider mb-2">Where you rank, by category</p>
           <div className="overflow-x-auto -mx-5 sm:-mx-6">
-            <table className="w-full text-xs sm:text-sm min-w-[500px]">
+            <table className="w-full text-xs sm:text-sm min-w-[620px]">
               <thead>
                 <tr className="border-b border-gray-100">
                   <th className="text-left py-2 px-5 sm:px-6 text-gray-500 font-medium">Category</th>
                   <th className="text-center py-2 px-2 text-gray-500 font-medium">Your rank</th>
                   <th className="text-center py-2 px-2 text-gray-500 font-medium">Your picks</th>
+                  {anyScores && (
+                    <th className="text-center py-2 px-2 text-gray-500 font-medium">Your score</th>
+                  )}
                   <th className="text-left py-2 px-5 sm:px-6 text-gray-500 font-medium">Category leader</th>
                 </tr>
               </thead>
               <tbody>
                 {data.categoryRankings.map(r => {
                   const isLeader = r.rank === 1;
+                  const cs = scoreByCategory.get(r.category);
                   return (
                     <tr key={r.category} className="border-b border-gray-50">
                       <td className="py-2 px-5 sm:px-6 font-medium text-gray-800">{r.category}</td>
@@ -208,6 +231,22 @@ export default function StackCollectSection({ partnerName, data: raw }: Props) {
                         {r.partnerCount}
                         <span className="text-gray-400 text-[10px] ml-1">({Math.round(r.shareInCategory * 100)}%)</span>
                       </td>
+                      {anyScores && (
+                        <td className="py-2 px-2 text-center tabular-nums">
+                          {cs ? (
+                            <>
+                              <span className="font-semibold" style={{ color: scoreTone(cs.sos, 'text') }}>
+                                {cs.sos.toFixed(1)}
+                              </span>
+                              <span className="text-gray-400 text-[10px] ml-1">
+                                vs {cs.categoryAverage.toFixed(1)} avg
+                              </span>
+                            </>
+                          ) : (
+                            <span className="text-gray-300" title="No operator ratings in this category yet">—</span>
+                          )}
+                        </td>
+                      )}
                       <td className="py-2 px-5 sm:px-6 text-gray-700">
                         {isLeader
                           ? <span className="text-emerald-700 font-medium">you lead ({r.leader.count})</span>
