@@ -200,7 +200,7 @@ function downloadVenueReport(v: VenueDrilldown) {
     lines.push('');
   }
   if (v.recommendations) {
-    lines.push('## AI review — Tech on Toast');
+    lines.push('## AI review — Stacked');
     lines.push('');
     const recs = v.recommendations.split(/\s*\|\s*/).map(s => s.trim()).filter(Boolean);
     for (const r of recs) lines.push(`- ${r}`);
@@ -580,7 +580,7 @@ export default function TechCheckSummary() {
                             {v.recommendations && (
                               <div className="bg-white border border-brand-green/20 rounded-md p-3 sm:p-4">
                                 <p className="text-[10px] uppercase tracking-wider text-brand-green font-medium mb-2">
-                                  AI review · Tech on Toast
+                                  AI review · Stacked
                                 </p>
                                 <ul className="space-y-1.5 text-xs sm:text-sm text-gray-800 list-disc pl-4">
                                   {v.recommendations

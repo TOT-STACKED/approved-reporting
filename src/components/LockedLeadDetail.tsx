@@ -8,7 +8,7 @@ import { UPGRADE_URL } from '@/lib/partner-tier';
 //
 // The numbers quoted are community-wide, not the partner's own. A Promote
 // partner isn't being sent leads, so "your pipeline" would be both wrong and
-// unflattering — it's the scale of what Tech on Toast is working that makes
+// unflattering — it's the scale of what Stacked is working that makes
 // the case, not a column of zeros with their name on it.
 
 function BlurredRow({ width }: { width: string }) {
@@ -37,7 +37,7 @@ export default function LockedLeadDetail({
         </span>
       </div>
       <p className="text-sm text-gray-500 mb-4 max-w-2xl">
-        The numbers above are what Tech on Toast is working across the community. Approved
+        The numbers above are what Stacked is working across the community. Approved
         partners get the businesses that match them by name, with source, contact and where
         each one got to.
       </p>

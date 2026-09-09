@@ -204,7 +204,7 @@ function SentimentDetail({ s, count }: { s: Sentiment; count: number }) {
         <div>
           <h3 className="font-semibold text-gray-900">The ratings behind it</h3>
           <p className="text-xs text-gray-500">
-            Every rating counted above, across each Tech on Toast touchpoint
+            Every rating counted above, across each Stacked touchpoint
           </p>
         </div>
         {Object.keys(s.bySource).length > 0 && (

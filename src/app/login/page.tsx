@@ -1,13 +1,13 @@
 type LoginSearch = { next?: string; error?: string };
 
 export const metadata = {
-  title: 'Sign in - Tech on Toast Approved Partner Portal',
+  title: 'Sign in - Stacked Approved Partner Portal',
 };
 
 const PORTAL_SECTIONS = [
   {
     title: 'Lead pipeline',
-    body: 'Every lead referred through Tech on Toast, scored and tracked from MAL through MQL, SQL and Closed Won.',
+    body: 'Every lead referred through Stacked, scored and tracked from MAL through MQL, SQL and Closed Won.',
   },
   {
     title: 'Partner performance',

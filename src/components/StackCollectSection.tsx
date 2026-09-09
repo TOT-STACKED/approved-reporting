@@ -159,7 +159,7 @@ export default function StackCollectSection({ partnerName, data: raw, categorySc
     <div className="bg-white rounded-xl border border-gray-200 p-5 sm:p-6 mb-6 sm:mb-8">
       <h2 className="font-semibold text-gray-900 mb-1">
         Intelligence — Your Marketplace Presence
-        <span className="text-gray-400 font-normal ml-2 text-sm">from techontoast.community</span>
+        <span className="text-gray-400 font-normal ml-2 text-sm">from wearestacked.io</span>
       </h2>
       <p className="text-sm text-gray-600 mb-4 leading-relaxed">{headline}</p>
 

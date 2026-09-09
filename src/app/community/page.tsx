@@ -84,7 +84,7 @@ export default function CommunityPage() {
         <p className="text-xs sm:text-sm uppercase tracking-wider opacity-80 mb-2">Marketplace Community Update</p>
         <h1 className="font-display text-4xl sm:text-5xl tracking-tight leading-[0.95] text-brand-green mb-4">What we&apos;re doing for our marketplace partners</h1>
         <p className="text-sm sm:text-base opacity-90 max-w-2xl">
-          A snapshot of lead generation, operator intelligence trends, upcoming events and podcast activity across the Tech on Toast community.
+          A snapshot of lead generation, operator intelligence trends, upcoming events and podcast activity across the Stacked community.
           Same view for every partner — no individual data, just what we&apos;re up to as a network.
         </p>
       </div>
@@ -252,7 +252,7 @@ export default function CommunityPage() {
         <div className="flex items-center justify-between mb-3">
           <div>
             <h2 className="text-lg font-bold text-gray-900">Podcast</h2>
-            <p className="text-xs text-gray-500">{data.podcast.showTitle || 'Tech on Toast — The Hospitality Tech Podcast'}</p>
+            <p className="text-xs text-gray-500">{data.podcast.showTitle || 'Stacked — The Hospitality Tech Podcast'}</p>
           </div>
           <a href={data.podcast.showLink || 'https://anchor.fm/techontoast'} target="_blank" rel="noopener noreferrer"
             className="text-sm text-brand-green hover:text-brand-green-soft font-medium">
@@ -267,7 +267,7 @@ export default function CommunityPage() {
           )}
           <div className="flex-1 min-w-0">
             <p className="text-xs uppercase tracking-wider opacity-80">Latest from</p>
-            <h3 className="text-lg sm:text-xl font-bold mt-0.5">{data.podcast.showTitle || 'Tech on Toast Podcast'}</h3>
+            <h3 className="text-lg sm:text-xl font-bold mt-0.5">{data.podcast.showTitle || 'Stacked Podcast'}</h3>
             <p className="text-sm opacity-90 mt-1">{data.podcast.totalEpisodes} episodes · Hosted by Chris Fletcher</p>
           </div>
         </div>
@@ -312,7 +312,7 @@ export default function CommunityPage() {
       </section>
 
       <div className="text-xs text-gray-400 text-center mt-8">
-        Tech on Toast Marketplace · Updated automatically · Same view for every partner
+        Stacked Marketplace · Updated automatically · Same view for every partner
       </div>
     </div>
   );

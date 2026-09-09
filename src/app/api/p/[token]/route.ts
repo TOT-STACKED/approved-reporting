@@ -49,7 +49,7 @@ export async function GET(
     const client = toClientPartner(partner);
     const payload = canSeeLeadDetail(tier) ? client : { ...client, leads: [], recentLeadCount: 0 };
 
-    // Promote sees what Tech on Toast is working across the whole community,
+    // Promote sees what Stacked is working across the whole community,
     // not a partner-shaped pipeline of their own. Only fetched for Promote —
     // it's a full lead read, and Approved has no use for it.
     const community = canSeeLeadDetail(tier) ? null : await getCommunityPipeline();

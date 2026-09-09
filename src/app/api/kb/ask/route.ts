@@ -59,7 +59,7 @@ export async function POST(request: NextRequest) {
       messages: [
         {
           role: 'system',
-          content: `You are the knowledge-base assistant for Tech on Toast's internal team.
+          content: `You are the knowledge-base assistant for Stacked's internal team.
 
 Answer the question using ONLY the sources below. Each source is numbered [n]
 with its title, URL, optional notes, and extracted page content.

@@ -1,7 +1,7 @@
 import TechCheckSummary from '@/components/TechCheckSummary';
 
 export const metadata = {
-  title: 'Tech Check - Tech on Toast',
+  title: 'Tech Check - Stacked',
 };
 
 export default function TechCheckPage() {

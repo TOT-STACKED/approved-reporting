@@ -1,4 +1,4 @@
-// Weekly digest email for the TOT team.
+// Weekly digest email for the Stacked team.
 // Triggered by a Netlify Scheduled Function (see netlify/functions/weekly-digest.mts)
 // every Monday at 08:00 UTC — which is 09:00 UK during BST (roughly end-of-March
 // through end-of-October) and 08:00 UK during GMT.
@@ -288,7 +288,7 @@ function renderDigestHtml(d: DigestData, siteUrl: string): string {
     <div style="max-width:640px;margin:0 auto;padding:24px;">
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
         <div style="width:28px;height:28px;background:#FF5014;border-radius:6px;color:#fff;font-weight:700;font-size:13px;display:flex;align-items:center;justify-content:center;">ToT</div>
-        <span style="font-weight:600;color:#38278F;font-size:15px;">Tech on Toast · Weekly Digest</span>
+        <span style="font-weight:600;color:#38278F;font-size:15px;">Stacked · Weekly Digest</span>
       </div>
       <h1 style="margin:0 0 4px;font-size:22px;font-weight:700;">Week of ${weekLabel}</h1>
       <p style="color:#5A564F;font-size:14px;margin:0 0 24px;">
@@ -332,7 +332,7 @@ function renderDigestHtml(d: DigestData, siteUrl: string): string {
       </div>` : ''}
 
       <p style="color:#827D74;font-size:12px;text-align:center;margin:24px 0 0;">
-        Automated by the Tech on Toast portal · <a href="${siteUrl}" style="color:#827D74;">approvedreporting.netlify.app</a>
+        Automated by the Stacked portal · <a href="${siteUrl}" style="color:#827D74;">approvedreporting.netlify.app</a>
       </p>
     </div>
   </body>
@@ -355,7 +355,7 @@ export async function GET(request: Request) {
   }
 
   const resendKey = process.env.RESEND_API_KEY;
-  // Default recipients = the TOT core team. Override via DIGEST_RECIPIENTS env
+  // Default recipients = the Stacked core team. Override via DIGEST_RECIPIENTS env
   // var (comma-separated) to add/remove without a deploy.
   const DEFAULT_RECIPIENTS = [
     'chriscartmell@techontoast.community',
@@ -366,13 +366,13 @@ export async function GET(request: Request) {
   ].join(',');
   const recipients = (process.env.DIGEST_RECIPIENTS ?? DEFAULT_RECIPIENTS)
     .split(',').map(s => s.trim()).filter(Boolean);
-  const from = process.env.DIGEST_FROM ?? 'Tech on Toast <onboarding@resend.dev>';
+  const from = process.env.DIGEST_FROM ?? 'Stacked <onboarding@resend.dev>';
 
   try {
     const data = await buildDigestData();
     const siteUrl = new URL(request.url).origin;
     const html = renderDigestHtml(data, siteUrl);
-    const subject = `TOT Digest · ${data.weekStart.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}–${data.weekEnd.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} · ${data.hotLeads.length} hot · ${data.newThisWeek.length} new`;
+    const subject = `Stacked Digest · ${data.weekStart.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}–${data.weekEnd.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} · ${data.hotLeads.length} hot · ${data.newThisWeek.length} new`;
 
     if (preview) {
       // Return the HTML directly so the user can eyeball it in-browser.

@@ -41,7 +41,7 @@ const FIELDS = {
     location: 'fldTwzHji3JbrvHPU',
     date: 'fldRND3uaiduLQouI',
     // Contact fields — gated per stage on the partner-facing /p/[token] page.
-    // MQL rows only expose position (Tech on Toast handles MQL outreach).
+    // MQL rows only expose position (Stacked handles MQL outreach).
     // SQL rows expose full contact + notes for the partner to take forward.
     firstName: 'fld26qV2h9PnWZpKD',
     lastName: 'fldnMvs9tjp2RHVeY',

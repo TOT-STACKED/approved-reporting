@@ -572,7 +572,7 @@ export default function PartnerPage() {
                                         </p>
                                       </div>
                                       <p className="text-[11px] text-amber-800 bg-amber-50 border border-amber-200 rounded-md px-3 py-2">
-                                        MQL leads — contact details hidden until the lead progresses to SQL. Tech on Toast handles all MQL outreach.
+                                        MQL leads — contact details hidden until the lead progresses to SQL. Stacked handles all MQL outreach.
                                       </p>
                                     </div>
                                   ) : (
@@ -602,7 +602,7 @@ export default function PartnerPage() {
                                         </div>
                                       </div>
                                       <div>
-                                        <p className="text-[10px] uppercase tracking-wider text-gray-500 mb-1">TOT notes</p>
+                                        <p className="text-[10px] uppercase tracking-wider text-gray-500 mb-1">Stacked notes</p>
                                         <p className="text-gray-700 leading-relaxed whitespace-pre-line">
                                           {lead.totNotes || <span className="text-gray-400 italic">No notes yet.</span>}
                                         </p>

@@ -89,7 +89,7 @@ export async function POST(request: NextRequest) {
     const generateNarrative = () => {
       const parts: string[] = [];
 
-      parts.push(`This month, Tech on Toast continued to drive visibility and value for ${partner.name} across our network.`);
+      parts.push(`This month, Stacked continued to drive visibility and value for ${partner.name} across our network.`);
 
       if (partner.leadCount > 0) {
         parts.push(`We currently have ${partner.leadCount} leads in the pipeline for ${partner.name}.`);
@@ -211,7 +211,7 @@ export async function POST(request: NextRequest) {
 <body>
   <h1>${partner.name} - Intelligence Report</h1>
   <div class="subtitle">${monthYear} | Generated ${now.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}</div>
-  <div class="tagline">Here's what Tech on Toast delivered for ${partner.name} this month</div>
+  <div class="tagline">Here's what Stacked delivered for ${partner.name} this month</div>
 
   <div class="narrative">${narrative}</div>
 
@@ -305,8 +305,8 @@ export async function POST(request: NextRequest) {
   </table>` : ''}
 
   <div class="footer">
-    Tech on Toast | Partner Value Report | ${monthYear}<br>
-    <span style="font-size:10px">techontoast.community</span>
+    Stacked | Intelligence Report | ${monthYear}<br>
+    <span style="font-size:10px">wearestacked.io</span>
   </div>
 </body>
 </html>`;
@@ -314,7 +314,7 @@ export async function POST(request: NextRequest) {
     return new NextResponse(html, {
       headers: {
         'Content-Type': 'text/html',
-        'Content-Disposition': `inline; filename="${partner.name.replace(/[^a-zA-Z0-9]/g, '_')}_Value_Report_${monthYear.replace(' ', '_')}.html"`,
+        'Content-Disposition': `inline; filename="${partner.name.replace(/[^a-zA-Z0-9]/g, '_')}_Intelligence_Report_${monthYear.replace(' ', '_')}.html"`,
       },
     });
   } catch (error: any) {

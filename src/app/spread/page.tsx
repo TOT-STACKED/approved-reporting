@@ -81,7 +81,7 @@ export default function SpreadPage() {
               type="text"
               value={editionTitle}
               onChange={e => setEditionTitle(e.target.value)}
-              placeholder="e.g. Tech on Toast Weekly Spread #42"
+              placeholder="e.g. Stacked Weekly Spread #42"
               required
               className="w-full border border-gray-300 rounded-lg px-3 py-2 text-gray-900 focus:ring-2 focus:ring-brand-green focus:border-brand-green"
             />

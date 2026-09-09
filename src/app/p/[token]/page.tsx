@@ -268,7 +268,7 @@ export default function SecurePartnerPage() {
             </svg>
           </div>
           <h1 className="text-lg font-semibold text-gray-900 mb-2">Access Denied</h1>
-          <p className="text-sm text-gray-500">This link is invalid or has expired. Please contact Tech on Toast for a new link.</p>
+          <p className="text-sm text-gray-500">This link is invalid or has expired. Please contact Stacked for a new link.</p>
         </div>
       </div>
     );
@@ -332,8 +332,8 @@ export default function SecurePartnerPage() {
                 count against their name would be misleading. */}
             <p className="text-gray-500 text-sm mt-1">
               {tier === 'promote'
-                ? 'Your marketplace intelligence, powered by Tech on Toast'
-                : `${partner.leadCount} total leads referred by Tech on Toast`}
+                ? 'Your marketplace intelligence, powered by Stacked'
+                : `${partner.leadCount} total leads referred by Stacked`}
             </p>
           </div>
           <button
@@ -374,20 +374,20 @@ export default function SecurePartnerPage() {
 
         {/* KPI Cards — MAL → MQL → SQL → Won.
             Approved sees their own pipeline and can click a stage to filter
-            the table below. Promote sees what Tech on Toast is working across
+            the table below. Promote sees what Stacked is working across
             the whole community: their own row would read as zeros against
             their name, which understates the thing they're buying into. */}
         {tier === 'promote' && community && (
           <>
             <p className="text-xs text-gray-500 mb-2">
-              What Tech on Toast is working right now, across the whole community.
+              What Stacked is working right now, across the whole community.
             </p>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 mb-4">
               <div className="bg-brand-lavender rounded-2xl p-4 sm:p-5 text-brand-green shadow-sm" title={LEAD_STATUS_EXPLAINER.MAL}>
                 <p className="text-2xl sm:text-3xl font-bold">{community.mal.toLocaleString()}</p>
                 <p className="text-xs sm:text-sm font-medium opacity-75 mt-1">MAL</p>
                 <p className="text-[10px] opacity-60 mt-0.5">Marketing Awareness Leads</p>
-                <p className="text-[10px] sm:text-xs opacity-60 mt-2">Across every Tech on Toast partner</p>
+                <p className="text-[10px] sm:text-xs opacity-60 mt-2">Across every Stacked partner</p>
               </div>
               <div className="bg-brand-sky rounded-2xl p-4 sm:p-5 text-brand-green shadow-sm" title={LEAD_STATUS_EXPLAINER.MQL}>
                 <p className="text-2xl sm:text-3xl font-bold">{community.mql.toLocaleString()}</p>
@@ -582,7 +582,7 @@ export default function SecurePartnerPage() {
                           const stale = isStale(lead);
                           const isExpanded = expandedLeadId === lead.id;
                           // Stage-gated visibility:
-                          //   MQL → position only (Tech on Toast handles outreach)
+                          //   MQL → position only (Stacked handles outreach)
                           //   SQL / Closed Won / Closed Lost → full contact + notes
                           const stageKey = (lead.status || '').trim();
                           const isMql = stageKey === 'MQL';
@@ -607,7 +607,7 @@ export default function SecurePartnerPage() {
                                   <button
                                     onClick={e => { e.stopPropagation(); openFeedback({ id: lead.id, businessName: lead.businessName }); }}
                                     className="text-xs text-brand-green hover:text-brand-green-soft underline"
-                                    title="Tell Tech on Toast where this lead actually is"
+                                    title="Tell Stacked where this lead actually is"
                                   >
                                     Update status
                                   </button>
@@ -630,7 +630,7 @@ export default function SecurePartnerPage() {
                                           </p>
                                         </div>
                                         <p className="text-[11px] text-amber-800 bg-amber-50 border border-amber-200 rounded-md px-3 py-2">
-                                          Tech on Toast handles all MQL outreach. Contact details unlock when this lead progresses to SQL — we'll notify you in Slack the moment it does.
+                                          Stacked handles all MQL outreach. Contact details unlock when this lead progresses to SQL — we'll notify you in Slack the moment it does.
                                         </p>
                                       </div>
                                     ) : (
@@ -658,12 +658,12 @@ export default function SecurePartnerPage() {
                                               </p>
                                             )}
                                             {!lead.contactEmail && !lead.contactNumber && (
-                                              <p className="text-gray-400 italic text-xs">No email or phone on file — chase Tech on Toast for the details.</p>
+                                              <p className="text-gray-400 italic text-xs">No email or phone on file — chase Stacked for the details.</p>
                                             )}
                                           </div>
                                         </div>
                                         <div>
-                                          <p className="text-[10px] uppercase tracking-wider text-gray-500 mb-1">Tech on Toast notes</p>
+                                          <p className="text-[10px] uppercase tracking-wider text-gray-500 mb-1">Stacked notes</p>
                                           <p className="text-gray-700 leading-relaxed whitespace-pre-line">
                                             {lead.totNotes || <span className="text-gray-400 italic">No notes yet.</span>}
                                           </p>
@@ -875,7 +875,7 @@ export default function SecurePartnerPage() {
 
         {/* Footer */}
         <div className="mt-12 pt-6 border-t border-gray-200 text-center">
-          <p className="text-xs text-gray-400">Tech on Toast Partner Portal</p>
+          <p className="text-xs text-gray-400">Stacked Partner Portal</p>
         </div>
       </main>
 
@@ -898,7 +898,7 @@ export default function SecurePartnerPage() {
                 <div className="mb-4">
                   <h3 className="text-lg font-semibold text-brand-green">Update lead status</h3>
                   <p className="text-xs text-gray-500 mt-0.5">
-                    Tell Tech on Toast where <span className="font-medium text-gray-800">{feedbackFor.businessName}</span> actually is.
+                    Tell Stacked where <span className="font-medium text-gray-800">{feedbackFor.businessName}</span> actually is.
                   </p>
                 </div>
 
@@ -943,7 +943,7 @@ export default function SecurePartnerPage() {
                     disabled={feedbackSubmitting}
                     className="bg-brand-green hover:bg-brand-green-soft disabled:bg-gray-300 text-white text-sm font-medium px-4 py-2 rounded-md transition-colors"
                   >
-                    {feedbackSubmitting ? 'Sending…' : 'Send to Tech on Toast'}
+                    {feedbackSubmitting ? 'Sending…' : 'Send to Stacked'}
                   </button>
                 </div>
               </>
