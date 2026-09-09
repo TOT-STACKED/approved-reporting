@@ -101,6 +101,7 @@ export default function PartnerPage() {
   // any — the shape lives inside StackCollectSection; page just passes it through.
   const [stackCollect, setStackCollect] = useState<any>(null);
   const [tier, setTier] = useState<PartnerTier>('approved');
+  const [partnerUrl, setPartnerUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
 
@@ -119,6 +120,7 @@ export default function PartnerPage() {
           setMetrics(data.metrics || []);
           setStackCollect(data.stackCollect || null);
           setTier(data.tier === 'promote' ? 'promote' : 'approved');
+          setPartnerUrl(typeof data.partnerUrl === 'string' ? data.partnerUrl : null);
           setLoading(false);
           return;
         }
@@ -291,13 +293,33 @@ export default function PartnerPage() {
               : 'Approved · partner sees everything'}
           </p>
         </div>
-        <button
-          onClick={() => setShowNarrative(true)}
-          disabled={generating}
-          className="bg-brand-green hover:bg-brand-green-soft text-white px-6 py-3 rounded-lg font-medium transition-colors disabled:opacity-50"
-        >
-          {generating ? 'Generating...' : 'Generate Report'}
-        </button>
+        <div className="flex items-center gap-3">
+          {/* Opens the partner's real link rather than imitating it here, so
+              what you see is exactly what they get — including the lead gate
+              on Promote. */}
+          {partnerUrl && (
+            <a
+              href={partnerUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="border border-brand-green/30 hover:border-brand-green text-brand-green px-5 py-3 rounded-lg font-medium transition-colors whitespace-nowrap"
+              title={
+                tier === 'promote'
+                  ? 'Opens their Promote dashboard — Intelligence and counts, lead detail locked'
+                  : 'Opens their Approved dashboard — everything, leads by name'
+              }
+            >
+              View as partner ↗
+            </a>
+          )}
+          <button
+            onClick={() => setShowNarrative(true)}
+            disabled={generating}
+            className="bg-brand-green hover:bg-brand-green-soft text-white px-6 py-3 rounded-lg font-medium transition-colors disabled:opacity-50"
+          >
+            {generating ? 'Generating...' : 'Generate Report'}
+          </button>
+        </div>
       </div>
 
       {/* Score leads the page here too, so the team reads it in the same order
