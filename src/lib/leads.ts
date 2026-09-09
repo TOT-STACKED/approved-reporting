@@ -120,3 +120,33 @@ export async function getAllLeads(): Promise<Lead[]> {
     };
   });
 }
+
+// Community-wide pipeline totals: how many leads sit at each stage across
+// every partner, counted the way the main dashboard counts them — a lead is
+// at a stage if any partner is attached to it there.
+//
+// This is what a Promote partner sees in place of their own numbers. Their
+// own pipeline is the wrong figure to show them: they aren't being sent
+// leads, so it reads as zeros against their name rather than as the scale of
+// what Approved would put in front of them.
+export interface CommunityPipeline {
+  mal: number;
+  mql: number;
+  sql: number;
+  closedWon: number;
+  total: number;
+}
+
+export async function getCommunityPipeline(): Promise<CommunityPipeline> {
+  const leads = await getAllLeads();
+  const atStage = (stage: Stage) =>
+    leads.filter(l => (l.stages?.[stage]?.length ?? 0) > 0).length;
+
+  return {
+    mal: atStage('MAL'),
+    mql: atStage('MQL'),
+    sql: atStage('SQL'),
+    closedWon: atStage('Closed Won'),
+    total: leads.length,
+  };
+}

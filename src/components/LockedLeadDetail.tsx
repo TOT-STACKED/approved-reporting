@@ -6,9 +6,10 @@ import { UPGRADE_URL } from '@/lib/partner-tier';
 // reaches this component, because the API doesn't send them. That's
 // deliberate: a blur over real data is a CSS property away from being read.
 //
-// The counts above it are real, and they're the argument. "35 MQLs are
-// sitting in your pipeline" is a better case for upgrading than any copy we
-// could write.
+// The numbers quoted are community-wide, not the partner's own. A Promote
+// partner isn't being sent leads, so "your pipeline" would be both wrong and
+// unflattering — it's the scale of what Tech on Toast is working that makes
+// the case, not a column of zeros with their name on it.
 
 function BlurredRow({ width }: { width: string }) {
   return (
@@ -21,13 +22,11 @@ function BlurredRow({ width }: { width: string }) {
 }
 
 export default function LockedLeadDetail({
-  mqlCount,
-  sqlCount,
+  community,
 }: {
-  mqlCount: number;
-  sqlCount: number;
+  community: { mal: number; mql: number; sql: number; closedWon: number; total: number } | null;
 }) {
-  const waiting = mqlCount + sqlCount;
+  const qualified = community ? community.mql + community.sql : 0;
 
   return (
     <div className="bg-white rounded-xl border border-gray-200 p-5 sm:p-6 mb-6 sm:mb-8">
@@ -38,8 +37,9 @@ export default function LockedLeadDetail({
         </span>
       </div>
       <p className="text-sm text-gray-500 mb-4 max-w-2xl">
-        Your pipeline numbers above are live. Which businesses they are — names, sources,
-        contacts and the status of each one — comes with Approved.
+        The numbers above are what Tech on Toast is working across the community. Approved
+        partners get the businesses that match them by name, with source, contact and where
+        each one got to.
       </p>
 
       <div className="relative rounded-xl border border-gray-100 bg-gray-50 px-4 py-2 overflow-hidden">
@@ -53,14 +53,14 @@ export default function LockedLeadDetail({
 
         <div className="absolute inset-0 flex flex-col items-center justify-center text-center px-4 bg-white/55">
           <p className="font-semibold text-gray-900 text-sm">
-            {waiting > 0
-              ? `${waiting} qualified lead${waiting === 1 ? '' : 's'} in your pipeline right now`
+            {qualified > 0
+              ? `We're working ${qualified.toLocaleString()} qualified leads across the community right now`
               : 'Lead detail is part of Approved'}
           </p>
           <p className="text-xs text-gray-500 mt-1 max-w-sm">
-            {waiting > 0
-              ? 'Approved shows you who they are, where they came from, and lets you log where each one got to.'
-              : 'As leads reach MQL you will see them counted above. Approved names them.'}
+            {community && community.mal > 0
+              ? `That's on top of ${community.mal.toLocaleString()} marketing leads in the community. Approved shows you the ones that match you, by name.`
+              : 'Approved shows you which businesses are in the pipeline, where they came from, and lets you log where each one got to.'}
           </p>
           <a
             href={UPGRADE_URL}

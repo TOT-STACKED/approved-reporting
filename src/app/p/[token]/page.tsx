@@ -112,6 +112,10 @@ export default function SecurePartnerPage() {
   // Set by the API, which is also where the gate is enforced — this only
   // decides what the page draws.
   const [tier, setTier] = useState<PartnerTier>('approved');
+  // Community-wide totals, sent only to Promote. See the KPI block below.
+  const [community, setCommunity] = useState<{
+    mal: number; mql: number; sql: number; closedWon: number; total: number;
+  } | null>(null);
   const [loading, setLoading] = useState(true);
   const [unauthorized, setUnauthorized] = useState(false);
   const [generating, setGenerating] = useState(false);
@@ -205,6 +209,7 @@ export default function SecurePartnerPage() {
           setActivities(data.activities || []);
           setStackCollect(data.stackCollect || null);
           setTier(data.tier === 'promote' ? 'promote' : 'approved');
+          setCommunity(data.community || null);
           setLoading(false);
           return;
         }
@@ -323,7 +328,13 @@ export default function SecurePartnerPage() {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
           <div>
             <h1 className="font-display text-4xl sm:text-5xl tracking-tight leading-[0.95] text-brand-green">{partner.name} Dashboard</h1>
-            <p className="text-gray-500 text-sm mt-1">{partner.leadCount} total leads referred by Tech on Toast</p>
+            {/* Promote isn't being referred leads, so quoting a referral
+                count against their name would be misleading. */}
+            <p className="text-gray-500 text-sm mt-1">
+              {tier === 'promote'
+                ? 'Your marketplace intelligence, powered by Tech on Toast'
+                : `${partner.leadCount} total leads referred by Tech on Toast`}
+            </p>
           </div>
           <button
             onClick={() => setShowNarrative(true)}
@@ -361,8 +372,43 @@ export default function SecurePartnerPage() {
           </div>
         )}
 
-        {/* KPI Cards — MAL → MQL → SQL → Won. MQL/SQL/Won are click-to-filter
-            the Lead Progress table below; active card gets a brand-green ring. */}
+        {/* KPI Cards — MAL → MQL → SQL → Won.
+            Approved sees their own pipeline and can click a stage to filter
+            the table below. Promote sees what Tech on Toast is working across
+            the whole community: their own row would read as zeros against
+            their name, which understates the thing they're buying into. */}
+        {tier === 'promote' && community && (
+          <>
+            <p className="text-xs text-gray-500 mb-2">
+              What Tech on Toast is working right now, across the whole community.
+            </p>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 mb-4">
+              <div className="bg-brand-lavender rounded-2xl p-4 sm:p-5 text-brand-green shadow-sm" title={LEAD_STATUS_EXPLAINER.MAL}>
+                <p className="text-2xl sm:text-3xl font-bold">{community.mal.toLocaleString()}</p>
+                <p className="text-xs sm:text-sm font-medium opacity-75 mt-1">MAL</p>
+                <p className="text-[10px] opacity-60 mt-0.5">Marketing Awareness Leads</p>
+                <p className="text-[10px] sm:text-xs opacity-60 mt-2">{community.total.toLocaleString()} leads in the community</p>
+              </div>
+              <div className="bg-brand-sky rounded-2xl p-4 sm:p-5 text-brand-green shadow-sm" title={LEAD_STATUS_EXPLAINER.MQL}>
+                <p className="text-2xl sm:text-3xl font-bold">{community.mql.toLocaleString()}</p>
+                <p className="text-xs sm:text-sm font-medium opacity-75 mt-1">MQL</p>
+                <p className="text-[10px] opacity-60 mt-0.5">Marketing Qualified</p>
+              </div>
+              <div className="bg-brand-lime rounded-2xl p-4 sm:p-5 text-brand-green shadow-sm" title={LEAD_STATUS_EXPLAINER.SQL}>
+                <p className="text-2xl sm:text-3xl font-bold">{community.sql.toLocaleString()}</p>
+                <p className="text-xs sm:text-sm font-medium opacity-90 mt-1">SQL</p>
+                <p className="text-[10px] opacity-75 mt-0.5">Sales Qualified</p>
+              </div>
+              <div className="bg-brand-green rounded-2xl p-4 sm:p-5 text-white shadow-sm">
+                <p className="text-2xl sm:text-3xl font-bold">{community.closedWon.toLocaleString()}</p>
+                <p className="text-xs sm:text-sm font-medium opacity-90 mt-1">Closed Won</p>
+                <p className="text-[10px] opacity-75 mt-0.5">Deals done with partners</p>
+              </div>
+            </div>
+          </>
+        )}
+
+        {tier === 'approved' && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 mb-4">
           <div className="bg-brand-lavender rounded-2xl p-4 sm:p-5 text-brand-green shadow-sm" title={LEAD_STATUS_EXPLAINER.MAL}>
             <p className="text-2xl sm:text-3xl font-bold">{malCount}</p>
@@ -404,6 +450,7 @@ export default function SecurePartnerPage() {
             <p className="text-[10px] opacity-75 mt-0.5">{stageFilter === 'Closed Won' ? 'Showing below' : 'Click to show'}</p>
           </button>
         </div>
+        )}
 
         {/* Pipeline conversion rates — under the KPI cards, above the table. */}
         {SHOW_FUNNEL_STRIP && (
@@ -442,7 +489,7 @@ export default function SecurePartnerPage() {
 
         {/* Lead Progress. On Promote the rows never arrive from the API, so
             this renders the locked panel instead of an empty table. */}
-        {tier === 'promote' && <LockedLeadDetail mqlCount={mqlCount} sqlCount={sqlCount} />}
+        {tier === 'promote' && <LockedLeadDetail community={community} />}
 
         {tier === 'approved' && (
         <div className="bg-white rounded-xl border border-gray-200 p-5 sm:p-6 mb-6 sm:mb-8">
