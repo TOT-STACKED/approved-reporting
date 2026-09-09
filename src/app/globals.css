@@ -1,45 +1,209 @@
 @import "tailwindcss";
 
-/* Stacked brand palette — retuned July 2026 from the new brand identity.
-   The legacy `brand-green` token name is kept so existing utilities keep
-   working, but its value is now the deep purple-black ink used across the
-   marketing site. Same for brand-pink, brand-lime, brand-yellow, brand-lavender
-   — the utility classes stay, the colours behind them shift to match the
-   new visual language.
+/* ---------------------------------------------------------------------------
+   Stacked brand tokens — retuned September 2026 to the Stacked partner
+   dashboard spec, so partner reporting matches wearestacked.io exactly.
 
-   New token: `brand-berry` for the deep magenta accent (Approved Partners
-   badges and stamps). */
+   Two things happen in this file:
+
+   1. The `brand-*` tokens keep their names (281 uses of `brand-green` alone)
+      but now hold the spec's values, so every existing utility lands on the
+      new palette without touching call sites.
+
+   2. Tailwind's own gray/red/amber/emerald/purple/orange scales are
+      overridden with the brand equivalents. The dashboard was built on stock
+      Tailwind greys and traffic-light hues; rather than rewrite ~900 class
+      names (and re-break them on the next component someone adds), the
+      palette underneath them is replaced. `text-gray-500` is now the spec's
+      muted ink, `bg-emerald-50` the positive wash, and so on. Nothing stock
+      remains — a stray `text-gray-900` is on-brand by construction.
+--------------------------------------------------------------------------- */
 @theme {
-  --color-brand-green: #231A2D;
-  --color-brand-green-soft: #3A2D47;
-  --color-brand-cream: #F4EFDF;
-  --color-brand-cream-soft: #FBF7EC;
-  --color-brand-orange: #F27E3E;
-  --color-brand-berry: #8B1B47;
-  --color-brand-pink: #F7B5C8;
-  --color-brand-lime: #B8D874;
-  --color-brand-yellow: #F1CD54;
-  --color-brand-lavender: #C9B4E6;
-  --color-brand-sky: #CEE2F7;
+  /* --- Canvas and text ---------------------------------------------------- */
+  --color-bg: #F1F0E9;          /* page — warm off-white, never pure white */
+  --color-surface: #FFFFFF;     /* cards */
+  --color-surface-2: #F2EFE6;   /* paper panels */
+  --color-border: #E6E1D2;
+  --color-ink: #38278F;         /* default text — dark purple, not black */
+  --color-ink-deep: #2A1D6B;
+  --color-muted: #5A564F;
+  --color-dim: #827D74;
 
-  --font-display: "Archivo Black", ui-sans-serif, system-ui, sans-serif;
-  --font-body: "DM Sans", ui-sans-serif, system-ui, sans-serif;
-  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  /* --- Brand ------------------------------------------------------------- */
+  --color-primary: #FF5014;       /* calls to action only, never a chart fill */
+  --color-primary-hover: #FF7A4A;
+  --color-primary-press: #C34014;
+  --color-primary-tint: #FFD1BE;
+  --color-primary-wash: #FFF3EC;
+
+  --color-positive: #167034;
+  --color-positive-bright: #3BD36F;
+  --color-positive-tint: #C7F3D5;
+  --color-warning: #F5A524;
+  --color-warning-dark: #8B5A0F;
+  --color-warning-tint: #FBE3B0;
+  --color-negative: #E5484D;
+  --color-negative-dark: #7A1E21;
+  --color-negative-tint: #F5C6C8;
+
+  /* --- Chart series, in order. Flat fills, no gradients, never orange. ---- */
+  --color-series-1: #38278F;
+  --color-series-2: #FF90C0;
+  --color-series-3: #90D8F0;
+  --color-series-4: #B0F070;
+  --color-series-5: #D8C0F0;
+  --color-series-6: #FFC090;
+  --color-series-7: #FFF0C0;
+
+  /* --- Service tags (fixed mapping, do not reassign) --------------------- */
+  --color-tag-recruitment: #D9F2B4;
+  --color-tag-advisory: #C9AFF5;
+  --color-tag-events: #BFE3F2;
+
+  /* --- Legacy brand-* names, repointed at the spec ----------------------- */
+  --color-brand-green: #38278F;        /* the ink/dark-panel purple */
+  --color-brand-green-soft: #2A1D6B;
+  --color-brand-cream: #F2EFE6;
+  --color-brand-cream-soft: #F1F0E9;
+  --color-brand-orange: #FF5014;
+  --color-brand-berry: #38278F;
+  --color-brand-pink: #FF90C0;
+  --color-brand-lime: #B0F070;
+  --color-brand-yellow: #FFF0C0;
+  --color-brand-lavender: #D8C0F0;
+  --color-brand-sky: #90D8F0;
+
+  /* --- Tailwind neutrals, rebuilt on the warm brand ink ------------------ */
+  --color-gray-50:  #F6F4EC;
+  --color-gray-100: #EDE9DC;
+  --color-gray-200: #E6E1D2;
+  --color-gray-300: #CFC9B8;
+  --color-gray-400: #827D74;
+  --color-gray-500: #5A564F;
+  --color-gray-600: #4A463F;
+  --color-gray-700: #38278F;   /* body copy lands on brand ink */
+  --color-gray-800: #38278F;
+  --color-gray-900: #38278F;
+  --color-slate-400: #827D74;
+  --color-slate-500: #5A564F;
+
+  /* --- Positive ---------------------------------------------------------- */
+  --color-emerald-50:  #E9F8EE;
+  --color-emerald-100: #C7F3D5;
+  --color-emerald-200: #A5E9BC;
+  --color-emerald-500: #3BD36F;
+  --color-emerald-600: #22A551;
+  --color-emerald-700: #167034;
+  --color-emerald-800: #125C2B;
+  --color-green-100: #C7F3D5;
+  --color-green-500: #3BD36F;
+  --color-green-600: #22A551;
+  --color-green-700: #167034;
+  --color-teal-500: #3BD36F;
+
+  /* --- Warning ----------------------------------------------------------- */
+  --color-amber-50:  #FDF4E3;
+  --color-amber-100: #FBE3B0;
+  --color-amber-200: #F7D08A;
+  --color-amber-300: #F5A524;
+  --color-amber-400: #F5A524;
+  --color-amber-500: #F5A524;
+  --color-amber-600: #B47A12;
+  --color-amber-700: #8B5A0F;
+  --color-amber-800: #7A4E0D;
+  --color-amber-900: #63400B;
+  --color-yellow-100: #FBE3B0;
+  --color-yellow-700: #8B5A0F;
+
+  /* --- Negative ---------------------------------------------------------- */
+  --color-red-50:  #FBEDEE;
+  --color-red-100: #F5C6C8;
+  --color-red-200: #EFB3B5;
+  --color-red-400: #E5484D;
+  --color-red-500: #E5484D;
+  --color-red-600: #C93B40;
+  --color-red-700: #7A1E21;
+  --color-rose-50:  #FBEDEE;
+  --color-rose-100: #F5C6C8;
+  --color-rose-200: #EFB3B5;
+  --color-rose-500: #E5484D;
+  --color-rose-600: #C93B40;
+  --color-rose-700: #7A1E21;
+  --color-rose-800: #6B1A1D;
+
+  /* --- Purples and blues fold into the series palette -------------------- */
+  --color-purple-100: #EED0FE;
+  --color-purple-500: #D47CFD;
+  --color-purple-600: #8B44B8;
+  --color-purple-700: #38278F;
+  --color-violet-500: #D47CFD;
+  --color-indigo-500: #38278F;
+  --color-blue-50:  #EAF7FC;
+  --color-blue-100: #D6EFF8;
+  --color-blue-500: #90D8F0;
+  --color-blue-700: #2A6E86;
+  --color-sky-500: #90D8F0;
+  --color-cyan-500: #90D8F0;
+  --color-lime-500: #B0F070;
+  --color-pink-500: #FF90C0;
+
+  /* --- Orange is the CTA ramp. Text shades use press so they clear AA. --- */
+  --color-orange-50:  #FFF3EC;
+  --color-orange-100: #FFD1BE;
+  --color-orange-200: #FFB79B;
+  --color-orange-400: #FF7A4A;
+  --color-orange-500: #FF5014;
+  --color-orange-600: #C34014;
+  --color-orange-700: #A03510;
+
+  --color-green-50: #E9F8EE;
+  --color-green-200: #A5E9BC;
+  --color-rose-300: #E79A9D;
+  --color-rose-400: #E5484D;
+  --color-rose-900: #5C1618;
+  --color-purple-300: #EED0FE;
+  --color-indigo-400: #6B5AC4;
+  --color-indigo-700: #2A1D6B;
+  --color-cyan-100: #D6EFF8;
+  --color-cyan-700: #2A6E86;
+  --color-pink-400: #FF90C0;
+  --color-orange-300: #FF9061;
+
+  /* --- Radii: one per element type across the whole dashboard ------------ */
+  --radius-md: 12px;   /* small elements */
+  --radius-lg: 18px;   /* cards */
+  --radius-xl: 28px;   /* hero tiles */
+
+  /* --- Type -------------------------------------------------------------- */
+  --font-display: var(--font-chunko), ui-sans-serif, system-ui, sans-serif;
+  --font-body: var(--font-dm-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, "SF Mono", Menlo, monospace;
 }
 
 body {
+  background: var(--color-bg);
+  color: var(--color-ink);
   font-family: var(--font-dm-sans), ui-sans-serif, system-ui, sans-serif;
   font-feature-settings: "ss01", "cv11";
 }
 
-/* Display face for headings on marketing/dashboard surfaces. Applied
-   selectively via `font-display` utility to avoid running-text pages
-   suddenly turning chunky. */
+/* Chunko Bold: headings and big numbers only, never body or table text.
+   Uppercase is applied per-use, not here, so a partner's name in a heading
+   isn't shouted. */
 .font-display {
-  font-family: var(--font-archivo-black), ui-sans-serif, system-ui, sans-serif;
-  font-weight: 900;
-  letter-spacing: -0.01em;
+  font-family: var(--font-chunko), ui-sans-serif, system-ui, sans-serif;
+  font-weight: 700;
+  line-height: 1.05;
+  letter-spacing: -0.02em;
 }
+
+/* Geist Mono for metrics, dates and IDs — always tabular. */
 .font-mono {
-  font-family: var(--font-jetbrains-mono), ui-monospace, "SF Mono", Menlo, monospace;
+  font-family: var(--font-geist-mono), ui-monospace, "SF Mono", Menlo, monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+:focus-visible {
+  outline: 2px solid rgba(255, 80, 20, 0.45);
+  outline-offset: 2px;
 }

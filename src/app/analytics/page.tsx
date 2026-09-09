@@ -5,25 +5,27 @@ import {
   LineChart, Line, BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
 } from 'recharts';
+import { SERIES, GRID, POSITIVE, WARNING, NEGATIVE } from '@/lib/brand';
 import LeadStatusGlossary from '@/components/LeadStatusGlossary';
 import { LEAD_STATUS_EXPLAINER, type LeadStatusCode } from '@/lib/lead-status';
 
+// Named slots kept so the charts below read the same, but every value now
+// comes from the brand series. No orange: it's reserved for calls to action.
 const COLORS = {
-  orange: '#e67e22',
-  blue: '#2980b9',
-  emerald: '#27ae60',
-  purple: '#8e44ad',
-  red: '#c0392b',
-  teal: '#16a085',
-  navy: '#2c3e50',
-  amber: '#f39c12',
+  navy: SERIES[0],
+  pink: SERIES[1],
+  blue: SERIES[2],
+  lime: SERIES[3],
+  purple: SERIES[4],
+  peach: SERIES[5],
+  butter: SERIES[6],
+  emerald: POSITIVE,
+  red: NEGATIVE,
+  amber: WARNING,
 };
 
-const PIE_COLORS = [
-  COLORS.blue, COLORS.orange, COLORS.emerald, COLORS.purple,
-  COLORS.red, COLORS.teal, COLORS.navy, COLORS.amber,
-  '#3498db', '#e74c3c', '#1abc9c', '#9b59b6',
-];
+// Series in spec order, then the semantic three for the long tail of a pie.
+const PIE_COLORS = [...SERIES, POSITIVE, WARNING, NEGATIVE];
 
 interface AnalyticsData {
   leadStatusData: { status: string; count: number }[];
@@ -134,13 +136,13 @@ export default function AnalyticsPage() {
           <ChartCard title="Traffic Trends" subtitle="Weekly sessions, users & page views across all partners" scrollable>
             <ResponsiveContainer width="100%" height={260}>
               <LineChart data={data.trafficOverTime}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                <CartesianGrid strokeDasharray="3 3" stroke={GRID} />
                 <XAxis dataKey="week" tick={{ fontSize: 10 }} />
                 <YAxis tick={{ fontSize: 10 }} width={40} />
                 <Tooltip />
                 <Legend wrapperStyle={{ fontSize: 11 }} />
                 <Line type="monotone" dataKey="sessions" stroke={COLORS.blue} strokeWidth={2} dot={false} />
-                <Line type="monotone" dataKey="users" stroke={COLORS.orange} strokeWidth={2} dot={false} />
+                <Line type="monotone" dataKey="users" stroke={COLORS.pink} strokeWidth={2} dot={false} />
                 <Line type="monotone" dataKey="pageViews" stroke={COLORS.emerald} strokeWidth={2} dot={false} />
               </LineChart>
             </ResponsiveContainer>
@@ -176,7 +178,7 @@ export default function AnalyticsPage() {
           <div className="overflow-y-auto max-h-[500px] -mx-4 sm:-mx-6 px-4 sm:px-6">
             <ResponsiveContainer width="100%" height={Math.max(300, data.leadsByPartner.length * 32)}>
               <BarChart data={data.leadsByPartner} layout="vertical" margin={{ left: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                <CartesianGrid strokeDasharray="3 3" stroke={GRID} />
                 <XAxis type="number" tick={{ fontSize: 10 }} />
                 <YAxis dataKey="name" type="category" tick={{ fontSize: 10 }} width={100} />
                 <Tooltip />
@@ -191,12 +193,12 @@ export default function AnalyticsPage() {
           <ChartCard title="Marketing Reach" subtitle="Monthly impressions & engagements" scrollable>
             <ResponsiveContainer width="100%" height={260}>
               <BarChart data={data.marketingOverTime}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                <CartesianGrid strokeDasharray="3 3" stroke={GRID} />
                 <XAxis dataKey="month" tick={{ fontSize: 10 }} />
                 <YAxis tick={{ fontSize: 10 }} width={40} />
                 <Tooltip />
                 <Legend wrapperStyle={{ fontSize: 11 }} />
-                <Bar dataKey="impressions" fill={COLORS.orange} radius={[4, 4, 0, 0]} />
+                <Bar dataKey="impressions" fill={COLORS.pink} radius={[4, 4, 0, 0]} />
                 <Bar dataKey="engagements" fill={COLORS.purple} radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
@@ -209,11 +211,11 @@ export default function AnalyticsPage() {
             <div className="overflow-y-auto max-h-[500px] -mx-4 sm:-mx-6 px-4 sm:px-6">
               <ResponsiveContainer width="100%" height={Math.max(300, data.topTools.length * 30)}>
                 <BarChart data={data.topTools} layout="vertical" margin={{ left: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                  <CartesianGrid strokeDasharray="3 3" stroke={GRID} />
                   <XAxis type="number" tick={{ fontSize: 10 }} />
                   <YAxis dataKey="name" type="category" tick={{ fontSize: 10 }} width={90} />
                   <Tooltip />
-                  <Bar dataKey="count" fill={COLORS.teal} radius={[0, 4, 4, 0]} />
+                  <Bar dataKey="count" fill={COLORS.lime} radius={[0, 4, 4, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -226,7 +228,7 @@ export default function AnalyticsPage() {
             <div className="overflow-y-auto max-h-[500px] -mx-4 sm:-mx-6 px-4 sm:px-6">
               <ResponsiveContainer width="100%" height={Math.max(300, data.categoryData.length * 30)}>
                 <BarChart data={data.categoryData} layout="vertical" margin={{ left: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                  <CartesianGrid strokeDasharray="3 3" stroke={GRID} />
                   <XAxis type="number" tick={{ fontSize: 10 }} />
                   <YAxis dataKey="category" type="category" tick={{ fontSize: 10 }} width={130} />
                   <Tooltip />

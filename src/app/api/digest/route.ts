@@ -242,10 +242,10 @@ function escapeHtml(s: string): string {
 
 function renderDigestHtml(d: DigestData, siteUrl: string): string {
   const priorityBadge = (p: DigestLead['priority']) => {
-    const tone = p === 'hot'    ? 'background:#fee2e2;color:#b91c1c;'
-               : p === 'high'   ? 'background:#fef3c7;color:#b45309;'
-               : p === 'normal' ? 'background:#f3f4f6;color:#4b5563;'
-               :                  'background:#f9fafb;color:#9ca3af;';
+    const tone = p === 'hot'    ? 'background:#F5C6C8;color:#7A1E21;'
+               : p === 'high'   ? 'background:#FBE3B0;color:#8B5A0F;'
+               : p === 'normal' ? 'background:#EDE9DC;color:#5A564F;'
+               :                  'background:#F1F0E9;color:#827D74;';
     const label = p === 'hot' ? '🔥 Hot' : p === 'high' ? '⭐ High' : p.charAt(0).toUpperCase() + p.slice(1);
     return `<span style="display:inline-block;font-size:11px;padding:2px 8px;border-radius:10px;font-weight:600;${tone}">${label}</span>`;
   };
@@ -254,59 +254,59 @@ function renderDigestHtml(d: DigestData, siteUrl: string): string {
 
   const hotRows = d.hotLeads.length ? d.hotLeads.map(l => `
     <tr>
-      <td style="padding:8px 10px;border-bottom:1px solid #f3f4f6;">${priorityBadge(l.priority)}</td>
-      <td style="padding:8px 10px;border-bottom:1px solid #f3f4f6;font-weight:600;color:#111827;">
-        <a href="${siteUrl}/leads" style="color:#111827;text-decoration:none;">${escapeHtml(l.businessName || '—')}</a>
+      <td style="padding:8px 10px;border-bottom:1px solid #EDE9DC;">${priorityBadge(l.priority)}</td>
+      <td style="padding:8px 10px;border-bottom:1px solid #EDE9DC;font-weight:600;color:#38278F;">
+        <a href="${siteUrl}/leads" style="color:#38278F;text-decoration:none;">${escapeHtml(l.businessName || '—')}</a>
       </td>
-      <td style="padding:8px 10px;border-bottom:1px solid #f3f4f6;color:#4b5563;font-size:13px;">${escapeHtml(l.status)}</td>
-      <td style="padding:8px 10px;border-bottom:1px solid #f3f4f6;color:#6b7280;font-size:13px;">${escapeHtml(l.partners.join(', '))}</td>
-      <td style="padding:8px 10px;border-bottom:1px solid #f3f4f6;color:#6b7280;font-size:13px;text-align:right;">${l.score}</td>
-    </tr>`).join('') : `<tr><td colspan="5" style="padding:12px;color:#9ca3af;font-size:13px;">No hot leads right now — keep pushing 👊</td></tr>`;
+      <td style="padding:8px 10px;border-bottom:1px solid #EDE9DC;color:#5A564F;font-size:13px;">${escapeHtml(l.status)}</td>
+      <td style="padding:8px 10px;border-bottom:1px solid #EDE9DC;color:#5A564F;font-size:13px;">${escapeHtml(l.partners.join(', '))}</td>
+      <td style="padding:8px 10px;border-bottom:1px solid #EDE9DC;color:#5A564F;font-size:13px;text-align:right;">${l.score}</td>
+    </tr>`).join('') : `<tr><td colspan="5" style="padding:12px;color:#827D74;font-size:13px;">No hot leads right now — keep pushing 👊</td></tr>`;
 
   const pipelineRows = d.statusCounts.slice(0, 8).map(s => `
     <tr>
-      <td style="padding:6px 10px;color:#374151;font-size:13px;">${escapeHtml(s.status)}</td>
-      <td style="padding:6px 10px;color:#111827;font-weight:600;text-align:right;">${s.count}</td>
+      <td style="padding:6px 10px;color:#38278F;font-size:13px;">${escapeHtml(s.status)}</td>
+      <td style="padding:6px 10px;color:#38278F;font-weight:600;text-align:right;">${s.count}</td>
     </tr>`).join('');
 
   const activeRows = d.partnersActive.length ? d.partnersActive.map(p => `
     <tr>
-      <td style="padding:6px 10px;color:#111827;font-weight:500;">${escapeHtml(p.name)}</td>
-      <td style="padding:6px 10px;color:#4b5563;font-size:13px;text-align:right;">${p.activities} activit${p.activities === 1 ? 'y' : 'ies'}</td>
-      <td style="padding:6px 10px;color:#4b5563;font-size:13px;text-align:right;">${p.newLeads} new lead${p.newLeads === 1 ? '' : 's'}</td>
-    </tr>`).join('') : `<tr><td colspan="3" style="padding:12px;color:#9ca3af;font-size:13px;">No partner activity logged this week.</td></tr>`;
+      <td style="padding:6px 10px;color:#38278F;font-weight:500;">${escapeHtml(p.name)}</td>
+      <td style="padding:6px 10px;color:#5A564F;font-size:13px;text-align:right;">${p.activities} activit${p.activities === 1 ? 'y' : 'ies'}</td>
+      <td style="padding:6px 10px;color:#5A564F;font-size:13px;text-align:right;">${p.newLeads} new lead${p.newLeads === 1 ? '' : 's'}</td>
+    </tr>`).join('') : `<tr><td colspan="3" style="padding:12px;color:#827D74;font-size:13px;">No partner activity logged this week.</td></tr>`;
 
   const quietRows = d.partnersQuiet.length ? d.partnersQuiet.map(p => `
     <tr>
-      <td style="padding:6px 10px;color:#111827;font-size:13px;">${escapeHtml(p.name)}</td>
-      <td style="padding:6px 10px;color:#b91c1c;font-size:13px;text-align:right;">${p.daysSinceLastLead == null ? 'never' : `${p.daysSinceLastLead}d quiet`}</td>
+      <td style="padding:6px 10px;color:#38278F;font-size:13px;">${escapeHtml(p.name)}</td>
+      <td style="padding:6px 10px;color:#7A1E21;font-size:13px;text-align:right;">${p.daysSinceLastLead == null ? 'never' : `${p.daysSinceLastLead}d quiet`}</td>
     </tr>`).join('') : '';
 
   return `<!doctype html>
 <html>
-  <body style="margin:0;background:#f9fafb;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;color:#111827;">
+  <body style="margin:0;background:#F1F0E9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;color:#38278F;">
     <div style="max-width:640px;margin:0 auto;padding:24px;">
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
-        <div style="width:28px;height:28px;background:#f97316;border-radius:6px;color:#fff;font-weight:700;font-size:13px;display:flex;align-items:center;justify-content:center;">ToT</div>
-        <span style="font-weight:600;color:#111827;font-size:15px;">Tech on Toast · Weekly Digest</span>
+        <div style="width:28px;height:28px;background:#FF5014;border-radius:6px;color:#fff;font-weight:700;font-size:13px;display:flex;align-items:center;justify-content:center;">ToT</div>
+        <span style="font-weight:600;color:#38278F;font-size:15px;">Tech on Toast · Weekly Digest</span>
       </div>
       <h1 style="margin:0 0 4px;font-size:22px;font-weight:700;">Week of ${weekLabel}</h1>
-      <p style="color:#6b7280;font-size:14px;margin:0 0 24px;">
+      <p style="color:#5A564F;font-size:14px;margin:0 0 24px;">
         ${d.touchedThisWeek.length} leads touched · ${d.newThisWeek.length} new · ${d.hotLeads.length} hot ·
-        <a href="${siteUrl}" style="color:#f97316;text-decoration:none;">open dashboard →</a>
+        <a href="${siteUrl}" style="color:#FF5014;text-decoration:none;">open dashboard →</a>
       </p>
 
       <!-- Top hot leads -->
-      <div style="background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:16px;margin-bottom:16px;">
+      <div style="background:#fff;border:1px solid #E6E1D2;border-radius:12px;padding:16px;margin-bottom:16px;">
         <h2 style="margin:0 0 12px;font-size:16px;font-weight:600;">🔥 Top leads to action</h2>
         <table style="width:100%;border-collapse:collapse;">
           <thead>
             <tr>
-              <th style="text-align:left;padding:6px 10px;font-size:11px;font-weight:500;color:#6b7280;text-transform:uppercase;letter-spacing:.04em;">Priority</th>
-              <th style="text-align:left;padding:6px 10px;font-size:11px;font-weight:500;color:#6b7280;text-transform:uppercase;letter-spacing:.04em;">Business</th>
-              <th style="text-align:left;padding:6px 10px;font-size:11px;font-weight:500;color:#6b7280;text-transform:uppercase;letter-spacing:.04em;">Status</th>
-              <th style="text-align:left;padding:6px 10px;font-size:11px;font-weight:500;color:#6b7280;text-transform:uppercase;letter-spacing:.04em;">Partners</th>
-              <th style="text-align:right;padding:6px 10px;font-size:11px;font-weight:500;color:#6b7280;text-transform:uppercase;letter-spacing:.04em;">Score</th>
+              <th style="text-align:left;padding:6px 10px;font-size:11px;font-weight:500;color:#5A564F;text-transform:uppercase;letter-spacing:.04em;">Priority</th>
+              <th style="text-align:left;padding:6px 10px;font-size:11px;font-weight:500;color:#5A564F;text-transform:uppercase;letter-spacing:.04em;">Business</th>
+              <th style="text-align:left;padding:6px 10px;font-size:11px;font-weight:500;color:#5A564F;text-transform:uppercase;letter-spacing:.04em;">Status</th>
+              <th style="text-align:left;padding:6px 10px;font-size:11px;font-weight:500;color:#5A564F;text-transform:uppercase;letter-spacing:.04em;">Partners</th>
+              <th style="text-align:right;padding:6px 10px;font-size:11px;font-weight:500;color:#5A564F;text-transform:uppercase;letter-spacing:.04em;">Score</th>
             </tr>
           </thead>
           <tbody>${hotRows}</tbody>
@@ -315,24 +315,24 @@ function renderDigestHtml(d: DigestData, siteUrl: string): string {
 
       <!-- Pipeline snapshot + partner activity side-by-side on wide, stacked on mobile -->
       <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:16px;">
-        <div style="flex:1;min-width:260px;background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:16px;">
+        <div style="flex:1;min-width:260px;background:#fff;border:1px solid #E6E1D2;border-radius:12px;padding:16px;">
           <h2 style="margin:0 0 12px;font-size:16px;font-weight:600;">Pipeline snapshot</h2>
           <table style="width:100%;border-collapse:collapse;">${pipelineRows}</table>
         </div>
-        <div style="flex:1;min-width:260px;background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:16px;">
+        <div style="flex:1;min-width:260px;background:#fff;border:1px solid #E6E1D2;border-radius:12px;padding:16px;">
           <h2 style="margin:0 0 12px;font-size:16px;font-weight:600;">Most active partners this week</h2>
           <table style="width:100%;border-collapse:collapse;">${activeRows}</table>
         </div>
       </div>
 
       ${d.partnersQuiet.length ? `
-      <div style="background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:16px;margin-bottom:16px;">
+      <div style="background:#fff;border:1px solid #E6E1D2;border-radius:12px;padding:16px;margin-bottom:16px;">
         <h2 style="margin:0 0 12px;font-size:16px;font-weight:600;">😴 Partners gone quiet (14+ days)</h2>
         <table style="width:100%;border-collapse:collapse;">${quietRows}</table>
       </div>` : ''}
 
-      <p style="color:#9ca3af;font-size:12px;text-align:center;margin:24px 0 0;">
-        Automated by the Tech on Toast portal · <a href="${siteUrl}" style="color:#9ca3af;">approvedreporting.netlify.app</a>
+      <p style="color:#827D74;font-size:12px;text-align:center;margin:24px 0 0;">
+        Automated by the Tech on Toast portal · <a href="${siteUrl}" style="color:#827D74;">approvedreporting.netlify.app</a>
       </p>
     </div>
   </body>

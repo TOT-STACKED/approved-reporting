@@ -1,15 +1,17 @@
 import type { Metadata } from "next";
-import { Archivo_Black, DM_Sans, JetBrains_Mono } from "next/font/google";
+import { DM_Sans, Geist_Mono } from "next/font/google";
+import localFont from "next/font/local";
 import "./globals.css";
 import AppShell from "@/components/AppShell";
 
-// Stacked brand type stack. Archivo Black stands in for Chunko Bold (the paid
-// display face) with the same chunky-heavy character. DM Sans carries the
-// body. JetBrains Mono for data and code. All three self-hosted via next/font.
-const archivoBlack = Archivo_Black({
-  variable: "--font-archivo-black",
-  subsets: ["latin"],
-  weight: "400",
+// Stacked brand type stack, per the partner dashboard spec. Three faces, no
+// others: Chunko Bold for display, DM Sans for everything readable, Geist Mono
+// for numbers. Chunko is the licensed Stacked file, self-hosted from src/fonts
+// (it is not on Google Fonts); the other two come through next/font.
+const chunko = localFont({
+  src: "../fonts/chunko-bold.woff2",
+  variable: "--font-chunko",
+  weight: "700",
   display: "swap",
 });
 const dmSans = DM_Sans({
@@ -17,8 +19,8 @@ const dmSans = DM_Sans({
   subsets: ["latin"],
   display: "swap",
 });
-const jetbrainsMono = JetBrains_Mono({
-  variable: "--font-jetbrains-mono",
+const geistMono = Geist_Mono({
+  variable: "--font-geist-mono",
   subsets: ["latin"],
   display: "swap",
 });
@@ -36,7 +38,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${archivoBlack.variable} ${dmSans.variable} ${jetbrainsMono.variable} h-full antialiased`}
+      className={`${chunko.variable} ${dmSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col bg-brand-cream-soft text-brand-green">
         <AppShell>{children}</AppShell>

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
 } from 'recharts';
+import { GRID, INK } from '@/lib/brand';
 import LeadStatusGlossary from '@/components/LeadStatusGlossary';
 import { LEAD_STATUS_EXPLAINER } from '@/lib/lead-status';
 
@@ -144,11 +145,11 @@ export default function CommunityPage() {
             ) : (
               <ResponsiveContainer width="100%" height={220}>
                 <BarChart data={data.stackReviews.reviewsByMonth}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                  <CartesianGrid strokeDasharray="3 3" stroke={GRID} />
                   <XAxis dataKey="month" tickFormatter={monthLabel} tick={{ fontSize: 11 }} />
                   <YAxis tick={{ fontSize: 11 }} width={30} />
                   <Tooltip labelFormatter={(label: unknown) => monthLabel(String(label ?? ''))} />
-                  <Bar dataKey="count" fill="#f97316" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="count" fill={INK} radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             )}

@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
 import { getPartnerDetail } from '@/lib/airtable';
 import { getPartnerStackCollectData } from '@/lib/stackcollect';
+import {
+  INK, MUTED, DIM, BORDER, BG, SURFACE_2, PRIMARY, POSITIVE, SERIES, LEAD_STATUS_COLORS,
+} from '@/lib/brand';
 
 // Median days between lead creation and the lead's last status change.
 // Used as a proxy for stage-transition time on the report.
@@ -152,28 +155,36 @@ export async function POST(request: Request) {
 <html>
 <head>
   <meta charset="utf-8">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
   <style>
+    /* Stacked brand. Chunko Bold is served from this origin, so it renders in
+       the in-dashboard preview and when printing from there; a copy saved
+       elsewhere falls back to DM Sans for headings. */
+    @font-face { font-family: 'Chunko'; src: url('/fonts/chunko-bold.woff2') format('woff2'); font-weight: 700; font-display: swap; }
     @media print { body { margin: 20px; } .page-break { page-break-before: always; } }
-    body { font-family: 'Helvetica Neue', Arial, sans-serif; color: #2d3436; margin: 40px; line-height: 1.5; }
-    h1 { color: #2c3e50; font-size: 28px; margin-bottom: 4px; }
-    h2 { color: #34495e; font-size: 18px; margin-top: 32px; border-bottom: 2px solid #e67e22; padding-bottom: 6px; }
-    .subtitle { color: #7f8c8d; font-size: 14px; margin-bottom: 8px; }
-    .tagline { color: #e67e22; font-size: 15px; font-weight: 600; margin-bottom: 24px; }
-    .narrative { background: #f8f9fa; border-left: 4px solid #e67e22; padding: 20px 24px; margin: 20px 0 24px 0; border-radius: 0 8px 8px 0; font-size: 14px; line-height: 1.7; color: #2d3436; }
-    .kpi-grid { display: flex; gap: 12px; margin: 20px 0; flex-wrap: wrap; }
-    .kpi { flex: 1; min-width: 120px; padding: 16px; border-radius: 8px; color: white; text-align: center; }
-    .kpi .value { font-size: 28px; font-weight: bold; }
-    .kpi .label { font-size: 12px; opacity: 0.9; margin-top: 4px; }
-    table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 13px; }
-    th { background: #2c3e50; color: white; padding: 10px 12px; text-align: left; }
-    tr:nth-child(even) { background: #f8f9fa; }
+    body { font-family: 'DM Sans', ui-sans-serif, system-ui, sans-serif; background: ${BG}; color: ${INK}; margin: 40px; line-height: 1.45; }
+    h1 { font-family: 'Chunko', 'DM Sans', sans-serif; color: ${INK}; font-size: 36px; line-height: 1.05; letter-spacing: -0.02em; margin-bottom: 4px; }
+    h2 { font-family: 'Chunko', 'DM Sans', sans-serif; color: ${INK}; font-size: 22px; line-height: 1.05; letter-spacing: -0.02em; margin-top: 32px; border-bottom: 1px solid ${BORDER}; padding-bottom: 6px; }
+    .subtitle { color: ${MUTED}; font-size: 14px; margin-bottom: 8px; }
+    .tagline { color: ${MUTED}; font-size: 15px; font-weight: 500; margin-bottom: 24px; }
+    .narrative { background: ${SURFACE_2}; border-left: 4px solid ${PRIMARY}; padding: 20px 24px; margin: 20px 0 24px 0; border-radius: 0 12px 12px 0; font-size: 15px; line-height: 1.7; color: ${INK}; }
+    .kpi-grid { display: flex; gap: 16px; margin: 24px 0; flex-wrap: wrap; }
+    .kpi { flex: 1; min-width: 120px; padding: 24px 16px; border-radius: 18px; color: ${INK}; text-align: center; border: 1px solid ${BORDER}; }
+    .kpi .value { font-family: 'Chunko', 'DM Sans', sans-serif; font-size: 32px; line-height: 1.05; }
+    .kpi .label { font-size: 12px; text-transform: uppercase; letter-spacing: 0.12em; color: ${MUTED}; margin-top: 8px; }
+    table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 14px; }
+    th { background: ${INK}; color: #FFFFFF; padding: 10px 12px; text-align: left; font-weight: 500; }
+    td { font-variant-numeric: tabular-nums; }
+    tr:nth-child(even) { background: ${SURFACE_2}; }
     .timeline { display: flex; align-items: center; gap: 8px; margin: 24px 0; }
     .timeline-stage { display: flex; flex-direction: column; align-items: center; min-width: 80px; }
-    .timeline-circle { width: 48px; height: 48px; border-radius: 50%; color: white; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 12px; }
+    .timeline-circle { width: 48px; height: 48px; border-radius: 999px; color: ${INK}; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 12px; }
     .timeline-arrow { flex: 1; height: 2px; position: relative; min-width: 40px; }
-    .timeline-arrow .days { position: absolute; top: -18px; left: 50%; transform: translateX(-50%); font-size: 12px; font-weight: 600; white-space: nowrap; }
-    .timeline-arrow .n { position: absolute; top: 6px; left: 50%; transform: translateX(-50%); font-size: 10px; color: #95a5a6; white-space: nowrap; }
-    .footer { margin-top: 40px; padding-top: 16px; border-top: 1px solid #ddd; color: #95a5a6; font-size: 11px; text-align: center; }
+    .timeline-arrow .days { position: absolute; top: -18px; left: 50%; transform: translateX(-50%); font-size: 12px; font-weight: 600; white-space: nowrap; font-variant-numeric: tabular-nums; }
+    .timeline-arrow .n { position: absolute; top: 6px; left: 50%; transform: translateX(-50%); font-size: 10px; color: ${DIM}; white-space: nowrap; }
+    .footer { margin-top: 40px; padding-top: 16px; border-top: 1px solid ${BORDER}; color: ${DIM}; font-size: 11px; text-align: center; }
   </style>
 </head>
 <body>
@@ -185,47 +196,47 @@ export async function POST(request: Request) {
 
   <!-- Pipeline KPIs (mirrors dashboard) -->
   <div class="kpi-grid">
-    <div class="kpi" style="background:#f39c12"><div class="value">${mqlCount}</div><div class="label">MQL</div></div>
-    <div class="kpi" style="background:#27ae60"><div class="value">${sqlCount}</div><div class="label">SQL</div></div>
-    <div class="kpi" style="background:#8e44ad"><div class="value">${closedWon}</div><div class="label">Closed Won</div></div>
-    <div class="kpi" style="background:#2980b9"><div class="value">${partner.leadCount}</div><div class="label">MAL</div></div>
+    <div class="kpi" style="background:${LEAD_STATUS_COLORS.MQL}"><div class="value">${mqlCount}</div><div class="label">MQL</div></div>
+    <div class="kpi" style="background:${LEAD_STATUS_COLORS.SQL}"><div class="value">${sqlCount}</div><div class="label">SQL</div></div>
+    <div class="kpi" style="background:${POSITIVE}"><div class="value">${closedWon}</div><div class="label">Closed Won</div></div>
+    <div class="kpi" style="background:${LEAD_STATUS_COLORS.MAL}"><div class="value">${partner.leadCount}</div><div class="label">MAL</div></div>
   </div>
 
   <!-- Conversion Timeline -->
   <h2>Conversion Timeline</h2>
-  <p style="color:#7f8c8d;font-size:12px;margin:0 0 8px 0">Median days from MAL → each stage</p>
+  <p style="color:${MUTED};font-size:12px;margin:0 0 8px 0">Median days from MAL → each stage</p>
   <div class="timeline">
     <div class="timeline-stage">
-      <div class="timeline-circle" style="background:#bdc3c7;color:#2c3e50">MAL</div>
-      <div style="font-size:10px;color:#95a5a6;margin-top:6px">Day 0</div>
-      <div style="font-size:10px;color:#7f8c8d">${malCount} leads</div>
+      <div class="timeline-circle" style="background:${LEAD_STATUS_COLORS.MAL}">MAL</div>
+      <div style="font-size:10px;color:${DIM};margin-top:6px">Day 0</div>
+      <div style="font-size:10px;color:${MUTED}">${malCount} leads</div>
     </div>
-    <div class="timeline-arrow" style="background:linear-gradient(to right,#bdc3c7,#f39c12)">
-      <div class="days" style="color:#f39c12">${tMql.median !== null ? `${tMql.median}d` : '—'}</div>
+    <div class="timeline-arrow" style="background:${BORDER}">
+      <div class="days" style="color:${LEAD_STATUS_COLORS.MQL}">${tMql.median !== null ? `${tMql.median}d` : '—'}</div>
       <div class="n">n=${tMql.count}</div>
     </div>
     <div class="timeline-stage">
-      <div class="timeline-circle" style="background:#f39c12">MQL</div>
-      <div style="font-size:10px;color:#95a5a6;margin-top:6px">${tMql.median !== null ? `~${tMql.median}d` : '—'}</div>
-      <div style="font-size:10px;color:#7f8c8d">${mqlCount} leads</div>
+      <div class="timeline-circle" style="background:${LEAD_STATUS_COLORS.MQL}">MQL</div>
+      <div style="font-size:10px;color:${DIM};margin-top:6px">${tMql.median !== null ? `~${tMql.median}d` : '—'}</div>
+      <div style="font-size:10px;color:${MUTED}">${mqlCount} leads</div>
     </div>
-    <div class="timeline-arrow" style="background:linear-gradient(to right,#f39c12,#27ae60)">
-      <div class="days" style="color:#27ae60">${tSql.median !== null ? `${tSql.median}d` : '—'}</div>
+    <div class="timeline-arrow" style="background:${BORDER}">
+      <div class="days" style="color:${LEAD_STATUS_COLORS.SQL}">${tSql.median !== null ? `${tSql.median}d` : '—'}</div>
       <div class="n">n=${tSql.count}</div>
     </div>
     <div class="timeline-stage">
-      <div class="timeline-circle" style="background:#27ae60">SQL</div>
-      <div style="font-size:10px;color:#95a5a6;margin-top:6px">${tSql.median !== null ? `~${tSql.median}d` : '—'}</div>
-      <div style="font-size:10px;color:#7f8c8d">${sqlCount} leads</div>
+      <div class="timeline-circle" style="background:${LEAD_STATUS_COLORS.SQL}">SQL</div>
+      <div style="font-size:10px;color:${DIM};margin-top:6px">${tSql.median !== null ? `~${tSql.median}d` : '—'}</div>
+      <div style="font-size:10px;color:${MUTED}">${sqlCount} leads</div>
     </div>
-    <div class="timeline-arrow" style="background:linear-gradient(to right,#27ae60,#8e44ad)">
-      <div class="days" style="color:#8e44ad">${tWon.median !== null ? `${tWon.median}d` : '—'}</div>
+    <div class="timeline-arrow" style="background:${BORDER}">
+      <div class="days" style="color:${POSITIVE}">${tWon.median !== null ? `${tWon.median}d` : '—'}</div>
       <div class="n">n=${tWon.count}</div>
     </div>
     <div class="timeline-stage">
-      <div class="timeline-circle" style="background:#8e44ad;font-size:10px">Won</div>
-      <div style="font-size:10px;color:#95a5a6;margin-top:6px">${tWon.median !== null ? `~${tWon.median}d` : '—'}</div>
-      <div style="font-size:10px;color:#7f8c8d">${closedWon} leads</div>
+      <div class="timeline-circle" style="background:${POSITIVE};font-size:10px">Won</div>
+      <div style="font-size:10px;color:${DIM};margin-top:6px">${tWon.median !== null ? `~${tWon.median}d` : '—'}</div>
+      <div style="font-size:10px;color:${MUTED}">${closedWon} leads</div>
     </div>
   </div>
 
@@ -233,9 +244,9 @@ export async function POST(request: Request) {
   ${stackCollect && stackCollect.mentions > 0 ? `
   <h2>Intelligence - Marketplace Presence</h2>
   <div class="kpi-grid">
-    <div class="kpi" style="background:#4f46e5"><div class="value">${stackCollect.mentions}</div><div class="label">Times Selected by Operators</div></div>
-    <div class="kpi" style="background:#6366f1"><div class="value">${stackCollect.marketShare}%</div><div class="label">Market Share</div></div>
-    <div class="kpi" style="background:#818cf8"><div class="value">${stackCollect.totalReviews}</div><div class="label">Total Reviews on Platform</div></div>
+    <div class="kpi" style="background:${SERIES[0]}"><div class="value">${stackCollect.mentions}</div><div class="label">Times Selected by Operators</div></div>
+    <div class="kpi" style="background:${SERIES[2]}"><div class="value">${stackCollect.marketShare}%</div><div class="label">Market Share</div></div>
+    <div class="kpi" style="background:${SERIES[4]}"><div class="value">${stackCollect.totalReviews}</div><div class="label">Total Reviews on Platform</div></div>
   </div>
   ${stackCollect.categories.length > 0 ? `
   <table>
@@ -266,7 +277,7 @@ export async function POST(request: Request) {
   <!-- Recently Active Leads (MQL+, max 10 — mirrors dashboard) -->
   ${recentLeads.length > 0 ? `
   <h2>Recently Active Leads</h2>
-  <p style="color:#7f8c8d;font-size:12px;margin:0 0 8px 0">Top 10 most recently updated leads at MQL or above</p>
+  <p style="color:${MUTED};font-size:12px;margin:0 0 8px 0">Top 10 most recently updated leads at MQL or above</p>
   <table>
     <thead><tr><th>Business</th><th style="text-align:center">Status</th><th>Source</th><th style="text-align:center">Last Updated</th></tr></thead>
     <tbody>${recentLeadRows}</tbody>

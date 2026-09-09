@@ -2,6 +2,10 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import {
+  INK, DIM, GRID, AXIS, SURFACE,
+  NEGATIVE, NEGATIVE_DARK, WARNING, WARNING_DARK, POSITIVE, POSITIVE_BRIGHT,
+} from '@/lib/brand';
+import {
   LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
 } from 'recharts';
 
@@ -86,10 +90,10 @@ interface ScoreIntelligence {
   marketResponses: number;
 }
 
-// Single data hue (deep berry — the Approved Partners accent). Reference marks
-// are recessive ink differentiated by dash pattern AND a direct label, so the
+// Single data hue: series 1, the brand dark purple. Reference marks are
+// recessive ink differentiated by dash pattern AND a direct label, so the
 // chart never relies on colour to tell a value from a benchmark.
-const MARK = '#8B1B47';
+const MARK = INK;
 // Colour carries exactly two meanings on this page, and nothing else:
 //
 //   a score's LEVEL   → the red/amber/green bands below (scoreTone)
@@ -113,8 +117,8 @@ const MARK = '#8B1B47';
 // for large text only (amber 3.2:1, green 3.8:1 on white), which is fine for
 // the 48px figure and the 24px bold movement, but fails at 14px. The dark set
 // clears 4.5:1 for body copy. `scoreTone(sos, 'text')` picks the safe one.
-const SCORE_BRIGHT = { red: '#E11D48', amber: '#D97706', green: '#059669' };
-const SCORE_TEXT   = { red: '#BE123C', amber: '#B45309', green: '#047857' };
+const SCORE_BRIGHT = { red: NEGATIVE, amber: WARNING, green: POSITIVE_BRIGHT };
+const SCORE_TEXT   = { red: NEGATIVE_DARK, amber: WARNING_DARK, green: POSITIVE };
 
 function scoreBand(sos: number): 'red' | 'amber' | 'green' {
   if (sos < 2.5) return 'red';
@@ -143,7 +147,7 @@ function vsAverageTone(gap: number): string {
 function movementTone(delta: number): string {
   if (delta < 0) return SCORE_BRIGHT.red;
   if (delta > 0) return SCORE_BRIGHT.green;
-  return '#231A2D';
+  return INK;
 }
 
 function fmt(n: number): string {
@@ -444,21 +448,21 @@ function TrendChart({ trend }: { trend: ScoreTrendPoint[] }) {
       <div style={{ width: '100%', height: 190 }}>
         <ResponsiveContainer>
           <LineChart data={trend} margin={{ top: 8, right: 12, bottom: 4, left: -18 }}>
-            <CartesianGrid vertical={false} stroke="#e5e7eb" />
+            <CartesianGrid vertical={false} stroke={GRID} />
             <XAxis
               dataKey="month"
               tickFormatter={monthShort}
-              tick={{ fontSize: 10, fill: '#9ca3af' }}
+              tick={{ fontSize: 10, fill: AXIS }}
               interval="preserveStartEnd"
               minTickGap={16}
-              axisLine={{ stroke: '#e5e7eb' }}
+              axisLine={{ stroke: GRID }}
               tickLine={false}
             />
             <YAxis
               domain={[yMin, yMax]}
               ticks={[yMin, yMax]}
               tickFormatter={(v: number) => fmt(v)}
-              tick={{ fontSize: 10, fill: '#9ca3af' }}
+              tick={{ fontSize: 10, fill: AXIS }}
               axisLine={false}
               tickLine={false}
               width={44}
@@ -469,8 +473,8 @@ function TrendChart({ trend }: { trend: ScoreTrendPoint[] }) {
               dataKey="cumulativeSos"
               stroke={MARK}
               strokeWidth={2}
-              dot={{ r: 3.5, fill: MARK, stroke: '#ffffff', strokeWidth: 2 }}
-              activeDot={{ r: 6, fill: MARK, stroke: '#ffffff', strokeWidth: 2 }}
+              dot={{ r: 3.5, fill: MARK, stroke: SURFACE, strokeWidth: 2 }}
+              activeDot={{ r: 6, fill: MARK, stroke: SURFACE, strokeWidth: 2 }}
               connectNulls={false}
               // No reveal animation: this view reloads on every visit and a
               // score line that draws itself in reads as a chart still loading.
@@ -790,9 +794,9 @@ export function ScoreDetail({
                     // No leader tick when the partner is the leader — it would
                     // land on their own bar and read as a rival on top of them.
                     ...(c.leaderSos !== null && c.rank !== 1
-                      ? [{ at: c.leaderSos, label: 'Leader', dash: 'solid', ink: '#111827' }]
+                      ? [{ at: c.leaderSos, label: 'Leader', dash: 'solid', ink: INK }]
                       : []),
-                    { at: c.categoryAverage, label: 'Avg', dash: 'dashed', ink: '#9ca3af' },
+                    { at: c.categoryAverage, label: 'Avg', dash: 'dashed', ink: DIM },
                   ]}
                 />
 

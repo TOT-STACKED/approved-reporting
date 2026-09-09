@@ -6,6 +6,7 @@ import {
   PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis,
   Tooltip, ResponsiveContainer, CartesianGrid,
 } from 'recharts';
+import { LEAD_STATUS_COLORS, SERIES, GRID, AXIS, INK } from '@/lib/brand';
 import ConversionTimeline from '@/components/ConversionTimeline';
 import ConversionFunnelStrip from '@/components/ConversionFunnelStrip';
 import { usePartnerScore, ScoreHeadline, ScoreDetail } from '@/components/VendorScoreDashboard';
@@ -15,15 +16,10 @@ import AskBox from '@/components/AskBox';
 import LeadStatusGlossary from '@/components/LeadStatusGlossary';
 import { LEAD_STATUS_EXPLAINER } from '@/lib/lead-status';
 
-const STATUS_COLORS: Record<string, string> = {
-  MAL: '#94a3b8',
-  MQL: '#f59e0b',
-  SQL: '#10b981',
-  Demo: '#3b82f6',
-  'Closed Won': '#a855f7',
-  'Closed Lost': '#ef4444',
-};
-const PIE_FALLBACKS = ['#3b82f6', '#f59e0b', '#10b981', '#a855f7', '#ef4444', '#06b6d4', '#ec4899', '#84cc16'];
+const STATUS_COLORS = LEAD_STATUS_COLORS;
+// Anything outside the fixed pipeline mapping falls through to the series
+// palette in order, so an unexpected status is still on-brand.
+const PIE_FALLBACKS = SERIES;
 
 // Report sections hidden to keep the page clean. Flip any of these to true to
 // bring the section back — the markup below is untouched.
@@ -732,11 +728,11 @@ export default function PartnerPage() {
               return (
                 <ResponsiveContainer width="100%" height={Math.max(200, sourceData.length * 28)}>
                   <BarChart data={sourceData} layout="vertical" margin={{ left: 0, right: 16, top: 4, bottom: 4 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" horizontal={false} />
-                    <XAxis type="number" tick={{ fontSize: 10 }} />
-                    <YAxis dataKey="source" type="category" tick={{ fontSize: 11 }} width={110} />
+                    <CartesianGrid strokeDasharray="3 3" stroke={GRID} horizontal={false} />
+                    <XAxis type="number" tick={{ fontSize: 10, fill: AXIS }} />
+                    <YAxis dataKey="source" type="category" tick={{ fontSize: 11, fill: AXIS }} width={110} />
                     <Tooltip />
-                    <Bar dataKey="count" fill="#f97316" radius={[0, 4, 4, 0]} />
+                    <Bar dataKey="count" fill={INK} radius={[0, 4, 4, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               );
