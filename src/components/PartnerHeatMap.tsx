@@ -29,7 +29,7 @@ function healthOf(r: PerfRow): Health {
 const STYLE: Record<Health, { tile: string; dot: string; label: string }> = {
   healthy: { tile: 'bg-brand-lime/40 border-brand-green/20', dot: 'bg-brand-green',  label: 'Active' },
   watch:   { tile: 'bg-brand-yellow/50 border-amber-300',    dot: 'bg-amber-500',    label: 'Going stale' },
-  urgent:  { tile: 'bg-brand-orange/20 border-brand-orange/40', dot: 'bg-brand-orange', label: 'Watch-out' },
+  urgent:  { tile: 'bg-red-50 border-red-200', dot: 'bg-red-500', label: 'Watch-out' },
   quiet:   { tile: 'bg-gray-50 border-gray-200',             dot: 'bg-gray-300',     label: 'No pipeline' },
 };
 

@@ -109,12 +109,12 @@ export default function AnalyticsPage() {
       {/* Summary KPIs — match the main dashboard */}
       <div className="grid grid-cols-3 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-3 mb-4">
         {[
-          { label: 'MAL', value: data.summary.totalLeads.toLocaleString(), bg: 'bg-brand-sky', text: 'text-brand-green' },
-          { label: 'MQL', value: data.summary.mqlCount.toLocaleString(), bg: 'bg-brand-yellow', text: 'text-brand-green' },
-          { label: 'SQL', value: data.summary.sqlCount.toLocaleString(), bg: 'bg-brand-orange', text: 'text-white' },
+          { label: 'MAL', value: data.summary.totalLeads.toLocaleString(), bg: 'bg-brand-lavender', text: 'text-brand-green' },
+          { label: 'MQL', value: data.summary.mqlCount.toLocaleString(), bg: 'bg-brand-sky', text: 'text-brand-green' },
+          { label: 'SQL', value: data.summary.sqlCount.toLocaleString(), bg: 'bg-brand-lime', text: 'text-brand-green' },
           { label: 'Closed Won', value: data.summary.closedWon.toLocaleString(), bg: 'bg-brand-green', text: 'text-white' },
-          { label: 'Intelligence Reviews', value: data.summary.totalReviews.toLocaleString(), bg: 'bg-brand-lavender', text: 'text-brand-green' },
-          { label: 'Tool Entries', value: data.summary.totalToolEntries.toLocaleString(), bg: 'bg-brand-pink', text: 'text-white' },
+          { label: 'Intelligence Reviews', value: data.summary.totalReviews.toLocaleString(), bg: 'bg-brand-pink', text: 'text-brand-green' },
+          { label: 'Tool Entries', value: data.summary.totalToolEntries.toLocaleString(), bg: 'bg-brand-yellow', text: 'text-brand-green' },
         ].map(kpi => {
           const tooltip = LEAD_STATUS_EXPLAINER[kpi.label as LeadStatusCode];
           return (

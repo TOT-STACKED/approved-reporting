@@ -55,6 +55,6 @@ export const LEAD_STATUS_COLORS: Record<string, string> = {
   MQL: '#90D8F0',
   SQL: '#B0F070',
   Demo: '#FFC090',
-  'Closed Won': POSITIVE,
+  'Closed Won': INK,
   'Closed Lost': NEGATIVE,
 };

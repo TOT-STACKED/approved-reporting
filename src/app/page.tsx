@@ -144,7 +144,7 @@ export default function Dashboard() {
           <p className="font-display text-5xl sm:text-6xl leading-[0.9] tracking-tight tabular-nums">{mqlCount}</p>
           <p className="font-mono text-[10px] uppercase tracking-[0.22em] mt-4 opacity-70">MQL</p>
         </div>
-        <div className="relative bg-brand-orange rounded-3xl p-5 sm:p-7 text-white shadow-sm hover:shadow-md transition-shadow" title={LEAD_STATUS_EXPLAINER.SQL}>
+        <div className="relative bg-brand-lime rounded-3xl p-5 sm:p-7 text-brand-green shadow-sm hover:shadow-md transition-shadow" title={LEAD_STATUS_EXPLAINER.SQL}>
           <span aria-hidden className="absolute top-4 right-4 w-2.5 h-2.5 rounded-full bg-white/50" />
           <p className="font-display text-5xl sm:text-6xl leading-[0.9] tracking-tight tabular-nums">{sqlCount}</p>
           <p className="font-mono text-[10px] uppercase tracking-[0.22em] mt-4 opacity-85">SQL</p>

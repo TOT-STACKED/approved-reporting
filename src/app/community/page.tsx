@@ -103,11 +103,11 @@ export default function CommunityPage() {
             <p className="text-xs sm:text-sm font-medium opacity-75 mt-1">MAL</p>
             <p className="text-[10px] opacity-60 mt-1">Marketing Awareness Leads</p>
           </div>
-          <div className="bg-brand-yellow rounded-2xl p-4 text-brand-green shadow-sm" title={LEAD_STATUS_EXPLAINER.MQL}>
+          <div className="bg-brand-sky rounded-2xl p-4 text-brand-green shadow-sm" title={LEAD_STATUS_EXPLAINER.MQL}>
             <p className="text-2xl sm:text-3xl font-bold">{data.leadGen.mqlTotal.toLocaleString()}</p>
             <p className="text-xs sm:text-sm font-medium opacity-75 mt-1">MQL</p>
           </div>
-          <div className="bg-brand-orange rounded-2xl p-4 text-white shadow-sm" title={LEAD_STATUS_EXPLAINER.SQL}>
+          <div className="bg-brand-lime rounded-2xl p-4 text-brand-green shadow-sm" title={LEAD_STATUS_EXPLAINER.SQL}>
             <p className="text-2xl sm:text-3xl font-bold">{data.leadGen.sqlTotal.toLocaleString()}</p>
             <p className="text-xs sm:text-sm font-medium opacity-90 mt-1">SQL</p>
           </div>

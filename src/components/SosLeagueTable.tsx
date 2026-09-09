@@ -29,7 +29,7 @@ function band(sos: number): Band {
   if (sos >= 4.5) return { label: 'Exceptional', pill: 'bg-brand-green text-white', bar: 'bg-brand-green' };
   if (sos >= 4.0) return { label: 'Strong', pill: 'bg-brand-lime/50 text-brand-green', bar: 'bg-brand-lime' };
   if (sos >= 3.0) return { label: 'Solid', pill: 'bg-brand-yellow/60 text-brand-green', bar: 'bg-brand-yellow' };
-  if (sos >= 2.0) return { label: 'Mixed', pill: 'bg-brand-orange/20 text-brand-orange', bar: 'bg-brand-orange' };
+  if (sos >= 2.0) return { label: 'Mixed', pill: 'bg-amber-100 text-amber-800', bar: 'bg-amber-500' };
   return { label: 'Caution', pill: 'bg-rose-100 text-rose-700', bar: 'bg-rose-500' };
 }
 

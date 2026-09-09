@@ -224,7 +224,7 @@ export default function PerformancePage() {
           <p className="text-2xl sm:text-3xl font-bold">{visible.reduce((s, r) => s + r.mqlCount, 0).toLocaleString()}</p>
           <p className="text-xs sm:text-sm font-medium opacity-75 mt-1">MQLs in pipeline</p>
         </div>
-        <div className="bg-brand-orange rounded-2xl p-4 sm:p-5 text-white shadow-sm" title={LEAD_STATUS_EXPLAINER.SQL}>
+        <div className="bg-brand-lime rounded-2xl p-4 sm:p-5 text-brand-green shadow-sm" title={LEAD_STATUS_EXPLAINER.SQL}>
           <p className="text-2xl sm:text-3xl font-bold">{totalSql.toLocaleString()}</p>
           <p className="text-xs sm:text-sm font-medium opacity-90 mt-1">SQLs generated</p>
         </div>

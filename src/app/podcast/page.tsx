@@ -189,7 +189,7 @@ export default function PodcastPage() {
         <button
           onClick={backfillAll}
           disabled={isBusy || pending === 0}
-          className="bg-brand-orange hover:bg-brand-orange/85 disabled:bg-gray-300 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+          className="bg-brand-orange hover:bg-brand-orange/85 disabled:bg-gray-300 text-brand-green text-sm font-medium px-4 py-2 rounded-lg transition-colors"
           title="Process every pending episode in sequence"
         >
           {busy === 'backfilling'

@@ -320,7 +320,7 @@ export default function SecurePartnerPage() {
           <button
             onClick={() => setShowNarrative(true)}
             disabled={generating}
-            className="bg-brand-green hover:bg-brand-green-soft text-white px-5 py-2.5 rounded-lg font-medium text-sm transition-colors disabled:opacity-50 whitespace-nowrap"
+            className="bg-brand-orange hover:bg-orange-400 active:bg-orange-600 text-brand-green px-5 py-2.5 rounded-full font-medium text-sm transition-colors disabled:opacity-50 whitespace-nowrap shadow-[4px_4px_0_0_#C34014]"
           >
             {generating ? 'Generating...' : 'Generate Report'}
           </button>
@@ -332,7 +332,7 @@ export default function SecurePartnerPage() {
 
         {/* Narrative Input */}
         {showNarrative && (
-          <div className="bg-white rounded-xl border-2 border-brand-orange/40 p-5 sm:p-6 mb-8 shadow-sm">
+          <div className="bg-white rounded-xl border-2 border-brand-green/20 p-5 sm:p-6 mb-8 shadow-sm">
             <h2 className="font-semibold text-gray-900 mb-2">Add context for the report summary</h2>
             <p className="text-sm text-gray-500 mb-4">Notes about this month — we&apos;ll write a professional narrative for the report.</p>
             <textarea
@@ -344,7 +344,7 @@ export default function SecurePartnerPage() {
             />
             <div className="flex gap-3">
               <button onClick={generateReport} disabled={generating}
-                className="bg-brand-green hover:bg-brand-green-soft text-white px-5 py-2 rounded-lg font-medium text-sm transition-colors disabled:opacity-50">
+                className="bg-brand-orange hover:bg-orange-400 active:bg-orange-600 text-brand-green px-5 py-2 rounded-full font-medium text-sm transition-colors disabled:opacity-50 shadow-[4px_4px_0_0_#C34014]">
                 {generating ? 'Generating...' : 'Generate Report'}
               </button>
               <button onClick={() => setShowNarrative(false)}
@@ -356,7 +356,7 @@ export default function SecurePartnerPage() {
         {/* KPI Cards — MAL → MQL → SQL → Won. MQL/SQL/Won are click-to-filter
             the Lead Progress table below; active card gets a brand-green ring. */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 mb-4">
-          <div className="bg-brand-sky rounded-2xl p-4 sm:p-5 text-brand-green shadow-sm" title={LEAD_STATUS_EXPLAINER.MAL}>
+          <div className="bg-brand-lavender rounded-2xl p-4 sm:p-5 text-brand-green shadow-sm" title={LEAD_STATUS_EXPLAINER.MAL}>
             <p className="text-2xl sm:text-3xl font-bold">{malCount}</p>
             <p className="text-xs sm:text-sm font-medium opacity-75 mt-1">MAL</p>
             <p className="text-[10px] opacity-60 mt-0.5">Marketing Awareness Leads</p>
@@ -367,7 +367,7 @@ export default function SecurePartnerPage() {
             onClick={() => setStageFilter('MQL')}
             aria-pressed={stageFilter === 'MQL'}
             title={`${LEAD_STATUS_EXPLAINER.MQL} — click to see MQL leads below`}
-            className={`bg-brand-yellow rounded-2xl p-4 sm:p-5 text-brand-green shadow-sm text-left transition-all hover:shadow-md ${stageFilter === 'MQL' ? 'ring-4 ring-brand-green/40' : ''}`}
+            className={`bg-brand-sky rounded-2xl p-4 sm:p-5 text-brand-green shadow-sm text-left transition-all hover:shadow-md ${stageFilter === 'MQL' ? 'ring-4 ring-brand-green/40' : ''}`}
           >
             <p className="text-2xl sm:text-3xl font-bold">{mqlCount}</p>
             <p className="text-xs sm:text-sm font-medium opacity-75 mt-1">MQL</p>
@@ -378,7 +378,7 @@ export default function SecurePartnerPage() {
             onClick={() => setStageFilter('SQL')}
             aria-pressed={stageFilter === 'SQL'}
             title={`${LEAD_STATUS_EXPLAINER.SQL} — click to see SQL leads below`}
-            className={`bg-brand-orange rounded-2xl p-4 sm:p-5 text-white shadow-sm text-left transition-all hover:shadow-md ${stageFilter === 'SQL' ? 'ring-4 ring-brand-green/40' : ''}`}
+            className={`bg-brand-lime rounded-2xl p-4 sm:p-5 text-brand-green shadow-sm text-left transition-all hover:shadow-md ${stageFilter === 'SQL' ? 'ring-4 ring-brand-green/40' : ''}`}
           >
             <p className="text-2xl sm:text-3xl font-bold">{sqlCount}</p>
             <p className="text-xs sm:text-sm font-medium opacity-90 mt-1">SQL</p>
@@ -806,7 +806,7 @@ export default function SecurePartnerPage() {
               <h2 className="font-semibold text-gray-900 text-lg">Generated Report Preview</h2>
               <button onClick={() => setReportHtml(null)} className="text-sm text-gray-500 hover:text-gray-700">Close preview</button>
             </div>
-            <div className="bg-white rounded-xl border-2 border-brand-orange/40 shadow-lg overflow-hidden">
+            <div className="bg-white rounded-xl border-2 border-brand-green/20 shadow-lg overflow-hidden">
               <iframe srcDoc={reportHtml} className="w-full border-0" style={{ minHeight: '900px' }} title="Report Preview" />
             </div>
           </div>

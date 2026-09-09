@@ -287,7 +287,7 @@ export default function PartnerPage() {
 
       {/* Narrative Input */}
       {showNarrative && (
-        <div className="bg-white rounded-xl border-2 border-brand-orange/40 p-6 mb-8 shadow-sm">
+        <div className="bg-white rounded-xl border-2 border-brand-green/20 p-6 mb-8 shadow-sm">
           <h2 className="font-semibold text-gray-900 mb-2">Add context for the report summary</h2>
           <p className="text-sm text-gray-500 mb-4">Give some notes about what happened this month and AI will write a professional narrative summary for the report. Leave blank to skip.</p>
           <textarea
@@ -323,7 +323,7 @@ export default function PartnerPage() {
           onClick={() => setStageFilter('MQL')}
           aria-pressed={stageFilter === 'MQL'}
           title={`${LEAD_STATUS_EXPLAINER.MQL} — click to see MQL leads below`}
-          className={`bg-brand-yellow rounded-2xl p-5 text-brand-green shadow-sm text-left transition-all hover:shadow-md ${stageFilter === 'MQL' ? 'ring-4 ring-brand-green/40' : ''}`}
+          className={`bg-brand-sky rounded-2xl p-5 text-brand-green shadow-sm text-left transition-all hover:shadow-md ${stageFilter === 'MQL' ? 'ring-4 ring-brand-green/40' : ''}`}
         >
           <p className="text-3xl font-bold">{mqlCount}</p>
           <p className="text-sm font-medium opacity-75 mt-1">MQL</p>
@@ -334,7 +334,7 @@ export default function PartnerPage() {
           onClick={() => setStageFilter('SQL')}
           aria-pressed={stageFilter === 'SQL'}
           title={`${LEAD_STATUS_EXPLAINER.SQL} — click to see SQL leads below`}
-          className={`bg-brand-orange rounded-2xl p-5 text-white shadow-sm text-left transition-all hover:shadow-md ${stageFilter === 'SQL' ? 'ring-4 ring-brand-green/40' : ''}`}
+          className={`bg-brand-lime rounded-2xl p-5 text-brand-green shadow-sm text-left transition-all hover:shadow-md ${stageFilter === 'SQL' ? 'ring-4 ring-brand-green/40' : ''}`}
         >
           <p className="text-3xl font-bold">{sqlCount}</p>
           <p className="text-sm font-medium opacity-90 mt-1">SQL</p>
@@ -351,7 +351,7 @@ export default function PartnerPage() {
           <p className="text-sm font-medium opacity-90 mt-1">Closed Won</p>
           <p className="text-[10px] opacity-75 mt-0.5">{stageFilter === 'Closed Won' ? 'Showing below' : 'Click to show'}</p>
         </button>
-        <div className="bg-brand-sky rounded-2xl p-5 text-brand-green shadow-sm" title={LEAD_STATUS_EXPLAINER.MAL}>
+        <div className="bg-brand-lavender rounded-2xl p-5 text-brand-green shadow-sm" title={LEAD_STATUS_EXPLAINER.MAL}>
           <p className="text-3xl font-bold">{malCount}</p>
           <p className="text-sm font-medium opacity-75 mt-1">MAL</p>
           <p className="text-[10px] opacity-60 mt-0.5">Marketing Awareness Leads</p>
@@ -836,7 +836,7 @@ export default function PartnerPage() {
               Close preview
             </button>
           </div>
-          <div className="bg-white rounded-xl border-2 border-brand-orange/40 shadow-lg overflow-hidden">
+          <div className="bg-white rounded-xl border-2 border-brand-green/20 shadow-lg overflow-hidden">
             <iframe
               srcDoc={reportHtml}
               className="w-full border-0"

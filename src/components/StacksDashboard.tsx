@@ -220,7 +220,7 @@ export default function StacksDashboard({ hideRecentReviews = false }: StacksDas
                       </div>
                       <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
                         <div
-                          className="h-full bg-brand-orange rounded-full"
+                          className="h-full bg-brand-green rounded-full"
                           style={{ width: `${(cat.count / maxCount) * 100}%` }}
                         />
                       </div>
