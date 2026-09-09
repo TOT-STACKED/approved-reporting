@@ -188,13 +188,14 @@ body {
 }
 
 /* Chunko Bold: headings and big numbers only, never body or table text.
-   Uppercase is applied per-use, not here, so a partner's name in a heading
-   isn't shouted. */
+   Always uppercase — every Chunko setting on the dashboard is a title or a
+   figure, and the brand sets both in caps. */
 .font-display {
   font-family: var(--font-chunko), ui-sans-serif, system-ui, sans-serif;
   font-weight: 700;
   line-height: 1.05;
   letter-spacing: -0.02em;
+  text-transform: uppercase;
 }
 
 /* Geist Mono for metrics, dates and IDs — always tabular. */

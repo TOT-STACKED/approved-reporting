@@ -23,6 +23,8 @@ const PIE_FALLBACKS = SERIES;
 
 // Report sections hidden to keep the page clean. Flip any of these to true to
 // bring the section back — the markup below is untouched.
+const SHOW_FUNNEL_STRIP: boolean = false;
+const SHOW_MQL_ALERT: boolean = false;
 const SHOW_ASK_AI: boolean = false;
 const SHOW_CONVERSION_TIMELINE: boolean = false;
 const SHOW_LEAD_CHARTS: boolean = false;
@@ -360,11 +362,13 @@ export default function PartnerPage() {
       </div>
 
       {/* Pipeline conversion rates — under the KPI cards, above the table. */}
-      <ConversionFunnelStrip leadCount={partner.leadCount} statusBreakdown={partner.statusBreakdown} />
+      {SHOW_FUNNEL_STRIP && (
+        <ConversionFunnelStrip leadCount={partner.leadCount} statusBreakdown={partner.statusBreakdown} />
+      )}
 
       {/* Watch-Out: MQL leads need action to qualify. Click filters the table
           to MQL so the user lands on the leads they need to chase. */}
-      {mqlCount > 0 && (() => {
+      {SHOW_MQL_ALERT && mqlCount > 0 && (() => {
         const now = Date.now();
         const staleMql = partner.leads.filter(l => {
           if ((l.status || '').trim() !== 'MQL' || !l.lastModified) return false;

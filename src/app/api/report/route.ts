@@ -165,14 +165,14 @@ export async function POST(request: Request) {
     @font-face { font-family: 'Chunko'; src: url('/fonts/chunko-bold.woff2') format('woff2'); font-weight: 700; font-display: swap; }
     @media print { body { margin: 20px; } .page-break { page-break-before: always; } }
     body { font-family: 'DM Sans', ui-sans-serif, system-ui, sans-serif; background: ${BG}; color: ${INK}; margin: 40px; line-height: 1.45; }
-    h1 { font-family: 'Chunko', 'DM Sans', sans-serif; color: ${INK}; font-size: 36px; line-height: 1.05; letter-spacing: -0.02em; margin-bottom: 4px; }
-    h2 { font-family: 'Chunko', 'DM Sans', sans-serif; color: ${INK}; font-size: 22px; line-height: 1.05; letter-spacing: -0.02em; margin-top: 32px; border-bottom: 1px solid ${BORDER}; padding-bottom: 6px; }
+    h1 { font-family: 'Chunko', 'DM Sans', sans-serif; text-transform: uppercase; color: ${INK}; font-size: 36px; line-height: 1.05; letter-spacing: -0.02em; margin-bottom: 4px; }
+    h2 { font-family: 'Chunko', 'DM Sans', sans-serif; text-transform: uppercase; color: ${INK}; font-size: 22px; line-height: 1.05; letter-spacing: -0.02em; margin-top: 32px; border-bottom: 1px solid ${BORDER}; padding-bottom: 6px; }
     .subtitle { color: ${MUTED}; font-size: 14px; margin-bottom: 8px; }
     .tagline { color: ${MUTED}; font-size: 15px; font-weight: 500; margin-bottom: 24px; }
     .narrative { background: ${SURFACE_2}; border-left: 4px solid ${PRIMARY}; padding: 20px 24px; margin: 20px 0 24px 0; border-radius: 0 12px 12px 0; font-size: 15px; line-height: 1.7; color: ${INK}; }
     .kpi-grid { display: flex; gap: 16px; margin: 24px 0; flex-wrap: wrap; }
     .kpi { flex: 1; min-width: 120px; padding: 24px 16px; border-radius: 18px; color: ${INK}; text-align: center; border: 1px solid ${BORDER}; }
-    .kpi .value { font-family: 'Chunko', 'DM Sans', sans-serif; font-size: 32px; line-height: 1.05; }
+    .kpi .value { font-family: 'Chunko', 'DM Sans', sans-serif; text-transform: uppercase; font-size: 32px; line-height: 1.05; }
     .kpi .label { font-size: 12px; text-transform: uppercase; letter-spacing: 0.12em; color: ${MUTED}; margin-top: 8px; }
     table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 14px; }
     th { background: ${INK}; color: #FFFFFF; padding: 10px 12px; text-align: left; font-weight: 500; }
