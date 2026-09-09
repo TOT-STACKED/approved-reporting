@@ -95,10 +95,15 @@ const MARK = '#8B1B47';
 //   a score's LEVEL   → the red/amber/green bands below (scoreTone)
 //   a CHANGE's direction → red down / green up (movementTone)
 //
-// Everything else — gaps to a benchmark, "vs your avg", the reference ticks —
-// stays in neutral ink with a signed number. An earlier orange accent meaning
-// "below the benchmark" sat too close to band amber while meaning something
-// different, so benchmark comparisons no longer use colour at all.
+//   a category bar's SIDE of the average → red below / green above
+//                                            (vsAverageTone, category rows only)
+//
+// The third one is deliberately red/green only — never amber — so it can't be
+// mistaken for the band colours on the number beside it. A bar can be green
+// (ahead of its category) while the score reads amber (3.4 is still only a
+// mid score): those say different things on purpose, and both are spelled out
+// in the gap line underneath. Everything else — the reference ticks, "vs your
+// avg" on segments — stays in neutral ink with a signed number.
 
 // Traffic light for an absolute score on the 0–5 scale: under 2.5 is a
 // problem, 2.5–3.5 is watch-it, 3.5 and up is healthy. Applied to the score
@@ -120,6 +125,16 @@ function scoreBand(sos: number): 'red' | 'amber' | 'green' {
 export function scoreTone(sos: number, size: 'display' | 'text' = 'display'): string {
   const ramp = size === 'text' ? SCORE_TEXT : SCORE_BRIGHT;
   return ramp[scoreBand(sos)];
+}
+
+// Which side of the category average the partner sits on. Level (scoreTone)
+// answers "is this a good score?"; this answers "is it better than everyone
+// else in the category?" — two questions that genuinely disagree sometimes.
+// Dead level keeps the neutral brand ink rather than picking a side.
+function vsAverageTone(gap: number): string {
+  if (gap > 0) return SCORE_BRIGHT.green;
+  if (gap < 0) return SCORE_BRIGHT.red;
+  return MARK;
 }
 
 // Movement is a change, not a level, so it reads off its direction rather than
@@ -770,6 +785,7 @@ export function ScoreDetail({
 
                 <ScoreTrack
                   sos={c.sos}
+                  tone={vsAverageTone(c.gapToAverage)}
                   refs={[
                     // No leader tick when the partner is the leader — it would
                     // land on their own bar and read as a rival on top of them.
