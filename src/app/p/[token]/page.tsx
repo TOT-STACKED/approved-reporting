@@ -387,7 +387,7 @@ export default function SecurePartnerPage() {
                 <p className="text-2xl sm:text-3xl font-bold">{community.mal.toLocaleString()}</p>
                 <p className="text-xs sm:text-sm font-medium opacity-75 mt-1">MAL</p>
                 <p className="text-[10px] opacity-60 mt-0.5">Marketing Awareness Leads</p>
-                <p className="text-[10px] sm:text-xs opacity-60 mt-2">{community.total.toLocaleString()} leads in the community</p>
+                <p className="text-[10px] sm:text-xs opacity-60 mt-2">Across every Tech on Toast partner</p>
               </div>
               <div className="bg-brand-sky rounded-2xl p-4 sm:p-5 text-brand-green shadow-sm" title={LEAD_STATUS_EXPLAINER.MQL}>
                 <p className="text-2xl sm:text-3xl font-bold">{community.mql.toLocaleString()}</p>
