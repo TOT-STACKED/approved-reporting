@@ -18,7 +18,7 @@ const STAGE_FIELDS = {
 const DATE_FIELD = 'fldRND3uaiduLQouI';        // user-entered "Date" (often blank)
 const CREATED_FIELD = 'fld6NrBqMViSsFSRd';     // Airtable createdTime — reliable "when lead entered system"
 
-const EVENTS_URL = 'https://www.techontoast.community/events';
+const EVENTS_URL = 'https://www.wearestacked.io/events';
 const PODCAST_RSS = 'https://anchor.fm/s/dbfe4940/podcast/rss';
 
 async function fetchAllLeads() {
@@ -63,73 +63,73 @@ function stripHtml(s: string): string {
   return decodeEntities(s.replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim());
 }
 
-// Fetch description from an event detail page (best-effort).
-async function fetchEventDescription(url: string): Promise<string> {
-  try {
-    const res = await fetch(url, {
-      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; TechOnToastPortal/1.0)' },
-      next: { revalidate: 1800 },
-    });
-    if (!res.ok) return '';
-    const html = await res.text();
-    // Webflow rich-text blocks hold the event copy.
-    const m = html.match(/class="[^"]*rich-text[^"]*"[^>]*>([\s\S]*?)<\/div>/);
-    if (!m) return '';
-    const text = stripHtml(m[1]);
-    return text.length > 350 ? text.slice(0, 347).trimEnd() + '…' : text;
-  } catch {
-    return '';
-  }
-}
+// Events come from the Events table in the Stacked website base — the same
+// base the Package/tier lookup and the SOS sync already use, so no new
+// credentials. This replaced a scraper that parsed the old Webflow events
+// page: wearestacked.io is Framer and renders its listing client-side, so
+// there is no server HTML to read. Airtable is where the events are authored
+// anyway, which makes this the source rather than a copy of it.
+const EVENTS_BASE = process.env.MARKETPLACE_AIRTABLE_BASE_ID;
+const EVENTS_KEY = process.env.MARKETPLACE_AIRTABLE_KEY;
+const EVENTS_TABLE = 'tblh9srfzwN78P6sF';
+const EVENT_FIELDS = {
+  name: 'fldLuB56dK3eSvUjv',
+  start: 'fldT3VL4ZM5fy6DvN',
+  location: 'fldKmaNUMgGmk6aVD',
+  summary: 'fldAada4mI1sDCI5W',
+  ticketLink: 'fldRaDOIJzqWEkIjN',
+  thumbnail: 'fldsCt5ego3estaiw',
+} as const;
 
-// Scrape the events page on techontoast.community. Webflow CMS exposes each
-// event in a `w-dyn-item` block with `event_date`, `heading-style-h5`, and an
-// image and link.
-async function fetchEvents(): Promise<{ title: string; date: string; url: string; description?: string; image?: string }[]> {
+async function fetchEvents(): Promise<
+  { title: string; date: string; url: string; description?: string; image?: string }[]
+> {
+  if (!EVENTS_BASE || !EVENTS_KEY) return [];
   try {
-    const res = await fetch(EVENTS_URL, {
-      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; TechOnToastPortal/1.0)' },
+    const url = new URL(`https://api.airtable.com/v0/${EVENTS_BASE}/${EVENTS_TABLE}`);
+    url.searchParams.set('returnFieldsByFieldId', 'true');
+    url.searchParams.set('pageSize', '50');
+    for (const f of Object.values(EVENT_FIELDS)) url.searchParams.append('fields[]', f);
+    url.searchParams.set('sort[0][field]', EVENT_FIELDS.start);
+    url.searchParams.set('sort[0][direction]', 'asc');
+
+    const res = await fetch(url, {
+      headers: { Authorization: `Bearer ${EVENTS_KEY}` },
       next: { revalidate: 600 },
     });
     if (!res.ok) return [];
-    const html = await res.text();
 
-    const itemRegex = /<div[^>]*class="[^"]*w-dyn-item[^"]*"[^>]*>([\s\S]*?)<\/a>\s*<\/div>\s*<\/div>/g;
-    const events: { title: string; date: string; url: string; image?: string }[] = [];
-    let m: RegExpExecArray | null;
-    while ((m = itemRegex.exec(html)) !== null) {
-      const block = m[1];
-      const titleMatch = block.match(/<h2[^>]*heading-style-h5[^>]*>([\s\S]*?)<\/h2>/);
-      const dateMatch = block.match(/event_date[^>]*>[\s\S]*?<\/svg>([\s\S]*?)<\/div>/);
-      const linkMatch = block.match(/href="([^"]+)"/);
-      const imgMatch = block.match(/<img[^>]+src="([^"]+)"/);
+    const json = (await res.json()) as { records?: { fields?: Record<string, unknown> }[] };
+    const now = Date.now();
 
-      if (!titleMatch) continue;
-      const title = stripHtml(titleMatch[1]);
-      if (!title) continue;
-      const rawDate = dateMatch ? stripHtml(dateMatch[1]) : '';
-      const link = linkMatch ? linkMatch[1] : EVENTS_URL;
-      const url = link.startsWith('http') ? link : `https://www.techontoast.community${link.startsWith('/') ? link : `/${link}`}`;
-      events.push({ title, date: rawDate || 'TBD', url, image: imgMatch ? imgMatch[1] : undefined });
-    }
-
-    // Dedupe by title — Webflow renders some cards twice
-    const seen = new Set<string>();
-    const unique = events.filter(e => {
-      if (seen.has(e.title)) return false;
-      seen.add(e.title);
-      return true;
-    }).slice(0, 6);
-
-    // Enrich each with description from its detail page
-    const withDesc = await Promise.all(
-      unique.map(async ev => ({
-        ...ev,
-        description: await fetchEventDescription(ev.url),
-      }))
-    );
-
-    return withDesc;
+    return (json.records || [])
+      .map(r => {
+        const f = r.fields || {};
+        const title = String(f[EVENT_FIELDS.name] || '').trim();
+        const start = String(f[EVENT_FIELDS.start] || '');
+        const location = String(f[EVENT_FIELDS.location] || '').trim();
+        const summary = String(f[EVENT_FIELDS.summary] || '').trim();
+        const attachments = f[EVENT_FIELDS.thumbnail] as { url?: string }[] | undefined;
+        return {
+          title,
+          start,
+          // The Framer site has no per-event page, so the ticket link is the
+          // useful destination. Falls back to the events listing.
+          url: String(f[EVENT_FIELDS.ticketLink] || '') || EVENTS_URL,
+          date: start
+            ? new Date(start).toLocaleDateString('en-GB', {
+                day: 'numeric', month: 'long', year: 'numeric',
+              })
+            : 'TBD',
+          description: [location, summary].filter(Boolean).join(' · ').slice(0, 350),
+          image: attachments?.[0]?.url,
+        };
+      })
+      // Upcoming only, soonest first — a listing of last year's events is
+      // worse than an empty one.
+      .filter(e => e.title && e.start && new Date(e.start).getTime() >= now)
+      .slice(0, 6)
+      .map(({ title, date, url, description, image }) => ({ title, date, url, description, image }));
   } catch {
     return [];
   }

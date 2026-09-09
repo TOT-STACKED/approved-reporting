@@ -203,7 +203,7 @@ export default function CommunityPage() {
             <h2 className="text-lg font-bold text-gray-900">Upcoming Events</h2>
             <p className="text-xs text-gray-500">Where you can meet operators and other partners</p>
           </div>
-          <a href="https://www.techontoast.community/events" target="_blank" rel="noopener noreferrer"
+          <a href="https://www.wearestacked.io/events" target="_blank" rel="noopener noreferrer"
             className="text-sm text-brand-green hover:text-brand-green-soft font-medium">
             All events →
           </a>
@@ -254,7 +254,7 @@ export default function CommunityPage() {
             <h2 className="text-lg font-bold text-gray-900">Podcast</h2>
             <p className="text-xs text-gray-500">{data.podcast.showTitle || 'Stacked — The Hospitality Tech Podcast'}</p>
           </div>
-          <a href={data.podcast.showLink || 'https://anchor.fm/techontoast'} target="_blank" rel="noopener noreferrer"
+          <a href="https://www.wearestacked.io/podcast" target="_blank" rel="noopener noreferrer"
             className="text-sm text-brand-green hover:text-brand-green-soft font-medium">
             All episodes →
           </a>
