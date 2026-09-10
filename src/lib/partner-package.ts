@@ -13,6 +13,7 @@
 
 import type { PartnerTier } from './partner-tier';
 import { envTierForSlug } from './partner-tier';
+import { canonicalPartnerSlug } from './airtable';
 
 const MP_BASE = process.env.MARKETPLACE_AIRTABLE_BASE_ID;
 const MP_TABLE = process.env.MARKETPLACE_PARTNERS_TABLE || 'Partners';
@@ -109,7 +110,14 @@ export async function tierForSlug(slug: string): Promise<PartnerTier> {
   if (override) return override;
 
   const map = await packageMap();
-  const tier = map?.get(slug.trim().toLowerCase());
+  if (!map) return 'promote';
+
+  // A partner's link can be issued on one spelling while the marketplace row
+  // uses another — Planday's link says `planday`, the Package row says
+  // `planday-from-xero`. Without canonicalising, the lookup misses and an
+  // Approved partner silently drops to Promote.
+  const asked = slug.trim().toLowerCase();
+  const tier = map.get(asked) ?? map.get(canonicalPartnerSlug(asked));
   if (tier) return tier;
 
   console.warn(`[partner-package] no Package for slug "${slug}" — gating lead detail`);

@@ -275,14 +275,32 @@ export async function getPartnerList(): Promise<Partner[]> {
     }
   }
 
-  return Array.from(partnerMap.entries())
-    .map(([key, data]) => ({
-      name: data.name,
-      slug: key.replace(/[^a-z0-9]+/g, '-').replace(/-+$/, ''),
-      leadCount: data.count,
-      statusBreakdown: data.statuses,
-    }))
-    .sort((a, b) => b.leadCount - a.leadCount);
+  // Fold alias-group members into one row before returning. Previously each
+  // spelling became its own partner, so Planday, Revvue and Clearcourse each
+  // appeared more than once with their leads divided between the entries.
+  const merged = new Map<string, Partner>();
+  for (const [key, data] of partnerMap) {
+    const rawSlug = key.replace(/[^a-z0-9]+/g, '-').replace(/-+$/, '');
+    const slug = canonicalPartnerSlug(rawSlug);
+    const group = PARTNER_ALIAS_GROUPS[slug];
+
+    const existing = merged.get(slug);
+    if (!existing) {
+      merged.set(slug, {
+        name: group ? group.displayName : data.name,
+        slug,
+        leadCount: data.count,
+        statusBreakdown: { ...data.statuses },
+      });
+      continue;
+    }
+    existing.leadCount += data.count;
+    for (const [stage, n] of Object.entries(data.statuses)) {
+      existing.statusBreakdown[stage] = (existing.statusBreakdown[stage] || 0) + n;
+    }
+  }
+
+  return Array.from(merged.values()).sort((a, b) => b.leadCount - a.leadCount);
 }
 
 // Parent-company groupings. A request for the parent slug pulls in leads
@@ -305,12 +323,40 @@ const PARTNER_ALIAS_GROUPS: Record<string, PartnerAliasGroup> = {
     displayName: 'Revvue',
     slugs: ['revvue', 'revvue-ai'],
   },
+  // Planday was acquired by Xero and appears under three spellings: the
+  // marketplace record is "Planday from Xero", the Master Lead Sheet has both
+  // a legacy "Planday " option and "Planday by Xero", and their partner link
+  // was issued on the bare `planday` slug. All one partner.
+  'planday-from-xero': {
+    displayName: 'Planday From Xero',
+    slugs: ['planday-from-xero', 'planday', 'planday-by-xero'],
+  },
 };
+
+// Reverse index: any member slug -> the group it belongs to. Without this a
+// request for a member slug (their live link is /p/<token> -> `planday`)
+// misses the group entirely and the partner splits back into two.
+const SLUG_TO_GROUP: Record<string, string> = Object.entries(PARTNER_ALIAS_GROUPS)
+  .reduce((acc, [groupSlug, group]) => {
+    for (const s of group.slugs) acc[s] = groupSlug;
+    return acc;
+  }, {} as Record<string, string>);
+
+/**
+ * The one slug a partner is known by, whatever spelling came in. Everything
+ * keyed on a partner — leads, the Package tier, the dashboard — must go
+ * through this, or the same company shows up twice with the data split
+ * between them.
+ */
+export function canonicalPartnerSlug(slug: string): string {
+  const key = slug.trim().toLowerCase();
+  return SLUG_TO_GROUP[key] || key;
+}
 
 // Human-readable name for a slug, used when we have no lead data to read a
 // name off. Prefers an alias group's display name, else title-cases the slug.
 export function partnerDisplayNameForSlug(slug: string): string {
-  const group = PARTNER_ALIAS_GROUPS[slug];
+  const group = PARTNER_ALIAS_GROUPS[canonicalPartnerSlug(slug)];
   if (group) return group.displayName;
   return slug
     .split('-')
@@ -346,7 +392,7 @@ export async function getPartnerDetail(slug: string): Promise<PartnerDetail | nu
 
   // Resolve the requested slug to its accepted partner-name slugs. For a
   // standalone partner (no alias group), this is just the slug itself.
-  const aliasGroup = PARTNER_ALIAS_GROUPS[slug];
+  const aliasGroup = PARTNER_ALIAS_GROUPS[canonicalPartnerSlug(slug)];
   const acceptedSlugs = new Set(aliasGroup ? aliasGroup.slugs : [slug]);
 
   const partnerLeads: Lead[] = [];

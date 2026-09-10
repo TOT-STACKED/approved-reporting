@@ -485,8 +485,12 @@ export const PARTNER_VENDOR_ALIASES: Record<string, string[]> = {
   'pointone': ['pointone', 'point one'],
   // Partners renamed after their vendor term was already established in stack reviews.
   // Alias the new display name back to the historical vendor term(s).
-  'planday from xero': ['planday', 'planday from xero'],
-  'planday': ['planday', 'planday from xero'],
+  // Three spellings in the wild: the marketplace record, the legacy lead
+  // option, and "by Xero" from the Master Lead Sheet. Operators also type
+  // "plan day". All of them are this one partner.
+  'planday from xero': ['planday', 'plan day', 'planday from xero', 'planday by xero'],
+  'planday by xero': ['planday', 'plan day', 'planday from xero', 'planday by xero'],
+  'planday': ['planday', 'plan day', 'planday from xero', 'planday by xero'],
   'connect frontline': ['connect', 'connect frontline'],
   'me&u': ['me&u', 'meandu', 'me and u'],
   'ws&co insights': ['wsco', 'ws&co', 'ws co'],
