@@ -440,6 +440,7 @@ export const PARTNER_VENDOR_ALIASES: Record<string, string[]> = {
   // Keyed on the partner's Airtable Name. Partner record is "Sky Business",
   // so the old 'sky' key never fired.
   'sky business': ['sky', 'sky business'],
+  'sky': ['sky', 'sky business'],
   'workforce': ['workforce'],
   'workforce.com': ['workforce', 'workforce.com'],
   'bizimply': ['bizimply'],
@@ -451,6 +452,7 @@ export const PARTNER_VENDOR_ALIASES: Record<string, string[]> = {
   'nory': ['nory'],
   // Partner record is "Cinchio Solutions" — old 'cinchio' key never fired.
   'cinchio solutions': ['cinchio', 'cinchio solutions'],
+  'cinchio': ['cinchio', 'cinchio solutions'],
   'wrs': ['wrs'],
   'urocked': ['urocked'],
   'deputy': ['deputy'],
@@ -472,6 +474,9 @@ export const PARTNER_VENDOR_ALIASES: Record<string, string[]> = {
   // Partner record is "SevenRooms" (one word) — the old 'seven rooms' key
   // never fired, so the multi-spelling rollup was never actually applied.
   'sevenrooms': ['sevenrooms', 'seven rooms', '7rooms'],
+  // The lead sheet spells it with a space, so a partner resolved from lead
+  // data alone would arrive here as "Seven Rooms" and miss the other two.
+  'seven rooms': ['sevenrooms', 'seven rooms', '7rooms'],
   'leat': ['leat'],
   // Operators occasionally type "SumUp POS" (the till product) as a distinct
   // vendor. Same company as SumUp payments; roll them up.
@@ -501,6 +506,7 @@ export const PARTNER_VENDOR_ALIASES: Record<string, string[]> = {
   // Partner record is spelled "Feedelity"; the key was misspelled, so this
   // entry never fired. Keep the old spelling as a matchable alias.
   'feedelity': ['feedelity', 'feedality'],
+  'feedality': ['feedelity', 'feedality'],
   'flock x': ['flock x', 'flockx'],
   // Added after auditing Tech Usage for tool names that matched no partner.
   // Row counts are the orphaned Tech Usage rows each one reclaims.

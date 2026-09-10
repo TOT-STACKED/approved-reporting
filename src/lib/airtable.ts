@@ -323,6 +323,36 @@ const PARTNER_ALIAS_GROUPS: Record<string, PartnerAliasGroup> = {
     displayName: 'Revvue',
     slugs: ['revvue', 'revvue-ai'],
   },
+  // Below: partners whose lead-sheet spelling, marketplace slug and issued
+  // link slug disagree. Each was serving a Promote dashboard because the
+  // Package lookup missed. Listing every spelling as a member fixes the tier
+  // and keeps the existing link working.
+  sky: {
+    displayName: 'Sky Business',
+    slugs: ['sky', 'sky-business'],
+  },
+  workforce: {
+    displayName: 'Workforce.com',
+    slugs: ['workforce', 'workforce-com'],
+  },
+  cinchio: {
+    displayName: 'Cinchio Solutions',
+    slugs: ['cinchio', 'cinchio-solutions'],
+  },
+  // "Feedality" is the older spelling and still appears in the lead sheet.
+  feedelity: {
+    displayName: 'Feedelity',
+    slugs: ['feedelity', 'feedality'],
+  },
+  rye: {
+    displayName: 'RYE',
+    slugs: ['rye', 'rye-energy'],
+  },
+  // Lead sheet says "Seven Rooms", the marketplace says "SevenRooms".
+  sevenrooms: {
+    displayName: 'SevenRooms',
+    slugs: ['sevenrooms', 'seven-rooms'],
+  },
   // Planday was acquired by Xero and appears under three spellings: the
   // marketplace record is "Planday from Xero", the Master Lead Sheet has both
   // a legacy "Planday " option and "Planday by Xero", and their partner link
@@ -351,6 +381,21 @@ const SLUG_TO_GROUP: Record<string, string> = Object.entries(PARTNER_ALIAS_GROUP
 export function canonicalPartnerSlug(slug: string): string {
   const key = slug.trim().toLowerCase();
   return SLUG_TO_GROUP[key] || key;
+}
+
+/**
+ * Every slug this partner is known by, the asked-for one first.
+ *
+ * The marketplace row, the lead-sheet option and the issued link can each use
+ * a different spelling — Sky's link is `sky`, their Package row is
+ * `sky-business`. Anything looking a partner up in another system should walk
+ * this list rather than assume one spelling wins.
+ */
+export function partnerSlugAliases(slug: string): string[] {
+  const key = slug.trim().toLowerCase();
+  const group = PARTNER_ALIAS_GROUPS[canonicalPartnerSlug(key)];
+  const all = group ? [key, ...group.slugs] : [key];
+  return Array.from(new Set(all));
 }
 
 // Human-readable name for a slug, used when we have no lead data to read a
