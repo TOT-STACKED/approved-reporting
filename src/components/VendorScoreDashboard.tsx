@@ -49,6 +49,12 @@ interface CategoryPosition {
   totalRanked: number;
   gapToAverage: number;
   gapToLeader: number | null;
+  strict: {
+    rank: number;
+    totalRanked: number;
+    leaderSos: number | null;
+    leaderName: string | null;
+  } | null;
 }
 
 interface ScoreTrendPoint {

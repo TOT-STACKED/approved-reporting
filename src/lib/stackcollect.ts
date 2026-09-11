@@ -792,6 +792,12 @@ export async function getPartnerStackCollectData(partnerName: string): Promise<P
 // a number here that the internal league table considers too thin to rank.
 export const MIN_SCORE_RESPONSES = 2;
 
+// A higher bar used only by the partner-facing Intelligence card, where a
+// named competitor and a published rank carry more weight than they do in the
+// internal views. Raising MIN_SCORE_RESPONSES instead would silently change
+// the marketplace stars and the league table too.
+export const REPORT_MIN_RESPONSES = 5;
+
 // SOS (Stacked Operator Score) — a 0–5 operator-facing expression of the same
 // 0–10 ratings NPS is built from. Single definition, used everywhere below.
 export function sosFromAvg(avg: number): number {
@@ -830,6 +836,14 @@ export interface CategoryPosition {
   totalRanked: number;      // vendors in this category clearing MIN_SCORE_RESPONSES
   gapToAverage: number;     // partner SOS − category average
   gapToLeader: number | null;
+  // Same figures recomputed at REPORT_MIN_RESPONSES. Null when the partner's
+  // own sample in this category is below that bar.
+  strict: {
+    rank: number;
+    totalRanked: number;
+    leaderSos: number | null;
+    leaderName: string | null;
+  } | null;
 }
 
 export interface ScoreTrendPoint {
@@ -1062,8 +1076,9 @@ export async function getPartnerScoreIntelligence(partnerName: string): Promise<
       if (!byVendor.has(key)) byVendor.set(key, []);
       byVendor.get(key)!.push(s.score);
     }
-    const ranked = Array.from(byVendor.entries())
-      .filter(([, arr]) => arr.length >= MIN_SCORE_RESPONSES)
+    // Every vendor rated here, best first. The two views below just take
+    // different slices of it, so the ordering can't drift between them.
+    const rankedAll = Array.from(byVendor.entries())
       .map(([key, arr]) => ({
         key,
         label: vendorLabel.get(key) || key,
@@ -1072,6 +1087,18 @@ export async function getPartnerScoreIntelligence(partnerName: string): Promise<
       }))
       .sort((a, b) => (b.sos - a.sos) || (b.count - a.count));
 
+    const rankView = (minResponses: number) => {
+      const ranked = rankedAll.filter(r => r.count >= minResponses);
+      const idx = ranked.findIndex(r => isPartnerVendor(r.key));
+      return {
+        rank: idx >= 0 ? idx + 1 : 0,
+        totalRanked: ranked.length,
+        leaderSos: ranked.length > 0 ? ranked[0].sos : null,
+        leaderName: ranked.length > 0 ? ranked[0].label : null,
+      };
+    };
+
+    const ranked = rankedAll.filter(r => r.count >= MIN_SCORE_RESPONSES);
     const myRatingsHere = here.filter(s => isPartnerVendor(s.vendor)).map(s => s.score);
     if (myRatingsHere.length === 0) continue;
     const mySos = sosFromAvg(myRatingsHere.reduce((a, b) => a + b, 0) / myRatingsHere.length);
@@ -1079,6 +1106,15 @@ export async function getPartnerScoreIntelligence(partnerName: string): Promise<
     const myRankIndex = ranked.findIndex(r => isPartnerVendor(r.key));
     const leaderSos = ranked.length > 0 ? ranked[0].sos : null;
     const leaderName = ranked.length > 0 ? ranked[0].label : null;
+
+    // The stricter view, used only by the partner-facing Intelligence card.
+    // At two responses a single enthusiastic operator can crown a category
+    // leader; five is enough that a named rival is a real signal rather than
+    // an anomaly. Null when the partner's own sample is too thin to publish —
+    // the card drops the row entirely rather than showing a shaky number.
+    const strict = myRatingsHere.length >= REPORT_MIN_RESPONSES
+      ? rankView(REPORT_MIN_RESPONSES)
+      : null;
 
     categories.push({
       category,
@@ -1091,6 +1127,7 @@ export async function getPartnerScoreIntelligence(partnerName: string): Promise<
       totalRanked: ranked.length,
       gapToAverage: Number((mySos - categoryAverage).toFixed(1)),
       gapToLeader: leaderSos === null ? null : Number((mySos - leaderSos).toFixed(1)),
+      strict,
     });
   }
   categories.sort((a, b) => b.count - a.count);

@@ -49,6 +49,14 @@ interface CategoryScore {
   totalRanked: number;
   leaderSos: number | null;
   leaderName: string | null;
+  // Rank and leader recomputed at a five-review minimum. Null when this
+  // partner's own sample in the category is below that.
+  strict: {
+    rank: number;
+    totalRanked: number;
+    leaderSos: number | null;
+    leaderName: string | null;
+  } | null;
 }
 
 interface Props {
@@ -78,12 +86,12 @@ function buildHeadline(
   // Best rank first: a partner reads their strongest category as the headline
   // and the weakest as the thing to fix.
   const ranked = rated
-    .filter(r => r.cs.rank > 0)
-    .sort((a, b) => a.cs.rank - b.cs.rank)
+    .filter(r => (r.cs.strict?.rank ?? 0) > 0)
+    .sort((a, b) => (a.cs.strict!.rank) - (b.cs.strict!.rank))
     .slice(0, 2);
 
   const place = (r: { category: string; cs: CategoryScore }) =>
-    `#${r.cs.rank} of ${r.cs.totalRanked} in ${r.category}`;
+    `#${r.cs.strict!.rank} of ${r.cs.strict!.totalRanked} in ${r.category}`;
 
   const catPhrase = ranked.length === 0
     ? ''
@@ -174,11 +182,12 @@ export default function StackCollectSection({ partnerName, data: raw, categorySc
   const scoreByCategory = new Map(categoryScores.map(c => [c.category, c]));
   const anyScores = categoryScores.length > 0;
 
-  // Only categories with real ratings appear. A row saying "not rated yet"
-  // is noise on a card whose whole job is to show where they stand.
+  // Only categories that clear the five-review bar appear. Below that a
+  // single enthusiastic operator moves a rank, and this card names a
+  // competitor off the back of it.
   const ratedCategories = (data.categoryRankings ?? [])
     .map(r => ({ category: r.category, cs: scoreByCategory.get(r.category) }))
-    .filter((x): x is { category: string; cs: CategoryScore } => Boolean(x.cs));
+    .filter((x): x is { category: string; cs: CategoryScore } => Boolean(x.cs?.strict));
 
   const headline = buildHeadline(partnerName, data, ratedCategories);
 
@@ -248,7 +257,8 @@ export default function StackCollectSection({ partnerName, data: raw, categorySc
               </thead>
               <tbody>
                 {ratedCategories.map(({ category, cs }) => {
-                  const leads = cs.rank === 1;
+                  const view = cs.strict!;
+                  const leads = view.rank === 1;
                   return (
                     <tr key={category} className="border-b border-gray-50">
                       <td className="py-2 px-5 sm:px-6 font-medium text-gray-800">{category}</td>
@@ -258,9 +268,9 @@ export default function StackCollectSection({ partnerName, data: raw, categorySc
                         </span>
                       </td>
                       <td className="py-2 px-2 text-center">
-                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold tabular-nums ${rankBadgeClass(cs.rank)}`}>
-                          {cs.rank ? `#${cs.rank}` : '—'}
-                          <span className="text-gray-500 font-normal ml-1">/ {cs.totalRanked}</span>
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold tabular-nums ${rankBadgeClass(view.rank)}`}>
+                          {view.rank ? `#${view.rank}` : '—'}
+                          <span className="text-gray-500 font-normal ml-1">/ {view.totalRanked}</span>
                         </span>
                       </td>
                       <td className="py-2 px-2 text-center text-gray-700 tabular-nums">
@@ -269,8 +279,8 @@ export default function StackCollectSection({ partnerName, data: raw, categorySc
                       <td className="py-2 px-5 sm:px-6 text-gray-700 tabular-nums">
                         {leads
                           ? <span className="text-emerald-700 font-medium">you lead this category</span>
-                          : cs.leaderName
-                            ? <>{cs.leaderName}{cs.leaderSos !== null && <span className="text-gray-400"> ({cs.leaderSos.toFixed(1)})</span>}</>
+                          : view.leaderName
+                            ? <>{view.leaderName}{view.leaderSos !== null && <span className="text-gray-400"> ({view.leaderSos.toFixed(1)})</span>}</>
                             : <span className="text-gray-400">—</span>}
                       </td>
                     </tr>
@@ -280,7 +290,7 @@ export default function StackCollectSection({ partnerName, data: raw, categorySc
             </table>
           </div>
           <p className="text-[11px] text-gray-400 mt-2 px-5 sm:px-6">
-            Rank is among vendors in the category with enough ratings to rank.
+            Rank is among vendors with five or more operator ratings in the category.
           </p>
         </div>
       )}
