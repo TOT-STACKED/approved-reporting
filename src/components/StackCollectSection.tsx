@@ -43,6 +43,11 @@ interface CategoryScore {
   sos: number;
   count: number;
   categoryAverage: number;
+  // Rank here is by SCORE, not by how often the tool is picked: position
+  // among the vendors in this category with enough ratings to rank.
+  rank: number;
+  totalRanked: number;
+  leaderSos: number | null;
 }
 
 interface Props {
@@ -67,8 +72,8 @@ function buildHeadline(partnerName: string, d: PartnerStackData): string {
   const catPhrase = top.length === 0
     ? ''
     : top.length === 1
-      ? ` Strongest in ${top[0].category} (${top[0].partnerCount} picks, ranked #${top[0].rank || '—'} of ${top[0].totalTools}).`
-      : ` Strongest in ${top[0].category} (#${top[0].rank || '—'} of ${top[0].totalTools}) and ${top[1].category} (#${top[1].rank || '—'} of ${top[1].totalTools}).`;
+      ? ` Most picked in ${top[0].category} (${top[0].partnerCount} picks, #${top[0].rank || '—'} of ${top[0].totalTools} for adoption).`
+      : ` Most picked in ${top[0].category} (#${top[0].rank || '—'} of ${top[0].totalTools}) and ${top[1].category} (#${top[1].rank || '—'} of ${top[1].totalTools}) for adoption.`;
   // Operator brands lead when we have them: that's the figure on the public
   // marketplace tile, so it's the one a partner cross-checks first. The rest
   // of the sentence is explicitly review-based — the two are different units
@@ -198,7 +203,13 @@ export default function StackCollectSection({ partnerName, data: raw, categorySc
         <Sparkline data={data.monthlyMentions} />
       </div>
 
-      {/* Category leaderboard */}
+      {/* Category leaderboard — by score. Adoption (how often a tool is
+          picked) is public marketplace data and is summarised above; what a
+          partner actually asks of this table is "how good do operators think
+          we are here, and who's ahead". So rank, benchmark and leader are all
+          score-based. The leader is a number, never a name: scores aren't
+          public the way pick counts are, and naming the highest-scoring rival
+          would publish something no vendor agreed to. */}
       {data.categoryRankings.length > 0 && (
         <div className="mb-5">
           <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider mb-2">Where you rank, by category</p>
@@ -207,46 +218,51 @@ export default function StackCollectSection({ partnerName, data: raw, categorySc
               <thead>
                 <tr className="border-b border-gray-100">
                   <th className="text-left py-2 px-5 sm:px-6 text-gray-500 font-medium">Category</th>
+                  <th className="text-center py-2 px-2 text-gray-500 font-medium">Your score</th>
                   <th className="text-center py-2 px-2 text-gray-500 font-medium">Your rank</th>
-                  <th className="text-center py-2 px-2 text-gray-500 font-medium">Your picks</th>
-                  {anyScores && (
-                    <th className="text-center py-2 px-2 text-gray-500 font-medium">Your score</th>
-                  )}
-                  <th className="text-left py-2 px-5 sm:px-6 text-gray-500 font-medium">Category leader</th>
+                  <th className="text-center py-2 px-2 text-gray-500 font-medium">Category avg</th>
+                  <th className="text-left py-2 px-5 sm:px-6 text-gray-500 font-medium">Leader</th>
                 </tr>
               </thead>
               <tbody>
                 {data.categoryRankings.map(r => {
-                  const isLeader = r.rank === 1;
                   const cs = scoreByCategory.get(r.category);
+                  // A category they appear in but nobody has rated yet stays
+                  // in the list — dropping it would hide where they compete.
+                  if (!cs) {
+                    return (
+                      <tr key={r.category} className="border-b border-gray-50">
+                        <td className="py-2 px-5 sm:px-6 font-medium text-gray-800">{r.category}</td>
+                        <td colSpan={4} className="py-2 px-2 text-gray-400 text-xs">
+                          No operator ratings in this category yet
+                        </td>
+                      </tr>
+                    );
+                  }
+                  const leads = cs.rank === 1;
                   return (
                     <tr key={r.category} className="border-b border-gray-50">
                       <td className="py-2 px-5 sm:px-6 font-medium text-gray-800">{r.category}</td>
+                      <td className="py-2 px-2 text-center tabular-nums">
+                        <span className="font-semibold" style={{ color: scoreTone(cs.sos, 'text') }}>
+                          {cs.sos.toFixed(1)}
+                        </span>
+                      </td>
                       <td className="py-2 px-2 text-center">
-                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold tabular-nums ${rankBadgeClass(r.rank)}`}>
-                          {r.rank ? `#${r.rank}` : '—'}<span className="text-gray-500 font-normal ml-1">/ {r.totalTools}</span>
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold tabular-nums ${rankBadgeClass(cs.rank)}`}>
+                          {cs.rank ? `#${cs.rank}` : '—'}
+                          <span className="text-gray-500 font-normal ml-1">/ {cs.totalRanked}</span>
                         </span>
                       </td>
                       <td className="py-2 px-2 text-center text-gray-700 tabular-nums">
-                        {r.partnerCount}
-                        <span className="text-gray-400 text-[10px] ml-1">({Math.round(r.shareInCategory * 100)}%)</span>
+                        {cs.categoryAverage.toFixed(1)}
                       </td>
-                      {anyScores && (
-                        <td className="py-2 px-2 text-center tabular-nums">
-                          {cs ? (
-                            <span className="font-semibold" style={{ color: scoreTone(cs.sos, 'text') }}>
-                              {cs.sos.toFixed(1)}
-                            </span>
-                          ) : (
-                            <span className="text-gray-300" title="No operator ratings in this category yet">—</span>
-                          )}
-                        </td>
-                      )}
-                      <td className="py-2 px-5 sm:px-6 text-gray-700">
-                        {isLeader
-                          ? <span className="text-emerald-700 font-medium">you lead ({r.leader.count})</span>
-                          : <span>{r.leader.tool} <span className="text-gray-400 tabular-nums">({r.leader.count})</span></span>
-                        }
+                      <td className="py-2 px-5 sm:px-6 text-gray-700 tabular-nums">
+                        {leads
+                          ? <span className="text-emerald-700 font-medium">you lead this category</span>
+                          : cs.leaderSos !== null
+                            ? <>{cs.leaderSos.toFixed(1)} <span className="text-gray-400">to beat</span></>
+                            : <span className="text-gray-400">—</span>}
                       </td>
                     </tr>
                   );
@@ -254,6 +270,9 @@ export default function StackCollectSection({ partnerName, data: raw, categorySc
               </tbody>
             </table>
           </div>
+          <p className="text-[11px] text-gray-400 mt-2 px-5 sm:px-6">
+            Rank is among vendors in the category with enough ratings to rank. Competitors are never named.
+          </p>
         </div>
       )}
 
