@@ -48,6 +48,7 @@ interface CategoryScore {
   rank: number;
   totalRanked: number;
   leaderSos: number | null;
+  leaderName: string | null;
 }
 
 interface Props {
@@ -62,18 +63,33 @@ function fmtMonth(ym: string): string {
   return d.toLocaleDateString('en-GB', { month: 'short' });
 }
 
-// Builds the top-of-section sentence. Keeps it readable when categories or
-// rankings are sparse — falls back gracefully if leader data isn't available.
-function buildHeadline(partnerName: string, d: PartnerStackData): string {
+// Builds the top-of-section sentence. Summarises the table below it — the
+// score rankings — rather than the adoption figures, which the KPI tiles
+// already carry. Falls back gracefully when a partner has no ratings yet.
+function buildHeadline(
+  partnerName: string,
+  d: PartnerStackData,
+  rated: { category: string; cs: CategoryScore }[]
+): string {
   if (d.uniqueReviewsWithPartner === 0) {
     return `${partnerName} hasn't been selected in any intelligence reviews yet.`;
   }
-  const top = (d.categoryRankings ?? []).slice(0, 2);
-  const catPhrase = top.length === 0
+
+  // Best rank first: a partner reads their strongest category as the headline
+  // and the weakest as the thing to fix.
+  const ranked = rated
+    .filter(r => r.cs.rank > 0)
+    .sort((a, b) => a.cs.rank - b.cs.rank)
+    .slice(0, 2);
+
+  const place = (r: { category: string; cs: CategoryScore }) =>
+    `#${r.cs.rank} of ${r.cs.totalRanked} in ${r.category}`;
+
+  const catPhrase = ranked.length === 0
     ? ''
-    : top.length === 1
-      ? ` Most picked in ${top[0].category} (${top[0].partnerCount} picks, #${top[0].rank || '—'} of ${top[0].totalTools} for adoption).`
-      : ` Most picked in ${top[0].category} (#${top[0].rank || '—'} of ${top[0].totalTools}) and ${top[1].category} (#${top[1].rank || '—'} of ${top[1].totalTools}) for adoption.`;
+    : ranked.length === 1
+      ? ` On operator score, ${partnerName} ranks ${place(ranked[0])}.`
+      : ` On operator score, ${partnerName} ranks ${place(ranked[0])} and ${place(ranked[1])}.`;
   // Operator brands lead when we have them: that's the figure on the public
   // marketplace tile, so it's the one a partner cross-checks first. The rest
   // of the sentence is explicitly review-based — the two are different units
@@ -152,13 +168,19 @@ export default function StackCollectSection({ partnerName, data: raw, categorySc
     topCompetitors: raw.topCompetitors ?? [],
   };
 
-  const headline = buildHeadline(partnerName, data);
-
-  // Rank here is by adoption (how often operators pick you); the score column
-  // is satisfaction. They answer different questions, so a partner can lead a
-  // category on picks and sit mid-table on score.
+  // Adoption (how often operators pick a tool) is what the KPI tiles show;
+  // the table below is satisfaction. They answer different questions, so a
+  // partner can be the most-picked in a category and sit mid-table on score.
   const scoreByCategory = new Map(categoryScores.map(c => [c.category, c]));
   const anyScores = categoryScores.length > 0;
+
+  // Only categories with real ratings appear. A row saying "not rated yet"
+  // is noise on a card whose whole job is to show where they stand.
+  const ratedCategories = (data.categoryRankings ?? [])
+    .map(r => ({ category: r.category, cs: scoreByCategory.get(r.category) }))
+    .filter((x): x is { category: string; cs: CategoryScore } => Boolean(x.cs));
+
+  const headline = buildHeadline(partnerName, data, ratedCategories);
 
   return (
     <div className="bg-white rounded-xl border border-gray-200 p-5 sm:p-6 mb-6 sm:mb-8">
@@ -210,7 +232,7 @@ export default function StackCollectSection({ partnerName, data: raw, categorySc
           score-based. The leader is a number, never a name: scores aren't
           public the way pick counts are, and naming the highest-scoring rival
           would publish something no vendor agreed to. */}
-      {data.categoryRankings.length > 0 && (
+      {ratedCategories.length > 0 && (
         <div className="mb-5">
           <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider mb-2">Where you rank, by category</p>
           <div className="overflow-x-auto -mx-5 sm:-mx-6">
@@ -225,24 +247,11 @@ export default function StackCollectSection({ partnerName, data: raw, categorySc
                 </tr>
               </thead>
               <tbody>
-                {data.categoryRankings.map(r => {
-                  const cs = scoreByCategory.get(r.category);
-                  // A category they appear in but nobody has rated yet stays
-                  // in the list — dropping it would hide where they compete.
-                  if (!cs) {
-                    return (
-                      <tr key={r.category} className="border-b border-gray-50">
-                        <td className="py-2 px-5 sm:px-6 font-medium text-gray-800">{r.category}</td>
-                        <td colSpan={4} className="py-2 px-2 text-gray-400 text-xs">
-                          No operator ratings in this category yet
-                        </td>
-                      </tr>
-                    );
-                  }
+                {ratedCategories.map(({ category, cs }) => {
                   const leads = cs.rank === 1;
                   return (
-                    <tr key={r.category} className="border-b border-gray-50">
-                      <td className="py-2 px-5 sm:px-6 font-medium text-gray-800">{r.category}</td>
+                    <tr key={category} className="border-b border-gray-50">
+                      <td className="py-2 px-5 sm:px-6 font-medium text-gray-800">{category}</td>
                       <td className="py-2 px-2 text-center tabular-nums">
                         <span className="font-semibold" style={{ color: scoreTone(cs.sos, 'text') }}>
                           {cs.sos.toFixed(1)}
@@ -260,8 +269,8 @@ export default function StackCollectSection({ partnerName, data: raw, categorySc
                       <td className="py-2 px-5 sm:px-6 text-gray-700 tabular-nums">
                         {leads
                           ? <span className="text-emerald-700 font-medium">you lead this category</span>
-                          : cs.leaderSos !== null
-                            ? <>{cs.leaderSos.toFixed(1)} <span className="text-gray-400">to beat</span></>
+                          : cs.leaderName
+                            ? <>{cs.leaderName}{cs.leaderSos !== null && <span className="text-gray-400"> ({cs.leaderSos.toFixed(1)})</span>}</>
                             : <span className="text-gray-400">—</span>}
                       </td>
                     </tr>
@@ -271,7 +280,7 @@ export default function StackCollectSection({ partnerName, data: raw, categorySc
             </table>
           </div>
           <p className="text-[11px] text-gray-400 mt-2 px-5 sm:px-6">
-            Rank is among vendors in the category with enough ratings to rank. Competitors are never named.
+            Rank is among vendors in the category with enough ratings to rank.
           </p>
         </div>
       )}

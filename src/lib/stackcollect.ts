@@ -824,7 +824,8 @@ export interface CategoryPosition {
   sos: number;              // partner's SOS in this category
   count: number;            // partner's responses in this category
   categoryAverage: number;  // response-weighted mean SOS of every rating here
-  leaderSos: number | null; // best-scoring ranked vendor — name withheld
+  leaderSos: number | null; // best-scoring ranked vendor in this category
+  leaderName: string | null; // and who it is — partners asked to see the name
   rank: number;             // partner's rank among ranked vendors (0 = unranked)
   totalRanked: number;      // vendors in this category clearing MIN_SCORE_RESPONSES
   gapToAverage: number;     // partner SOS − category average
@@ -1049,9 +1050,15 @@ export async function getPartnerScoreIntelligence(partnerName: string): Promise<
     // Rank vendors that clear the response threshold. Vendor keys fold case
     // and whitespace, matching rollupNpsByVendor.
     const byVendor = new Map<string, number[]>();
+    // Vendor keys fold case and whitespace to match rollupNpsByVendor, but
+    // partners are shown the leader by name now, so keep the first spelling
+    // an operator actually typed rather than the folded key.
+    const vendorLabel = new Map<string, string>();
     for (const s of here) {
-      const key = (s.vendor ?? '').trim().toLowerCase();
+      const raw = (s.vendor ?? '').trim();
+      const key = raw.toLowerCase();
       if (!key) continue;
+      if (!vendorLabel.has(key)) vendorLabel.set(key, raw);
       if (!byVendor.has(key)) byVendor.set(key, []);
       byVendor.get(key)!.push(s.score);
     }
@@ -1059,6 +1066,7 @@ export async function getPartnerScoreIntelligence(partnerName: string): Promise<
       .filter(([, arr]) => arr.length >= MIN_SCORE_RESPONSES)
       .map(([key, arr]) => ({
         key,
+        label: vendorLabel.get(key) || key,
         sos: sosFromAvg(arr.reduce((a, b) => a + b, 0) / arr.length),
         count: arr.length,
       }))
@@ -1070,6 +1078,7 @@ export async function getPartnerScoreIntelligence(partnerName: string): Promise<
 
     const myRankIndex = ranked.findIndex(r => isPartnerVendor(r.key));
     const leaderSos = ranked.length > 0 ? ranked[0].sos : null;
+    const leaderName = ranked.length > 0 ? ranked[0].label : null;
 
     categories.push({
       category,
@@ -1077,6 +1086,7 @@ export async function getPartnerScoreIntelligence(partnerName: string): Promise<
       count: myRatingsHere.length,
       categoryAverage,
       leaderSos,
+      leaderName,
       rank: myRankIndex >= 0 ? myRankIndex + 1 : 0,
       totalRanked: ranked.length,
       gapToAverage: Number((mySos - categoryAverage).toFixed(1)),

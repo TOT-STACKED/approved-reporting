@@ -44,6 +44,7 @@ interface CategoryPosition {
   count: number;
   categoryAverage: number;
   leaderSos: number | null;
+  leaderName: string | null;
   rank: number;
   totalRanked: number;
   gapToAverage: number;
@@ -714,7 +715,6 @@ export function ScoreDetail({
           Your own operator score, cut by who&apos;s rating you, where you sit in your
           categories, and which way it&apos;s moving. Built from the 0–10 &ldquo;would you
           recommend?&rdquo; rating operators give each tool in their Intelligence Review.
-          Competitors are never named.
         </p>
       </div>
 
@@ -756,8 +756,8 @@ export function ScoreDetail({
         <h3 className="font-semibold text-gray-900 mb-1">Where you sit in your categories</h3>
         <p className="text-xs text-gray-500 mb-4 max-w-3xl">
           Category average is every rating given to every tool in that category. The leader is
-          the highest-scoring product with {minResponses}+ reviews — we show you the number to
-          beat, never the name.
+          the highest-scoring product with {minResponses}+ reviews, named so you know who
+          you&apos;re measuring against.
         </p>
 
         {categories.length === 0 ? (
@@ -815,7 +815,8 @@ export function ScoreDetail({
                     </span>
                   ) : c.leaderSos !== null ? (
                     <span className="tabular-nums text-gray-500">
-                      {fmt(c.leaderSos)} <span className="text-gray-400">leader</span>
+                      {fmt(c.leaderSos)}{' '}
+                      <span className="text-gray-400">{c.leaderName || 'leader'}</span>
                       {c.gapToLeader !== null && c.gapToLeader < 0 && (
                         <span className="text-gray-500"> ({signed(c.gapToLeader)})</span>
                       )}
