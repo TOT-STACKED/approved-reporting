@@ -122,10 +122,6 @@ export default function SecurePartnerPage({ tokenOverride }: { tokenOverride?: s
   } | null>(null);
   const [loading, setLoading] = useState(true);
   const [unauthorized, setUnauthorized] = useState(false);
-  const [generating, setGenerating] = useState(false);
-  const [reportHtml, setReportHtml] = useState<string | null>(null);
-  const [showNarrative, setShowNarrative] = useState(false);
-  const [narrativeInput, setNarrativeInput] = useState('');
 
   // Which stage the Lead Progress table is showing. MAL not selectable —
   // 998 MAL rows would drown the table. MQL is the natural default.
@@ -228,32 +224,6 @@ export default function SecurePartnerPage({ tokenOverride }: { tokenOverride?: s
     return () => { cancelled = true; };
   }, [token]);
 
-  const generateReport = async () => {
-    if (!partner) return;
-    setGenerating(true);
-    setShowNarrative(false);
-    try {
-      const res = await fetch('/api/report', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ partnerName: partner.name, token, narrativeContext: narrativeInput }),
-      });
-      const html = await res.text();
-      setReportHtml(html);
-
-      const blob = new Blob([html], { type: 'text/html' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `${partner.name.replace(/[^a-zA-Z0-9]/g, '_')}_Value_Report.html`;
-      a.click();
-      setTimeout(() => URL.revokeObjectURL(url), 1000);
-    } catch {
-      alert('Failed to generate report');
-    }
-    setGenerating(false);
-  };
-
   if (loading) {
     return (
       <div className="min-h-screen bg-brand-cream-soft flex items-center justify-center">
@@ -309,7 +279,7 @@ export default function SecurePartnerPage({ tokenOverride }: { tokenOverride?: s
     <div className="min-h-screen bg-brand-cream-soft">
       {/* Standalone header */}
       <nav className="bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/80 border-b border-gray-200/80 px-4 sm:px-6 py-3 sticky top-0 z-30">
-        <div className="max-w-5xl mx-auto flex items-center justify-between">
+        <div className="max-w-5xl mx-auto flex items-center">
           <div className="flex items-center gap-3">
             <img
               src="/stacked-wordmark.svg"
@@ -321,34 +291,10 @@ export default function SecurePartnerPage({ tokenOverride }: { tokenOverride?: s
               <span className="font-mono text-[9px] sm:text-[10px] uppercase tracking-[0.18em] text-brand-green/60 mt-1">Partner Portal</span>
             </span>
           </div>
-          <span className="font-mono text-[10px] sm:text-xs uppercase tracking-[0.18em] text-brand-green-soft font-medium hidden sm:inline">
-            Stacked
-          </span>
         </div>
       </nav>
 
       <main className="max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
-          <div>
-            <h1 className="font-display text-4xl sm:text-5xl tracking-tight leading-[0.95] text-brand-green">{partner.name} Dashboard</h1>
-            {/* Promote isn't being referred leads, so quoting a referral
-                count against their name would be misleading. */}
-            <p className="text-gray-500 text-sm mt-1">
-              {tier === 'promote'
-                ? 'Your marketplace intelligence, powered by Stacked'
-                : `${partner.leadCount} total leads referred by Stacked`}
-            </p>
-          </div>
-          <button
-            onClick={() => setShowNarrative(true)}
-            disabled={generating}
-            className="bg-brand-orange hover:bg-orange-400 active:bg-orange-600 text-brand-green px-5 py-2.5 rounded-full font-medium text-sm transition-colors disabled:opacity-50 whitespace-nowrap shadow-[4px_4px_0_0_#C34014]"
-          >
-            {generating ? 'Generating...' : 'Generate Report'}
-          </button>
-        </div>
-
         {/* The score leads the page — it's what the tier is for. Renders
             nothing until it's loaded, so the pipeline boxes never jump. */}
         {/* Sits above the score, so it's the first thing a partner sees on
@@ -357,29 +303,6 @@ export default function SecurePartnerPage({ tokenOverride }: { tokenOverride?: s
         {!tokenOverride && <AccountSetupCard token={token} partnerName={partner.name} />}
 
         <ScoreHeadline score={score} />
-
-        {/* Narrative Input */}
-        {showNarrative && (
-          <div className="bg-white rounded-xl border-2 border-brand-green/20 p-5 sm:p-6 mb-8 shadow-sm">
-            <h2 className="font-semibold text-gray-900 mb-2">Add context for the report summary</h2>
-            <p className="text-sm text-gray-500 mb-4">Notes about this month — we&apos;ll write a professional narrative for the report.</p>
-            <textarea
-              value={narrativeInput}
-              onChange={e => setNarrativeInput(e.target.value)}
-              rows={3}
-              placeholder="e.g. Great month — featured in 3 Spread editions, strong uptick in inbound leads..."
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 focus:ring-2 focus:ring-brand-green focus:border-brand-green mb-4"
-            />
-            <div className="flex gap-3">
-              <button onClick={generateReport} disabled={generating}
-                className="bg-brand-orange hover:bg-orange-400 active:bg-orange-600 text-brand-green px-5 py-2 rounded-full font-medium text-sm transition-colors disabled:opacity-50 shadow-[4px_4px_0_0_#C34014]">
-                {generating ? 'Generating...' : 'Generate Report'}
-              </button>
-              <button onClick={() => setShowNarrative(false)}
-                className="text-gray-500 hover:text-gray-700 px-4 py-2 text-sm">Cancel</button>
-            </div>
-          </div>
-        )}
 
         {/* KPI Cards — MAL → MQL → SQL → Won.
             Approved sees their own pipeline and can click a stage to filter
@@ -865,19 +788,6 @@ export default function SecurePartnerPage({ tokenOverride }: { tokenOverride?: s
                   </tr>
                 </tbody>
               </table>
-            </div>
-          </div>
-        )}
-
-        {/* Inline Report Preview */}
-        {reportHtml && (
-          <div className="mt-8">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="font-semibold text-gray-900 text-lg">Generated Report Preview</h2>
-              <button onClick={() => setReportHtml(null)} className="text-sm text-gray-500 hover:text-gray-700">Close preview</button>
-            </div>
-            <div className="bg-white rounded-xl border-2 border-brand-green/20 shadow-lg overflow-hidden">
-              <iframe srcDoc={reportHtml} className="w-full border-0" style={{ minHeight: '900px' }} title="Report Preview" />
             </div>
           </div>
         )}
