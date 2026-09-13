@@ -567,8 +567,8 @@ export function ScoreHeadline({ score }: { score: ScoreIntelligence | null }) {
 
   return (
     <Card className="mb-4">
-      <div className="flex flex-wrap items-end gap-x-8 gap-y-4">
-        <div>
+      <div className="flex flex-wrap items-stretch gap-4 sm:gap-6">
+        <div className="bg-brand-cream border border-gray-200 rounded-xl px-5 py-4 flex flex-col justify-center">
           <div className="text-[11px] uppercase tracking-wider text-gray-500 mb-1">
             Your operator score
           </div>
@@ -586,7 +586,7 @@ export function ScoreHeadline({ score }: { score: ScoreIntelligence | null }) {
           </div>
         </div>
 
-        <div className="border-l border-gray-100 pl-6">
+        <div className="flex flex-col justify-center py-1">
           <div className="text-[11px] uppercase tracking-wider text-gray-500 mb-1">Movement</div>
           {movement ? (
             <>
@@ -614,7 +614,7 @@ export function ScoreHeadline({ score }: { score: ScoreIntelligence | null }) {
             pushed the pipeline boxes off the fold. It's repeated in the segment
             table below either way. */}
         {best && worst && best.key !== worst.key && (
-          <div className="border-l border-gray-100 pl-6 hidden sm:block">
+          <div className="hidden sm:flex flex-col justify-center py-1 sm:border-l sm:border-gray-100 sm:pl-6">
             <div className="text-[11px] uppercase tracking-wider text-gray-500 mb-1">Widest gap</div>
             <div className="text-sm text-gray-900 leading-snug">
               <span className="font-semibold" style={{ color: scoreTone(best.sos!, 'text') }}>
@@ -630,7 +630,7 @@ export function ScoreHeadline({ score }: { score: ScoreIntelligence | null }) {
           </div>
         )}
 
-        <div className="sm:border-l sm:border-gray-100 sm:pl-6">
+        <div className="flex items-center sm:border-l sm:border-gray-100 sm:pl-6">
           <a href="#score-intelligence" className="text-xs text-brand-green underline hover:no-underline">
             See the breakdown ↓
           </a>
@@ -638,19 +638,28 @@ export function ScoreHeadline({ score }: { score: ScoreIntelligence | null }) {
       </div>
 
       {/* Why the number is out of 5 and not an NPS. Operators are asked the
-          standard 0–10 "would you recommend?" question, so an NPS exists — but
-          −100 to +100 is a scale almost nobody reads correctly at a glance, so
-          we publish the same responses as a plain 0–5 score instead. */}
-      <p className="text-xs text-gray-500 leading-relaxed mt-4 pt-3 border-t border-gray-100 max-w-3xl">
-        <span className="font-medium text-gray-700">Why 0–5 and not NPS?</span>{' '}
-        Operators answer the standard 0–10 &ldquo;how likely are you to recommend?&rdquo;
-        question — the same question a Net Promoter Score is built from. NPS then compresses
-        those answers into a −100 to +100 figure that&apos;s genuinely hard to read: it hides
-        how people actually scored you, and a −100 to +100 number means little to an operator.
-        So we publish the same responses as the Stacked Operator Score (SOS) — the average
-        0–10 rating, halved onto a 0–5 scale everyone already understands. Nothing is
-        weighted or filtered on the way: {fmt(sos)} out of 5 is simply what operators gave you.
-      </p>
+          standard 0–10 "would you recommend?" question, so an NPS exists —
+          but −100 to +100 is a scale almost nobody reads correctly, so we
+          publish the same responses as a plain 0–5 score instead.
+
+          Folded into a disclosure: it's a paragraph that never changes, and
+          at full length it pushed the pipeline off the fold. Native details
+          so it works without JS and keeps its keyboard behaviour. */}
+      <details className="mt-4 pt-3 border-t border-gray-100 group">
+        <summary className="text-xs text-gray-500 cursor-pointer list-none flex items-center gap-1.5 hover:text-gray-700 w-fit">
+          <span className="font-medium">Why 0–5 and not NPS?</span>
+          <span aria-hidden className="transition-transform group-open:rotate-90">›</span>
+        </summary>
+        <p className="text-xs text-gray-500 leading-relaxed mt-2 max-w-3xl">
+          Operators answer the standard 0–10 &ldquo;how likely are you to recommend?&rdquo;
+          question — the same question a Net Promoter Score is built from. NPS then compresses
+          those answers into a −100 to +100 figure that&apos;s genuinely hard to read: it hides
+          how people actually scored you, and a −100 to +100 number means little to an operator.
+          So we publish the same responses as the Stacked Operator Score (SOS) — the average
+          0–10 rating, halved onto a 0–5 scale everyone already understands. Nothing is
+          weighted or filtered on the way: {fmt(sos)} out of 5 is simply what operators gave you.
+        </p>
+      </details>
     </Card>
   );
 }
