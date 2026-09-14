@@ -700,7 +700,12 @@ export function ScoreDetail({
     );
   }
 
-  const { overall, sentiment, bySegment, bySiteBand, categories, trend, movement, unsegmented, minResponses } = score;
+  const { overall, sentiment, bySegment, bySiteBand, trend, movement, unsegmented, minResponses } = score;
+
+  // Only categories that clear the five-review bar, the same one the
+  // Intelligence card uses. Below that a stray rating invents a category a
+  // partner doesn't operate in, and they read it as us getting them wrong.
+  const categories = score.categories.filter(c => c.strict);
   void movement;
 
   // No ratings at all — say so plainly and say what causes ratings to arrive,
@@ -770,9 +775,9 @@ export function ScoreDetail({
       <Card className="mb-4">
         <h3 className="font-semibold text-gray-900 mb-1">Where you sit in your categories</h3>
         <p className="text-xs text-gray-500 mb-4 max-w-3xl">
-          Category average is every rating given to every tool in that category. The leader is
-          the highest-scoring product with {minResponses}+ reviews, named so you know who
-          you&apos;re measuring against.
+          Category average is every rating given to every tool in that category. Categories and
+          leaders both need five or more operator reviews — below that a single rating moves a
+          rank. The leader is named so you know who you&apos;re measuring against.
         </p>
 
         {categories.length === 0 ? (
@@ -784,20 +789,9 @@ export function ScoreDetail({
                 <div className="flex items-baseline justify-between gap-3 mb-1">
                   <span className="text-sm font-medium text-gray-900">
                     {c.category}
-                    {/* Same caveat the segment rows carry. Without it a
-                        category score built on one response reads with the
-                        same weight as one built on twenty. */}
-                    {c.count < minResponses && (
-                      <span
-                        className="ml-1.5 text-[10px] font-normal text-gray-400"
-                        title={`Under ${minResponses} responses — indicative only`}
-                      >
-                        provisional
-                      </span>
-                    )}
                   </span>
                   <span className="text-xs text-gray-400 tabular-nums whitespace-nowrap">
-                    {c.rank > 0 ? `#${c.rank} of ${c.totalRanked} ranked` : 'not yet ranked'}
+                    {c.strict!.rank > 0 ? `#${c.strict!.rank} of ${c.strict!.totalRanked} ranked` : 'not yet ranked'}
                     <span className="text-gray-300"> · {c.count} {c.count === 1 ? 'review' : 'reviews'}</span>
                   </span>
                 </div>
@@ -808,8 +802,8 @@ export function ScoreDetail({
                   refs={[
                     // No leader tick when the partner is the leader — it would
                     // land on their own bar and read as a rival on top of them.
-                    ...(c.leaderSos !== null && c.rank !== 1
-                      ? [{ at: c.leaderSos, label: 'Leader', dash: 'solid', ink: INK }]
+                    ...(c.strict!.leaderSos !== null && c.strict!.rank !== 1
+                      ? [{ at: c.strict!.leaderSos, label: 'Leader', dash: 'solid', ink: INK }]
                       : []),
                     { at: c.categoryAverage, label: 'Avg', dash: 'dashed', ink: DIM },
                   ]}
@@ -824,17 +818,18 @@ export function ScoreDetail({
                     {fmt(c.categoryAverage)} <span className="text-gray-400">category avg</span>
                     <span className="text-gray-500"> ({signed(c.gapToAverage)})</span>
                   </span>
-                  {c.rank === 1 ? (
+                  {c.strict!.rank === 1 ? (
                     <span className="font-medium" style={{ color: MARK }}>
                       you lead this category
                     </span>
-                  ) : c.leaderSos !== null ? (
+                  ) : c.strict!.leaderSos !== null ? (
                     <span className="tabular-nums text-gray-500">
-                      {fmt(c.leaderSos)}{' '}
-                      <span className="text-gray-400">{c.leaderName || 'leader'}</span>
-                      {c.gapToLeader !== null && c.gapToLeader < 0 && (
-                        <span className="text-gray-500"> ({signed(c.gapToLeader)})</span>
-                      )}
+                      {fmt(c.strict!.leaderSos)}{' '}
+                      <span className="text-gray-400">{c.strict!.leaderName || 'leader'}</span>
+                      {(() => {
+                        const gap = Number((c.sos - c.strict!.leaderSos!).toFixed(1));
+                        return gap < 0 ? <span className="text-gray-500"> ({signed(gap)})</span> : null;
+                      })()}
                     </span>
                   ) : null}
                 </div>
