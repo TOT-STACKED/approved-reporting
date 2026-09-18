@@ -7,7 +7,10 @@ import { NAV } from '@/lib/nav';
 
 // Routes that render their own chrome (partner-branded header, no portal nav,
 // no "Dashboard / Analytics / Leads" links leaking the rest of the admin).
-const BARE_PREFIXES = ['/p/', '/login'];
+// /dashboard and /signin belong here too: they are the partner-facing side of
+// the portal. Every link in NAV is gated on the *team* password, so showing
+// this nav to a signed-in partner sent them straight to /login.
+const BARE_PREFIXES = ['/p/', '/login', '/dashboard', '/signin'];
 
 function isBareRoute(pathname: string | null): boolean {
   if (!pathname) return false;
