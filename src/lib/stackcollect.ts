@@ -462,7 +462,6 @@ export const PARTNER_VENDOR_ALIASES: Record<string, string[]> = {
   'apicbase': ['apicbase'],
   'fourth': ['fourth'],
   'trisaas': ['trisaas'],
-  'cocentric': ['cocentric'],
   'sunday': ['sunday'],
   'tissl': ['tissl'],
   'clearcourse / giftpro / tissl': ['tissl', 'giftpro', 'clearcourse'],
@@ -496,7 +495,10 @@ export const PARTNER_VENDOR_ALIASES: Record<string, string[]> = {
   'planday from xero': ['planday', 'plan day', 'planday from xero', 'planday by xero'],
   'planday by xero': ['planday', 'plan day', 'planday from xero', 'planday by xero'],
   'planday': ['planday', 'plan day', 'planday from xero', 'planday by xero'],
-  'connect frontline': ['connect', 'connect frontline'],
+  // Cocentric renamed to Connect Frontline. Stack reviews written before the
+  // rebrand still say "Cocentric", so both keys roll up the same vendor terms.
+  'connect frontline': ['connect', 'connect frontline', 'cocentric'],
+  'cocentric': ['connect', 'connect frontline', 'cocentric'],
   'me&u': ['me&u', 'meandu', 'me and u'],
   'ws&co insights': ['wsco', 'ws&co', 'ws co'],
   'prodicta ltd': ['prodicta'],

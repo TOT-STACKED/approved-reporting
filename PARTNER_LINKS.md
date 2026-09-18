@@ -39,7 +39,7 @@ redeploy, then add a row here.
 | Sunday | `sunday` | https://partners.wearestacked.io/p/1364cd50c5676c52 |
 | Tissl | `tissl` | https://partners.wearestacked.io/p/434a0f0d771eaa42 |
 | Embargo | `embargo` | https://partners.wearestacked.io/p/31528ac009d1f8a9 |
-| Cocentric | `cocentric` | https://partners.wearestacked.io/p/6b5751e0cd1c9df5 |
+| Connect Frontline | `connect-frontline` | https://partners.wearestacked.io/p/6b5751e0cd1c9df5 |
 | Trisaas | `trisaas` | https://partners.wearestacked.io/p/f57d2e7474d1d4c1 |
 | Urocked | `urocked` | https://partners.wearestacked.io/p/07edc0df58f65d0d |
 | Cinchio | `cinchio` | https://partners.wearestacked.io/p/aeeef30620bd1417 |
