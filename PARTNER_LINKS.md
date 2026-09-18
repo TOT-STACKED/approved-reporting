@@ -52,8 +52,18 @@ redeploy, then add a row here.
 | Lloyds | `lloyds` | https://partners.wearestacked.io/p/c42fabf94155617a |
 | Clearcourse | `clearcourse` | https://partners.wearestacked.io/p/258aca68a47006ec |
 | Flock X | `flock-x` | https://partners.wearestacked.io/p/134a0de873e1e97c |
-| Feedality | `feedality` | https://partners.wearestacked.io/p/08a8dd66231459d3 |
+| Feedelity | `feedelity` | https://partners.wearestacked.io/p/08a8dd66231459d3 |
 | Revvue | `revvue` | https://partners.wearestacked.io/p/78ca8767940bd992 |
 | Planday | `planday` | https://partners.wearestacked.io/p/d775f98afeb002d1 |
+| Leat | `leat` | https://partners.wearestacked.io/p/Hl6kzf18K23ELmOV2GiloV-JpBqvESeO |
+| SevenRooms | `seven-rooms` | https://partners.wearestacked.io/p/vPLaxObvQAz8C6u7rKt2n2TqQN_bOXQf |
 
-_35 partners. Last updated: 2026-09-04 (added Flock X, Feedality, Revvue and Planday. Revvue's slug is `revvue` but Airtable's select option reads "Revvue ai" — an alias group in `src/lib/airtable.ts` accepts both. Flock X has no leads tagged yet and isn't a select option in the Master Lead Sheet stage fields, so their page renders the zero state until one is added.)_
+_37 partners. Last updated: 2026-09-18 (Cocentric renamed to Connect Frontline — same
+token, new slug. Added the Leat and SevenRooms rows, which existed in `PARTNER_TOKENS`
+but had never been recorded here; their tokens are 32 chars, not the usual 16. Corrected
+Feedality to `feedelity`, which is what both Netlify and the Partners table say.
+SevenRooms' slug here is `seven-rooms` while Airtable's is `sevenrooms` — an alias group
+in `src/lib/airtable.ts` accepts both, so leave it. Revvue's slug is `revvue` but
+Airtable's select option reads "Revvue ai" — same alias mechanism. Flock X has no leads
+tagged yet and isn't a select option in the Master Lead Sheet stage fields, so their page
+renders the zero state until one is added.)_
