@@ -348,6 +348,14 @@ const PARTNER_ALIAS_GROUPS: Record<string, PartnerAliasGroup> = {
     displayName: 'RYE',
     slugs: ['rye', 'rye-energy'],
   },
+  // Cocentric renamed to Connect Frontline. The marketplace record and the
+  // partner link are both on the new name, but every lead in the Master Lead
+  // Sheet is still tagged with the old select option "Cocentric" — so without
+  // this their dashboard renders a zero state over a live pipeline.
+  'connect-frontline': {
+    displayName: 'Connect Frontline',
+    slugs: ['connect-frontline', 'cocentric'],
+  },
   // Lead sheet says "Seven Rooms", the marketplace says "SevenRooms".
   sevenrooms: {
     displayName: 'SevenRooms',
