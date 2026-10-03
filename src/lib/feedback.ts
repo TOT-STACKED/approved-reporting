@@ -81,7 +81,13 @@ export async function postFeedbackToSlack(args: {
   portalBaseUrl: string;
 }): Promise<void> {
   const url = process.env.FEEDBACK_SLACK_WEBHOOK_URL;
-  if (!url) return; // not configured — silently skip
+  if (!url) {
+    // Was a silent return. A missing webhook and a working one looked
+    // identical from outside, which cost a day working out why MarketMan
+    // updates never reached Slack.
+    console.warn('[feedback] FEEDBACK_SLACK_WEBHOOK_URL not set — no Slack notification sent');
+    return;
+  }
 
   const partnerLabel = args.partnerDisplayName ||
     args.partnerSlug.replace(/[-_]+/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
@@ -108,13 +114,19 @@ export async function postFeedbackToSlack(args: {
   };
 
   try {
-    await fetch(url, {
+    const res = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     });
-  } catch {
-    // swallowed — Slack outages shouldn't surface to the partner
+    // A revoked or deleted webhook answers 404/410 and otherwise looks like
+    // success from here. Still swallowed — a Slack outage must never block a
+    // partner's update — but now it leaves a trace in the function log.
+    if (!res.ok) {
+      console.warn(`[feedback] Slack rejected the notification: ${res.status} ${await res.text()}`);
+    }
+  } catch (err) {
+    console.warn('[feedback] could not reach Slack', err);
   }
 }
 
