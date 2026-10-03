@@ -472,6 +472,9 @@ export const PARTNER_VENDOR_ALIASES: Record<string, string[]> = {
   'storekit': ['storekit'],
   // Partner record is "SevenRooms" (one word) — the old 'seven rooms' key
   // never fired, so the multi-spelling rollup was never actually applied.
+  // Operators type it both ways in reviews.
+  'marketman': ['marketman', 'market man'],
+  'market man': ['marketman', 'market man'],
   'sevenrooms': ['sevenrooms', 'seven rooms', '7rooms'],
   // The lead sheet spells it with a space, so a partner resolved from lead
   // data alone would arrive here as "Seven Rooms" and miss the other two.

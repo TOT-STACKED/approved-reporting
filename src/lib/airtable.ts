@@ -356,6 +356,11 @@ const PARTNER_ALIAS_GROUPS: Record<string, PartnerAliasGroup> = {
     displayName: 'Connect Frontline',
     slugs: ['connect-frontline', 'cocentric'],
   },
+  // Lead sheet says "Market Man", the marketplace says "MarketMan".
+  marketman: {
+    displayName: 'MarketMan',
+    slugs: ['marketman', 'market-man'],
+  },
   // Lead sheet says "Seven Rooms", the marketplace says "SevenRooms".
   sevenrooms: {
     displayName: 'SevenRooms',
