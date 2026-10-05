@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from 'next/server';
-import { listVenues } from '@/lib/venues';
+import { listVenues, VenueDataError } from '@/lib/venues';
 import { summarise, viewerEntitlement } from '@/lib/venue-viewer';
 import { VENUE_SESSION_COOKIE, verifyVenueSession } from '@/lib/venue-auth';
 
@@ -25,6 +25,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ viewer: ent ? summarise(ent) : null, signedInAs, venues, total });
   } catch (error: unknown) {
     console.warn('[venues] list failed', error);
-    return NextResponse.json({ error: 'The venue list is unavailable right now.' }, { status: 503 });
+    const reason = error instanceof VenueDataError ? error.message : 'unexpected';
+    return NextResponse.json({ error: 'The venue list is unavailable right now.', reason }, { status: 503 });
   }
 }

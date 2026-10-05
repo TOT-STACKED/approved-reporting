@@ -73,6 +73,9 @@ interface Venue {
   gaps: string[];
 }
 
+/** Carries a short, safe reason code — no keys, no data — for the error response. */
+export class VenueDataError extends Error {}
+
 const CACHE_TTL_MS = 5 * 60 * 1000;
 let cache: Venue[] | null = null;
 let cachedAt = 0;
@@ -116,7 +119,11 @@ function toVenue(r: Row): Venue {
 
 async function load(): Promise<Venue[]> {
   if (cache && Date.now() - cachedAt < CACHE_TTL_MS) return cache;
-  if (!venuesConfigured()) throw new Error('VENUES_SUPABASE_URL / VENUES_SUPABASE_KEY not configured');
+  if (!venuesConfigured()) {
+    throw new VenueDataError(
+      `not_configured (url ${URL_ ? 'set' : 'missing'}, key ${KEY ? 'set' : 'missing'})`
+    );
+  }
 
   const res = await fetch(
     `${URL_}/rest/v1/submissions?select=${COLUMNS}&consent=eq.true&order=created_at.desc&limit=5000`,
@@ -124,7 +131,7 @@ async function load(): Promise<Venue[]> {
   );
   if (!res.ok) {
     if (cache) return cache; // serve stale over an outage
-    throw new Error(`Venue data unavailable (${res.status})`);
+    throw new VenueDataError(`upstream_${res.status}`);
   }
   const rows = (await res.json()) as Row[];
 
