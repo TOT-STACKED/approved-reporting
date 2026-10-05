@@ -45,7 +45,7 @@ export default function JoinPage() {
       });
       const json = await res.json();
       if (!res.ok || !json.url) {
-        setError(json.error || 'Could not start checkout.');
+        setError([json.error || 'Could not start checkout.', json.detail].filter(Boolean).join(' — '));
         return;
       }
       window.location.href = json.url;

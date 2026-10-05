@@ -21,6 +21,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ url: portal.url });
   } catch (error: unknown) {
     console.warn('[venues] billing portal failed', error);
-    return NextResponse.json({ error: 'Could not open billing. Try again shortly.' }, { status: 502 });
+    // Stripe's own message (it masks keys), so a setup problem is visible
+    // on the page rather than only in the function logs.
+    const detail = error instanceof Error ? error.message : '';
+    return NextResponse.json({ error: 'Could not open billing. Try again shortly.', detail }, { status: 502 });
   }
 }

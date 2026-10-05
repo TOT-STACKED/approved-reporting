@@ -121,6 +121,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ url: session.url });
   } catch (error: unknown) {
     console.warn('[venues] checkout failed', error);
-    return NextResponse.json({ error: 'Could not start checkout. Try again shortly.' }, { status: 502 });
+    // Stripe's own message (it masks keys), so a setup problem is visible
+    // on the page rather than only in the function logs.
+    const detail = error instanceof Error ? error.message : '';
+    return NextResponse.json({ error: 'Could not start checkout. Try again shortly.', detail }, { status: 502 });
   }
 }
