@@ -14,6 +14,8 @@ import { SESSION_COOKIE, verifySessionToken } from '@/lib/session';
 // - /api/report        : "Generate Report" button on token-gated partner pages
 // - /api/sos-sync      : shared-secret gated, called by nightly Netlify scheduled function
 // - /api/tech-usage-sync : shared-secret gated, called by nightly Netlify scheduled function
+// - /venues, /api/venues/* : the venue marketplace — public listing, gated on its own
+//                        subscriber session; the webhook checks Stripe's signature
 const PUBLIC_PREFIXES = [
   '/login',
   '/api/auth/',
@@ -26,6 +28,8 @@ const PUBLIC_PREFIXES = [
   '/api/report',
   '/api/sos-sync',
   '/api/tech-usage-sync',
+  '/venues',
+  '/api/venues',
 ];
 
 function isPublic(pathname: string): boolean {

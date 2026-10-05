@@ -9,8 +9,9 @@ import { NAV } from '@/lib/nav';
 // no "Dashboard / Analytics / Leads" links leaking the rest of the admin).
 // /dashboard and /signin belong here too: they are the partner-facing side of
 // the portal. Every link in NAV is gated on the *team* password, so showing
-// this nav to a signed-in partner sent them straight to /login.
-const BARE_PREFIXES = ['/p/', '/login', '/dashboard', '/signin'];
+// this nav to a signed-in partner sent them straight to /login. /venues is
+// the marketplace tech partners pay for, with its own header.
+const BARE_PREFIXES = ['/p/', '/login', '/dashboard', '/signin', '/venues'];
 
 function isBareRoute(pathname: string | null): boolean {
   if (!pathname) return false;
