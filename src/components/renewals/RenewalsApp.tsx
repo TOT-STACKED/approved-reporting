@@ -198,7 +198,7 @@ export default function RenewalsApp({ orgName, initialTools }: { orgName: string
               {stats.upcoming.slice(0, 6).map(({ tool, d }) => (
                 <li key={tool.id}>
                   <button onClick={() => openTool(tool)} className="w-full flex items-center gap-3 py-3 text-left">
-                    <span className={`font-mono text-xs rounded-full px-2.5 py-1 shrink-0 ${urgency(d.days)}`}>{daysLabel(d.days)}</span>
+                    <span className={`font-mono text-xs rounded-full w-12 text-center py-1 shrink-0 ${urgency(d.days)}`}>{daysLabel(d.days)}</span>
                     <span className="min-w-0 flex-1">
                       <span className="block text-sm font-medium truncate">{tool.name}</span>
                       <span className="block text-xs text-muted">Give notice by {formatDate(d.date)} · renews {formatDate(d.renewal)}</span>
