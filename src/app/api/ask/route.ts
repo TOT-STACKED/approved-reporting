@@ -1,5 +1,9 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, type NextRequest } from 'next/server';
 import OpenAI from 'openai';
+import { SESSION_COOKIE, isTeamSession } from '@/lib/session';
+import { PARTNER_SESSION_COOKIE, slugForToken, verifySessionCookie } from '@/lib/partner-auth';
+import { canSeeLeadDetail } from '@/lib/partner-tier';
+import { tierForSlug } from '@/lib/partner-package';
 import { getPartnerList } from '@/lib/airtable';
 import { getAllLeads } from '@/lib/leads';
 import { getTechStackEntries, getBusinessSubmissions, getToolUsageStats, getPOSMarketShare, getNpsScores, rollupNpsByVendor, matchTermsForPartner } from '@/lib/stackcollect';
@@ -13,17 +17,40 @@ function getOpenAI(): OpenAI {
   return _openai;
 }
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
     if (!process.env.OPENAI_API_KEY) {
       return NextResponse.json({ error: 'AI is not configured' }, { status: 503 });
     }
 
-    const { question, partnerSlug } = await request.json();
+    const { question, partnerSlug, token } = await request.json();
 
     if (!question || typeof question !== 'string') {
       return NextResponse.json({ error: 'Question is required' }, { status: 400 });
     }
+
+    // This route is public (the box lives on token-gated partner pages), so
+    // it has to establish who's asking rather than trust the slug in the body.
+    // A signed-in team member may ask across everything or name any partner.
+    // A partner is pinned to the slug their /p/<token> or partner session
+    // resolves to — the unscoped, all-partners mode is team-only.
+    const teamMember = await isTeamSession(request.cookies.get(SESSION_COOKIE)?.value);
+    let requestedSlug: string | null;
+    if (teamMember) {
+      requestedSlug = typeof partnerSlug === 'string' && partnerSlug ? partnerSlug : null;
+    } else {
+      requestedSlug =
+        (typeof token === 'string' && token ? slugForToken(token) : null) ||
+        verifySessionCookie(request.cookies.get(PARTNER_SESSION_COOKIE)?.value)?.slug ||
+        null;
+      if (!requestedSlug) {
+        return NextResponse.json({ error: 'Not authorised' }, { status: 401 });
+      }
+    }
+
+    // A partner's answers follow their tier, same as /api/p/<token>: Promote
+    // gets pipeline counts but not who the leads are. The team sees it all.
+    const withLeadDetail = teamMember || canSeeLeadDetail(await tierForSlug(requestedSlug!));
 
     // Fetch all portal data in parallel (including individual leads + stack data)
     const [partners, allLeadsRaw, stackEntries, businesses, toolUsage, posMarketShare, npsScores] = await Promise.all([
@@ -38,9 +65,14 @@ export async function POST(request: Request) {
 
     // Resolve partner from slug (if provided) — used to scope answers
     let scopedPartner: { name: string; slug: string } | null = null;
-    if (partnerSlug && typeof partnerSlug === 'string') {
-      const found = partners.find(p => p.slug === partnerSlug);
+    if (requestedSlug) {
+      const found = partners.find(p => p.slug === requestedSlug);
       if (found) scopedPartner = { name: found.name, slug: found.slug };
+    }
+    // A partner whose slug isn't in the list must not fall through to the
+    // unscoped context — that's every partner's pipeline.
+    if (!scopedPartner && !teamMember) {
+      return NextResponse.json({ error: 'Partner not found' }, { status: 404 });
     }
 
     // When scoped to a partner, only include leads where that partner appears
@@ -160,9 +192,15 @@ export async function POST(request: Request) {
           scopedPartner: scopedPartner.name,
           partnerLeadCount: leads.length,
         } : {}),
-        leads: leadSlice,
+        ...(withLeadDetail ? { leads: leadSlice } : {
+          leadsNote: 'Individual lead names are not included on this plan — only pipeline counts. If asked who the leads are, say that lead detail is part of the Approved plan.',
+          leadStatusCounts: leads.reduce((acc: Record<string, number>, l: any) => {
+            acc[l.status] = (acc[l.status] || 0) + 1;
+            return acc;
+          }, {}),
+        }),
         totalLeads: leads.length,
-        ...(leadSlice.length < slimLeads.length
+        ...(withLeadDetail && leadSlice.length < slimLeads.length
           ? { leadsNote: `Showing the ${leadSlice.length} highest-priority leads of ${leads.length} total (trimmed to fit). Counts/totals above still reflect ALL leads.` }
           : {}),
         stackCollect: {

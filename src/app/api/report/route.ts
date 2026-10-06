@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { getPartnerDetail } from '@/lib/airtable';
 import { slugForToken } from '@/lib/partner-auth';
-import { SESSION_COOKIE, verifySessionToken } from '@/lib/session';
+import { SESSION_COOKIE, isTeamSession } from '@/lib/session';
 import { canSeeLeadDetail } from '@/lib/partner-tier';
 import { tierForSlug } from '@/lib/partner-package';
 import { getPartnerStackCollectData } from '@/lib/stackcollect';
@@ -42,10 +42,7 @@ export async function POST(request: NextRequest) {
     // so it has to establish who's asking rather than trust the slug in the
     // body. A signed-in team member may name any partner; a partner may only
     // reach the slug their own token resolves to.
-    const teamMember = await verifySessionToken(
-      process.env.SESSION_SECRET || '',
-      request.cookies.get(SESSION_COOKIE)?.value
-    );
+    const teamMember = await isTeamSession(request.cookies.get(SESSION_COOKIE)?.value);
     const slug = teamMember ? bodySlug : (typeof token === 'string' ? slugForToken(token) : null);
     if (!slug) {
       return NextResponse.json({ error: 'Not authorised' }, { status: 401 });

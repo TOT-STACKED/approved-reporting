@@ -10,8 +10,9 @@ import { SESSION_COOKIE, verifySessionToken } from '@/lib/session';
 // - /api/partner/*     : partner sign-in endpoints, each gated on its own credential
 // - /p/<token>         : partner pages already use unguessable 16-char tokens
 // - /api/p/<token>     : partner-page data endpoint, same token check applies upstream
-// - /api/ask           : partner-scoped AI box lives on token-gated partner pages
-// - /api/report        : "Generate Report" button on token-gated partner pages
+// - /api/ask           : AI box; checks the team session itself (unscoped / any
+//                        slug), else pins to the partner's token or partner session
+// - /api/report        : "Generate Report"; team session or the partner's token
 // - /api/sos-sync      : shared-secret gated, called by nightly Netlify scheduled function
 // - /api/tech-usage-sync : shared-secret gated, called by nightly Netlify scheduled function
 // - /venues, /api/venues/* : the venue marketplace — public listing, gated on its own

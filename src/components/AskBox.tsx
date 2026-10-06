@@ -3,18 +3,21 @@
 import { useState } from 'react';
 
 interface AskBoxProps {
+  // Team pages pass the slug (the route trusts it only with a team session);
+  // partner pages pass their /p/<token>, which the route resolves itself.
   partnerSlug?: string;
+  token?: string;
   partnerName?: string;
   placeholder?: string;
 }
 
-export default function AskBox({ partnerSlug, partnerName, placeholder }: AskBoxProps = {}) {
+export default function AskBox({ partnerSlug, token, partnerName, placeholder }: AskBoxProps = {}) {
   const [question, setQuestion] = useState('');
   const [answer, setAnswer] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const isPartnerScoped = !!partnerSlug;
+  const isPartnerScoped = !!(partnerSlug || token);
   const defaultPlaceholder = isPartnerScoped
     ? `Ask about ${partnerName || 'your'} leads... e.g. Which MQL leads need follow-up?`
     : 'Ask about your data... e.g. Who is in active conversation?';
@@ -34,6 +37,7 @@ export default function AskBox({ partnerSlug, partnerName, placeholder }: AskBox
         body: JSON.stringify({
           question: question.trim(),
           partnerSlug: partnerSlug || undefined,
+          token: token || undefined,
         }),
       });
 

@@ -45,3 +45,12 @@ export async function verifySessionToken(secret: string, token: string | undefin
   const expected = await hmac(secret, expiryStr);
   return timingSafeEqual(sig, expected);
 }
+
+// For public route handlers that need to know whether the caller is a signed-in
+// team member. Fails closed when SESSION_SECRET is missing: an empty HMAC key
+// is one anyone can sign with, so it must never count as a valid session.
+export async function isTeamSession(token: string | undefined): Promise<boolean> {
+  const secret = process.env.SESSION_SECRET;
+  if (!secret) return false;
+  return verifySessionToken(secret, token);
+}

@@ -621,7 +621,7 @@ export default function SecurePartnerPage({ tokenOverride }: { tokenOverride?: s
         <LeadStatusGlossary className="mb-6 sm:mb-8" />
 
         {/* Partner-scoped AI query box */}
-        {SHOW_ASK_AI && <AskBox partnerSlug={partner.slug} partnerName={partner.name} />}
+        {SHOW_ASK_AI && <AskBox token={token} partnerName={partner.name} />}
 
         {/* Conversion Timeline */}
         {SHOW_CONVERSION_TIMELINE && (
