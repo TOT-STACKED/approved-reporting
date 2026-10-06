@@ -12,7 +12,9 @@ const MESSAGES: Record<string, string> = {
 };
 
 // Sign-in step two. First time in with an Intelligence Review, this creates
-// the account and seeds it with the tools from that review.
+// the account and seeds it with the tools from that review. With no review,
+// the email is still verified and signed in; /renewals/start asks for the
+// review and creates the account from it.
 export async function POST(request: NextRequest) {
   try {
     const { code } = (await request.json().catch(() => ({}))) as { code?: string };
@@ -32,14 +34,11 @@ export async function POST(request: NextRequest) {
     }
 
     const member = (await findMember(result.email)) || (await provisionFromSubmission(result.email));
-    if (!member) {
-      return NextResponse.json({ error: "We couldn't find an account for that email." }, { status: 403 });
-    }
 
-    const res = NextResponse.json({ ok: true });
+    const res = NextResponse.json({ ok: true, next: member ? '/renewals' : '/renewals/start' });
     res.cookies.set(RENEWALS_SESSION_COOKIE, makeRenewalsSession(result.email), RENEWALS_COOKIE_OPTIONS);
     res.cookies.delete(OTP_COOKIE);
-    void touchSignIn(member.id).catch(() => {});
+    if (member) void touchSignIn(member.id).catch(() => {});
     return res;
   } catch (error: unknown) {
     console.warn('[renewals] verify-code failed', error);

@@ -1,14 +1,21 @@
 # Stacked Renewals: renewals.wearestacked.io
 
 Operators track every tool they pay for, what it costs and the last day they can give notice before it
-auto-renews. Free for any venue that has done an Intelligence Review. Strictly neutral: suppliers and
+auto-renews. Free for any operator. Signing up captures an Intelligence Review if we don't already have one. Strictly neutral: suppliers and
 partners never see any of it.
 
 ## How it works
 
-- **Sign-in**: email code, as with partners. A code goes to anyone already on a Renewals team, or to anyone
-  with an Intelligence Review (`submissions.email`). The first sign-in from a review creates the account
-  and seeds it with every tool from that review.
+- **Sign-up and sign-in**: email code, open to anyone. Three cases:
+  - already on a Renewals team: straight in.
+  - has an Intelligence Review (`submissions.email`): the account is created and seeded with every tool
+    from that review.
+  - new to Stacked: `/renewals/start` asks the Intelligence Review in-app (venue, then each category with
+    NPS ratings, then the same consent line as the form). It saves a normal `submissions` row, so Slack,
+    the portal sync and the marketplace see it like any form review. It then requests the AI-written
+    report from the `stack-review` edge function, which emails it to the operator, and creates the
+    account from the review. The scoring in `src/lib/intelligence-review.ts` is a port of the form's
+    and matches it exactly. If the form's tool lists or scoring change, change it there too.
 - **Contracts**: an operator uploads a PDF. It's stored in the private `renewals-contracts` bucket and
   read by OpenAI (`RENEWALS_EXTRACT_MODEL`, default `gpt-4o`). Every extracted field is shown highlighted
   for the operator to check before saving. Nothing is saved from a contract unseen.
@@ -41,7 +48,7 @@ domain never leads to a partner surface.
 1. **Netlify env vars**: `VENUES_SUPABASE_URL` and `VENUES_SUPABASE_KEY` (shared with the venue marketplace),
    `RESEND_API_KEY`, `OPENAI_API_KEY`, `DIGEST_SECRET` and `SESSION_SECRET`. Most are already set.
    Optional: `RENEWALS_URL` (default `https://renewals.wearestacked.io`), `RENEWALS_FROM`,
-   `NEXT_PUBLIC_INTELLIGENCE_REVIEW_URL` (where "Do your review" links to).
+ 
 2. **Domain**: in Netlify, go to Domain management and add the domain alias `renewals.wearestacked.io`.
    Then at GoDaddy, add a CNAME `renewals` pointing at the Netlify site.
 3. **Resend**: the sender domain must be verified for emails to reach operators.

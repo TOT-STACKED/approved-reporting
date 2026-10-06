@@ -7,8 +7,10 @@ import { listMembers, viewerFor } from '@/lib/renewals-db';
 export const dynamic = 'force-dynamic';
 
 export default async function RenewalsTeamPage() {
-  const viewer = await viewerFor(await sessionEmail());
-  if (!viewer) redirect('/renewals/signin');
+  const email = await sessionEmail();
+  if (!email) redirect('/renewals/signin');
+  const viewer = await viewerFor(email);
+  if (!viewer) redirect('/renewals/start');
   const members = await listMembers(viewer.org.id);
   return (
     <>

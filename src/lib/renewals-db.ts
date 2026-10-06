@@ -120,12 +120,41 @@ export async function findSubmission(email: string): Promise<Submission | null> 
   return rows[0] || null;
 }
 
-/** Can this email sign in? Either they're already a member, or they've done an Intelligence Review. */
-export async function canSignIn(email: string): Promise<{ name: string } | null> {
+/** A first name for the sign-in email, if we know one. Anyone can sign up, so this never gates anything. */
+export async function knownName(email: string): Promise<string> {
   const member = await findMember(email);
-  if (member) return { name: member.name || '' };
+  if (member) return member.name || '';
   const sub = await findSubmission(email);
-  return sub ? { name: sub.first_name || '' } : null;
+  return sub?.first_name || '';
+}
+
+/**
+ * Save an Intelligence Review written inside Renewals. Same table and shape as
+ * the standalone form, so the Slack trigger fires and every downstream
+ * dashboard treats it as a normal review.
+ */
+export async function insertSubmission(row: Record<string, unknown>): Promise<string> {
+  const id = crypto.randomUUID();
+  await rest('submissions', {
+    method: 'POST',
+    headers: { Prefer: 'return=minimal' },
+    body: JSON.stringify({ ...row, id }),
+  });
+  return id;
+}
+
+/**
+ * Ask the review's edge function for the AI-written Intelligence report. It
+ * writes it back to the row, syncs it to the portal and emails it to the
+ * operator, exactly as for a form review.
+ */
+export async function requestIntelligenceReport(submissionId: string): Promise<void> {
+  const res = await fetch(`${URL_}/functions/v1/stack-review`, {
+    method: 'POST',
+    headers: headers(),
+    body: JSON.stringify({ submission_id: submissionId }),
+  });
+  if (!res.ok) console.warn('[renewals] stack-review returned', res.status);
 }
 
 /**

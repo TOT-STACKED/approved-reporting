@@ -1,12 +1,13 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { generateCode, makeChallenge, OTP_COOKIE } from '@/lib/otp';
-import { canSignIn, renewalsConfigured } from '@/lib/renewals-db';
+import { knownName, renewalsConfigured } from '@/lib/renewals-db';
 import { sendRenewalsCode } from '@/lib/renewals-email';
 
 export const dynamic = 'force-dynamic';
 
-// Sign-in step one. Anyone already on a Renewals team, or anyone who has done
-// an Intelligence Review, gets a code. Same answer either way, so the form
+// Sign-in step one. Open to anyone: existing members sign in, people with an
+// Intelligence Review get their stack brought in, and everyone else does the
+// review as part of signing up. The answer never says which, so the form
 // can't be used to find out who has done a review.
 export async function POST(request: NextRequest) {
   try {
@@ -19,11 +20,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Enter your work email' }, { status: 400 });
     }
 
-    const who = await canSignIn(target);
-    if (!who) return NextResponse.json({ ok: true });
-
     const code = generateCode();
-    const delivery = await sendRenewalsCode(target, code, who.name);
+    const delivery = await sendRenewalsCode(target, code, await knownName(target).catch(() => ''));
     if (!delivery.sent) {
       return NextResponse.json({ error: delivery.error || 'Could not send your code. Try again shortly.' }, { status: 502 });
     }
