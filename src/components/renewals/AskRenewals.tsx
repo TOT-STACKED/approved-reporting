@@ -17,8 +17,29 @@ const SUGGESTIONS = [
   'What am I spending on software in total?',
   'Am I paying for anything twice?',
   'Where are the gaps in my stack?',
+  'I want to change my POS. Where do I start?',
   'Draft a cancellation email for my next renewal',
 ];
+
+const URL_RE = /(https?:\/\/[^\s)]+[^\s).,;:!?'"])/g;
+
+/** Answers are plain text; turn any URL in them into a link that opens in a new tab. */
+function Linkified({ text }: { text: string }) {
+  const parts = text.split(URL_RE);
+  return (
+    <>
+      {parts.map((part, i) =>
+        i % 2 === 1 ? (
+          <a key={i} href={part} target="_blank" rel="noreferrer" className="underline font-medium break-all">
+            {part.replace(/^https?:\/\/(www\.)?/, '')}
+          </a>
+        ) : (
+          part
+        )
+      )}
+    </>
+  );
+}
 
 export default function AskRenewals() {
   const [open, setOpen] = useState(false);
@@ -109,7 +130,7 @@ export default function AskRenewals() {
                     t.role === 'user' ? 'bg-ink text-white rounded-br-md' : 'bg-surface border border-border rounded-bl-md'
                   }`}
                 >
-                  {t.content}
+                  {t.role === 'assistant' ? <Linkified text={t.content} /> : t.content}
                 </div>
               </div>
             ))}
