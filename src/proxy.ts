@@ -16,6 +16,8 @@ import { SESSION_COOKIE, verifySessionToken } from '@/lib/session';
 // - /api/tech-usage-sync : shared-secret gated, called by nightly Netlify scheduled function
 // - /venues, /api/venues/* : the venue marketplace — public listing, gated on its own
 //                        subscriber session; the webhook checks Stripe's signature
+// - /renewals, /api/renewals/* : Stacked Renewals for operators, gated on its own
+//                        operator session; the alerts cron checks DIGEST_SECRET
 const PUBLIC_PREFIXES = [
   '/login',
   '/api/auth/',
@@ -30,7 +32,26 @@ const PUBLIC_PREFIXES = [
   '/api/tech-usage-sync',
   '/venues',
   '/api/venues',
+  '/renewals',
+  '/api/renewals/',
 ];
+
+// Stacked Renewals has its own domain for operators. On that host only the
+// Renewals pages and API exist — the partner portal, the team dashboard and
+// the venue marketplace all 404 — so an operator's domain never leads to a
+// supplier surface. "/" lands on the Renewals home.
+function isRenewalsHost(host: string | null): boolean {
+  return Boolean(host && host.split(':')[0].startsWith('renewals.'));
+}
+
+function renewalsHost(request: NextRequest): NextResponse {
+  const { pathname } = request.nextUrl;
+  if (pathname === '/') return NextResponse.rewrite(new URL('/renewals', request.url));
+  if (pathname === '/renewals' || pathname.startsWith('/renewals/') || pathname.startsWith('/api/renewals/')) {
+    return NextResponse.next();
+  }
+  return new NextResponse('Not found', { status: 404 });
+}
 
 function isPublic(pathname: string): boolean {
   return PUBLIC_PREFIXES.some((p) => pathname === p || pathname.startsWith(p));
@@ -39,6 +60,7 @@ function isPublic(pathname: string): boolean {
 export async function proxy(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
 
+  if (isRenewalsHost(request.headers.get('host'))) return renewalsHost(request);
   if (isPublic(pathname)) return NextResponse.next();
 
   const secret = process.env.SESSION_SECRET;

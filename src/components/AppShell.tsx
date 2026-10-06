@@ -10,8 +10,9 @@ import { NAV } from '@/lib/nav';
 // /dashboard and /signin belong here too: they are the partner-facing side of
 // the portal. Every link in NAV is gated on the *team* password, so showing
 // this nav to a signed-in partner sent them straight to /login. /venues is
-// the marketplace tech partners pay for, with its own header.
-const BARE_PREFIXES = ['/p/', '/login', '/dashboard', '/signin', '/venues'];
+// the marketplace tech partners pay for, with its own header. /renewals is
+// the operator product, which must never show any partner or team chrome.
+const BARE_PREFIXES = ['/p/', '/login', '/dashboard', '/signin', '/venues', '/renewals'];
 
 function isBareRoute(pathname: string | null): boolean {
   if (!pathname) return false;
