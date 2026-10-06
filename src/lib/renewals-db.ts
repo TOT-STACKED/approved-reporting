@@ -120,6 +120,32 @@ export async function findSubmission(email: string): Promise<Submission | null> 
   return rows[0] || null;
 }
 
+export interface IntelligenceSummary {
+  created_at: string;
+  venue_type: string | null;
+  site_count: number | null;
+  location: string | null;
+  segment: string | null;
+  score: number | null;
+  coverage_pct: number | null;
+  gap_categories: string[] | null;
+  total_gbp_per_year: number | null;
+  total_hrs_per_week: number | null;
+  product_nps: Record<string, number> | null;
+  stack: Record<string, StackEntry> | null;
+  ai_feedback: string | null;
+}
+
+/** The org's own Intelligence Review, for Ask Renewals. No contact fields are selected. */
+export async function intelligenceFor(org: Org): Promise<IntelligenceSummary | null> {
+  if (!org.submission_id) return null;
+  const rows = await rest<IntelligenceSummary[]>(
+    `submissions?id=eq.${enc(org.submission_id)}&select=created_at,venue_type,site_count,location,segment,score,` +
+    'coverage_pct,gap_categories,total_gbp_per_year,total_hrs_per_week,product_nps,stack,ai_feedback&limit=1'
+  );
+  return rows[0] || null;
+}
+
 /** A first name for the sign-in email, if we know one. Anyone can sign up, so this never gates anything. */
 export async function knownName(email: string): Promise<string> {
   const member = await findMember(email);

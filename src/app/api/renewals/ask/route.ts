@@ -1,7 +1,7 @@
 import OpenAI from 'openai';
 import { NextResponse, type NextRequest } from 'next/server';
 import { failed, requireViewer } from '@/lib/renewals-api';
-import { listTools } from '@/lib/renewals-db';
+import { intelligenceFor, listTools } from '@/lib/renewals-db';
 import {
   RENEWAL_CATEGORY_LABELS,
   deadlineFor,
@@ -14,10 +14,11 @@ import {
 export const dynamic = 'force-dynamic';
 export const maxDuration = 30;
 
-// Ask Renewals: a chat over the operator's own software, costs and contracts.
-// The model only ever sees this one org's tools, fetched here from the
-// signed-in member's org — never anything the browser claims, and never any
-// other venue or partner data.
+// Ask Renewals: a chat over the operator's own software, costs, contracts and
+// Intelligence Review (how they rated each tool, their gaps, score and the
+// AI-written report). The model only ever sees this one org's data, fetched
+// here from the signed-in member's org — never anything the browser claims,
+// and never any other venue or partner data.
 //
 // Neutral by design: it never recommends a named supplier. Stacked earns from
 // suppliers, so an assistant that steered operators towards any of them would
@@ -38,7 +39,7 @@ interface Turn {
 }
 
 function systemPrompt(orgName: string, today: string, context: string): string {
-  return `You are Ask Renewals, the assistant inside Stacked Renewals, a free tool that helps UK hospitality operators track the software they pay for, what it costs and when each contract's notice period closes.
+  return `You are Ask Renewals, the assistant inside Stacked Renewals, a free tool that helps UK hospitality operators understand their tech stack and track the software they pay for, what it costs and when each contract's notice period closes.
 
 You are talking to someone from ${orgName}. Today is ${today}.
 
@@ -46,6 +47,7 @@ What you can do:
 - Answer questions about their software, spend, renewals and notice deadlines, using ONLY the data below. Quote actual names, amounts and dates. If something isn't in the data, say so and suggest they add it (or upload the contract).
 - Point out things worth acting on: deadlines coming up, tools missing a cost or renewal date, two tools in the same category that might overlap, contracts that have already rolled over.
 - Draft a short, polite notice-of-cancellation or renegotiation email to a supplier when asked. Use placeholders like [your name] for anything you don't know. Remind them to check the contract for how notice must be served (e.g. in writing, to a specific address).
+- Talk about their stack using their Intelligence Review (under "intelligence" in the data, if present): how they rated each tool (0–10, "ratings"), the categories where similar venues usually have a tool and they don't ("gaps"), their score out of 100 against similar venues, and the report we wrote for them ("report"). Low ratings plus an upcoming notice deadline is worth pointing out: that's the moment to review the tool. If they've changed tools since the review, the Renewals list is the current picture.
 - Explain how to use Renewals: "Add tool" adds one by hand, "Upload a contract" reads a PDF and fills in the details for them to check, clicking a tool edits it, "Export CSV" downloads everything, the Team page adds colleagues and turns alert emails on or off. Alerts go out 60, 30, 14, 7 and 1 day before each notice deadline. Month-to-month contracts are treated as rolling and get no alerts.
 
 Rules:
@@ -80,7 +82,10 @@ export async function POST(request: NextRequest) {
     }
 
     const today = todayISO();
-    const tools = await listTools(viewer.org.id);
+    const [tools, intel] = await Promise.all([
+      listTools(viewer.org.id),
+      intelligenceFor(viewer.org).catch(() => null),
+    ]);
     const monthly = tools.reduce((s, t) => s + monthlyCost(t), 0);
     const context = JSON.stringify({
       venue: viewer.org.name,
@@ -90,6 +95,23 @@ export async function POST(request: NextRequest) {
         annualRunRate: Math.round(monthly * 12 * 100) / 100,
         toolsTracked: tools.filter(t => t.status !== 'cancelled').length,
       },
+      intelligence: intel ? {
+        reviewedOn: intel.created_at.slice(0, 10),
+        venueType: intel.venue_type,
+        sites: intel.site_count,
+        location: intel.location,
+        score: intel.score,
+        categoriesCoveredPct: intel.coverage_pct,
+        gaps: intel.gap_categories || [],
+        estimatedUpsideGbpPerYear: intel.total_gbp_per_year,
+        estimatedHoursPerWeek: intel.total_hrs_per_week,
+        ratings: intel.product_nps || {},
+        stackAtReview: Object.fromEntries(Object.entries(intel.stack || {}).map(([cat, e]) => [
+          cat,
+          e?.none ? 'none' : [...(e?.tools || []), ...((e?.other || '').trim() ? [(e!.other || '').trim()] : [])],
+        ])),
+        report: (intel.ai_feedback || '').slice(0, 6000) || null,
+      } : null,
       tools: tools.map(t => {
         const d = deadlineFor(t, today);
         return {

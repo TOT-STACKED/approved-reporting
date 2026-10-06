@@ -12,10 +12,11 @@ interface Turn {
 }
 
 const SUGGESTIONS = [
+  'How does my tech stack look?',
   'Which notice deadlines do I need to act on this month?',
   'What am I spending on software in total?',
   'Am I paying for anything twice?',
-  'What’s missing from my list?',
+  'Where are the gaps in my stack?',
   'Draft a cancellation email for my next renewal',
 ];
 
@@ -80,7 +81,7 @@ export default function AskRenewals() {
           <div className="flex items-center justify-between gap-3 px-5 py-4 bg-surface border-b border-border">
             <div>
               <p className="font-display uppercase text-lg leading-none">Ask Renewals</p>
-              <p className="text-xs text-muted mt-1">About your software, spend and contracts</p>
+              <p className="text-xs text-muted mt-1">About your stack, spend and contracts</p>
             </div>
             <div className="flex items-center gap-3">
               {turns.length > 0 && (
@@ -132,7 +133,7 @@ export default function AskRenewals() {
               onKeyDown={e => {
                 if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); ask(input); }
               }}
-              placeholder="Ask about renewals, spend or a contract…"
+              placeholder="Ask about your stack, renewals or a contract…"
               maxLength={2000}
               className="flex-1 resize-none max-h-32 bg-bg border border-border rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ink/20"
             />
