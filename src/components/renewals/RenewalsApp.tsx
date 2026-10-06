@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useRef, useState } from 'react';
+import AskRenewals from './AskRenewals';
 import ToolEditor, { applyExtracted, draftFrom, type Draft, type Extracted } from './ToolEditor';
 import {
   RENEWAL_CATEGORY_LABELS,
@@ -317,6 +318,8 @@ export default function RenewalsApp({ orgName, initialTools }: { orgName: string
       <p className="text-xs text-dim mt-8 max-w-2xl leading-relaxed">
         Your data is private to your team. Stacked never shares it with suppliers. Dates read from contracts are suggestions: always check the notice terms in the contract itself.
       </p>
+
+      <AskRenewals />
 
       {editor && (
         <ToolEditor

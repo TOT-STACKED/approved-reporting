@@ -16,6 +16,10 @@ partners never see any of it.
   Emails go out 60, 30, 14, 7 and 1 day before each notice deadline, one email per venue per day.
   Contracts that auto-renew on a known term roll their dates forward on their own. Rolling monthly
   contracts (term = 1 month) get no alerts.
+- **Ask Renewals**: a chat panel on the dashboard (`/api/renewals/ask`, `RENEWALS_ASK_MODEL`, default
+  `gpt-4o-mini`). It sees only the signed-in venue's own tools, answers questions about spend and deadlines,
+  flags gaps and overlaps, and drafts cancellation emails. It never recommends a named supplier.
+  Conversations aren't stored.
 - **Team**: anyone on an account can add colleagues for free. Only the owner can remove them.
 
 ## Where things live
@@ -42,7 +46,9 @@ domain never leads to a partner surface.
    Then at GoDaddy, add a CNAME `renewals` pointing at the Netlify site.
 3. **Resend**: the sender domain must be verified for emails to reach operators.
 
-Until the domain is live, it also works at `partners.wearestacked.io/renewals`.
+Until the domain is live, it also works at `partners.wearestacked.io/renewals`. Once
+`renewals.wearestacked.io` loads, set `RENEWALS_FORWARD=true` in Netlify and redeploy. The old
+partner-domain links then forward to the operator domain, so operators never land on a partner address.
 
 ## Removing someone
 

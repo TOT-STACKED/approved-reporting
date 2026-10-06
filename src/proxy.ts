@@ -57,10 +57,24 @@ function isPublic(pathname: string): boolean {
   return PUBLIC_PREFIXES.some((p) => pathname === p || pathname.startsWith(p));
 }
 
+// Once renewals.wearestacked.io is live, set RENEWALS_FORWARD=true so the
+// old partners.wearestacked.io/renewals pages forward there. Operators then
+// never sit on a partner address. Off by default, since forwarding before the
+// domain resolves would lock operators out.
+function forwardToRenewalsHost(request: NextRequest): NextResponse | null {
+  if (process.env.RENEWALS_FORWARD !== 'true') return null;
+  const { pathname, search } = request.nextUrl;
+  if (pathname !== '/renewals' && !pathname.startsWith('/renewals/')) return null;
+  const base = (process.env.RENEWALS_URL || 'https://renewals.wearestacked.io').replace(/\/$/, '');
+  return NextResponse.redirect(`${base}${pathname}${search}`, 308);
+}
+
 export async function proxy(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
 
   if (isRenewalsHost(request.headers.get('host'))) return renewalsHost(request);
+  const forwarded = forwardToRenewalsHost(request);
+  if (forwarded) return forwarded;
   if (isPublic(pathname)) return NextResponse.next();
 
   const secret = process.env.SESSION_SECRET;
