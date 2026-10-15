@@ -124,7 +124,7 @@ export default function IntelligenceOnboarding({ email }: { email: string }) {
           <span>{email}</span>
         </div>
         <div className="h-1.5 rounded-full bg-surface-2 overflow-hidden">
-          <div className="h-full bg-series-1 transition-all" style={{ width: `${((step + 1) / total) * 100}%` }} />
+          <div className="h-full bg-primary transition-all" style={{ width: `${((step + 1) / total) * 100}%` }} />
         </div>
       </div>
 
@@ -147,7 +147,7 @@ export default function IntelligenceOnboarding({ email }: { email: string }) {
           <div className="flex flex-wrap gap-2">
             {VENUE_TYPES.map(t => (
               <button key={t.id} type="button" onClick={() => setAbout({ ...about, venueType: t.id })}
-                className={`rounded-full border px-4 py-2 text-sm ${about.venueType === t.id ? 'bg-ink text-white border-ink' : 'bg-surface border-border'}`}>
+                className={`rounded-full border px-4 py-2 text-sm ${about.venueType === t.id ? 'bg-primary text-white border-primary' : 'bg-surface border-border'}`}>
                 {t.label}
               </button>
             ))}
@@ -169,7 +169,7 @@ export default function IntelligenceOnboarding({ email }: { email: string }) {
               const on = entry.tools.includes(tool);
               return (
                 <button key={tool} type="button" onClick={() => toggleTool(tool)}
-                  className={`rounded-full border px-3.5 py-2 text-sm ${on ? 'bg-ink text-white border-ink' : 'bg-surface border-border hover:border-ink/30'}`}>
+                  className={`rounded-full border px-3.5 py-2 text-sm ${on ? 'bg-primary text-white border-primary' : 'bg-surface border-border hover:border-primary/40'}`}>
                   {tool}
                 </button>
               );
@@ -177,7 +177,7 @@ export default function IntelligenceOnboarding({ email }: { email: string }) {
           </div>
           <input className={`${input} mt-4`} placeholder="Something else? Type it here" value={entry.other} onChange={e => setOther(e.target.value)} />
           <label className="flex items-center gap-2 text-sm mt-4">
-            <input type="checkbox" checked={entry.none} onChange={toggleNone} className="w-4 h-4 accent-ink" />
+            <input type="checkbox" checked={entry.none} onChange={toggleNone} className="w-4 h-4 accent-primary" />
             We don&apos;t use anything here, or not sure
           </label>
 
@@ -193,7 +193,7 @@ export default function IntelligenceOnboarding({ email }: { email: string }) {
                     <div className="flex flex-wrap gap-1">
                       {Array.from({ length: 11 }, (_, n) => (
                         <button key={n} type="button" onClick={() => rate(key, n)}
-                          className={`w-8 h-8 rounded-lg text-xs font-mono border ${score === n ? 'bg-ink text-white border-ink' : 'bg-bg border-border hover:border-ink/30'}`}>
+                          className={`w-8 h-8 rounded-lg text-xs font-mono border ${score === n ? 'bg-primary text-white border-primary' : 'bg-bg border-border hover:border-primary/40'}`}>
                           {n}
                         </button>
                       ))}
@@ -219,7 +219,7 @@ export default function IntelligenceOnboarding({ email }: { email: string }) {
             You picked {picked} tool{picked === 1 ? '' : 's'}{picked > 0 ? ` and rated ${rated}` : ''}. We&apos;ll put {picked === 1 ? 'it' : 'them'} on your Renewals list so you can add costs and renewal dates. Your Intelligence report will arrive by email in a few minutes.
           </p>
           <label className="flex items-start gap-3 text-sm bg-surface border border-border rounded-[18px] p-4">
-            <input type="checkbox" checked={consent} onChange={e => setConsent(e.target.checked)} className="mt-0.5 w-4 h-4 accent-ink" />
+            <input type="checkbox" checked={consent} onChange={e => setConsent(e.target.checked)} className="mt-0.5 w-4 h-4 accent-primary" />
             <span>{CONSENT_TEXT}</span>
           </label>
           <p className="text-xs text-dim mt-3 leading-relaxed">

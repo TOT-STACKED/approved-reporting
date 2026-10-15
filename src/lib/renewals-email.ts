@@ -1,7 +1,15 @@
 // Emails for Stacked Renewals: sign-in codes, team invites and notice-period
 // alerts. All through Resend, like the partner digest.
 
-import { BG, BORDER, INK, MUTED, PRIMARY, SURFACE } from './brand';
+// The operator website's palette (wearestacked.io/renewals), matching
+// .renewals-theme, rather than the partner portal's brand.ts values.
+const BG = '#F1F0E9';
+const SURFACE = '#FFFFFF';
+const BORDER = '#E3E0D6';
+const INK = '#1C1C1C';
+const MUTED = '#5A564F';
+const PRIMARY = '#4E71F2';
+const LOGO = 'https://renewals.wearestacked.io/renewals-assets/stacked-logo.png';
 import { formatDate, formatGBP, type RenewalTool } from './renewals-shared';
 
 const FROM = process.env.RENEWALS_FROM || process.env.LOGIN_FROM || process.env.DIGEST_FROM || 'Stacked <onboarding@resend.dev>';
@@ -19,7 +27,7 @@ function shell(body: string): string {
   return `<!doctype html>
 <html><body style="margin:0;background:${BG};font-family:'DM Sans',-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;color:${INK};">
   <div style="max-width:560px;margin:0 auto;padding:40px 24px;">
-    <p style="font-size:11px;text-transform:uppercase;letter-spacing:.12em;color:${MUTED};margin:0 0 24px;">Stacked · Renewals</p>
+    <p style="margin:0 0 28px;"><img src="${LOGO}" alt="Stacked" width="120" style="display:inline-block;vertical-align:middle;border:0;"> <span style="font-size:11px;text-transform:uppercase;letter-spacing:.12em;color:${MUTED};vertical-align:middle;margin-left:8px;">Renewals</span></p>
     ${body}
     <p style="font-size:12px;color:${MUTED};margin:32px 0 0;border-top:1px solid ${BORDER};padding-top:16px;">
       <a href="${base}" style="color:${INK};text-decoration:none;">${esc(base.replace(/^https?:\/\//, ''))}</a>
@@ -30,7 +38,7 @@ function shell(body: string): string {
 }
 
 function button(href: string, label: string): string {
-  return `<a href="${href}" style="display:inline-block;background:${PRIMARY};color:#fff;text-decoration:none;border-radius:999px;padding:12px 22px;font-size:14px;font-weight:600;">${esc(label)}</a>`;
+  return `<a href="${href}" style="display:inline-block;background:${PRIMARY};color:#fff;text-decoration:none;border-radius:999px;padding:13px 24px;font-size:14px;font-weight:700;text-transform:uppercase;">${esc(label)}</a>`;
 }
 
 async function send(to: string[], subject: string, html: string): Promise<{ sent: boolean; error?: string }> {
@@ -58,7 +66,7 @@ export function sendRenewalsCode(to: string, code: string, name: string) {
     <p style="font-size:16px;margin:0 0 8px;">${name ? `Hi ${esc(name)},` : 'Hi,'}</p>
     <p style="font-size:16px;line-height:1.5;margin:0 0 24px;">Here is your sign-in code.</p>
     <div style="background:${SURFACE};border:1px solid ${BORDER};border-radius:18px;padding:24px;text-align:center;margin-bottom:24px;">
-      <p style="font-size:38px;font-weight:700;letter-spacing:.18em;margin:0;font-variant-numeric:tabular-nums;">${code}</p>
+      <p style="font-size:38px;font-weight:700;letter-spacing:.18em;margin:0;font-variant-numeric:tabular-nums;color:${PRIMARY};">${code}</p>
     </div>
     <p style="font-size:14px;line-height:1.6;color:${MUTED};margin:0;">It expires in 10 minutes. If you didn't ask for it, ignore this email.</p>
   `));

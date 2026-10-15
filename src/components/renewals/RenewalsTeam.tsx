@@ -64,15 +64,15 @@ export default function RenewalsTeam({ orgName, initialMembers, me }: { orgName:
       <p className="text-xs uppercase tracking-[0.12em] text-muted mb-1">{orgName}</p>
       <h1 className="font-display uppercase text-3xl sm:text-4xl leading-none mb-8">Team</h1>
 
-      <section className="bg-surface border border-border rounded-[18px] p-5 mb-6">
+      <section className="bg-surface border border-border rounded-[22px] p-5 mb-6">
         <h2 className="text-xs uppercase tracking-[0.12em] text-muted mb-3">Your alerts</h2>
         <label className="flex items-center gap-3 text-sm">
-          <input type="checkbox" checked={mine.alerts} onChange={toggleAlerts} className="w-4 h-4 accent-ink" />
+          <input type="checkbox" checked={mine.alerts} onChange={toggleAlerts} className="w-4 h-4 accent-primary" />
           Email me 60, 30, 14, 7 and 1 day before a notice deadline
         </label>
       </section>
 
-      <section className="bg-surface border border-border rounded-[18px] mb-6">
+      <section className="bg-surface border border-border rounded-[22px] mb-6">
         <h2 className="text-xs uppercase tracking-[0.12em] text-muted p-5 pb-3">People</h2>
         <ul className="divide-y divide-border">
           {members.map(m => (
@@ -90,7 +90,7 @@ export default function RenewalsTeam({ orgName, initialMembers, me }: { orgName:
         </ul>
       </section>
 
-      <section className="bg-surface border border-border rounded-[18px] p-5">
+      <section className="bg-surface border border-border rounded-[22px] p-5">
         <h2 className="text-xs uppercase tracking-[0.12em] text-muted mb-3">Add a colleague</h2>
         <p className="text-sm text-muted mb-4">Free, as many as you like. They&apos;ll see everything on this account and get the alert emails.</p>
         <form onSubmit={invite} className="grid gap-3 sm:grid-cols-[1fr_1fr_auto]">

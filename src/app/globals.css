@@ -26,6 +26,10 @@
   --color-border: #E6E1D2;
   --color-ink: #38278F;         /* default text — dark purple, not black */
   --color-ink-deep: #2A1D6B;
+  /* Renewals-only accents (operator website palette); see .renewals-theme below. */
+  --color-panel: #D7EFF5;
+  --color-night: #111111;
+  --color-flame: #FD612B;
   --color-muted: #5A564F;
   --color-dim: #827D74;
 
@@ -207,4 +211,47 @@ body {
 :focus-visible {
   outline: 2px solid rgba(255, 80, 20, 0.45);
   outline-offset: 2px;
+}
+
+/* ---------------------------------------------------------------------------
+   Stacked Renewals theme: matches the operator-facing website
+   (wearestacked.io/renewals), not the partner dashboard spec above. Scoped to
+   .renewals-theme, which wraps every /renewals page in its layout, so the
+   partner portal keeps its purple and orange. Tailwind utilities read these
+   variables, so bg-primary, text-ink and the rest pick them up without any
+   change at the call site.
+
+     ink      #1C1C1C  near-black text and Chunko headlines
+     primary  #4E71F2  buttons, links, figures, chat bubbles
+     panel    #D7EFF5  soft panels
+     night    #111111  dark sections
+     flame    #FD612B  logo and highlight tags only
+--------------------------------------------------------------------------- */
+.renewals-theme {
+  --color-bg: #F1F0E9;
+  --color-surface: #FFFFFF;
+  --color-surface-2: #F4F4F3;
+  --color-border: #E3E0D6;
+  --color-ink: #1C1C1C;
+  --color-ink-deep: #111111;
+  --color-muted: #5A564F;
+  --color-dim: #787872;
+
+  --color-primary: #4E71F2;
+  --color-primary-hover: #6A87F5;
+  --color-primary-press: #3A5BD9;
+  --color-primary-tint: #CBD6FC;
+  --color-primary-wash: #EEF2FE;
+
+  --color-series-1: #4E71F2;
+  --color-series-2: #FD612B;
+  --color-series-3: #8FD3E3;
+  --color-series-4: #B0F070;
+  --color-series-5: #D8C0F0;
+
+  color: var(--color-ink);
+  background: var(--color-bg);
+}
+.renewals-theme :focus-visible {
+  outline-color: rgba(78, 113, 242, 0.5);
 }

@@ -166,7 +166,7 @@ export default function RenewalsApp({ orgName, initialTools }: { orgName: string
       {uploadError && <p className="mb-6 text-sm text-negative-dark">{uploadError}</p>}
 
       {nothingFilled && (
-        <div className="mb-8 rounded-[18px] bg-brand-yellow border border-border px-5 py-4 text-sm leading-relaxed">
+        <div className="mb-8 rounded-[22px] bg-panel px-5 py-4 text-sm leading-relaxed">
           <strong>{fromReview ? `We've added the ${fromReview} tools from your Intelligence Review.` : 'Start by adding your tools.'}</strong>{' '}
           Add what each one costs and when it renews, or upload the contract and we&apos;ll read it for you. Once there&apos;s a renewal date, we&apos;ll email you before every notice deadline.
         </div>
@@ -181,7 +181,7 @@ export default function RenewalsApp({ orgName, initialTools }: { orgName: string
       </section>
 
       <section className="grid gap-4 lg:grid-cols-[1.4fr_1fr] mb-8">
-        <div className="bg-surface border border-border rounded-[18px] p-5">
+        <div className="bg-surface border border-border rounded-[22px] p-5">
           <h2 className="text-xs uppercase tracking-[0.12em] text-muted mb-4">Next notice deadlines</h2>
           {stats.missed.length > 0 && (
             <div className="mb-4 space-y-2">
@@ -214,7 +214,7 @@ export default function RenewalsApp({ orgName, initialTools }: { orgName: string
           )}
         </div>
 
-        <div className="bg-surface border border-border rounded-[18px] p-5">
+        <div className="bg-surface border border-border rounded-[22px] p-5">
           <h2 className="text-xs uppercase tracking-[0.12em] text-muted mb-4">Monthly spend by category</h2>
           {stats.categorySpend.length === 0 ? (
             <p className="text-sm text-muted">Add costs to see where the money goes.</p>
@@ -227,7 +227,7 @@ export default function RenewalsApp({ orgName, initialTools }: { orgName: string
                     <span className="font-mono">{formatGBP(v)}</span>
                   </div>
                   <div className="h-2 rounded-full bg-surface-2">
-                    <div className="h-2 rounded-full bg-series-1" style={{ width: `${Math.max(3, (v / maxCategory) * 100)}%` }} />
+                    <div className="h-2 rounded-full bg-primary" style={{ width: `${Math.max(3, (v / maxCategory) * 100)}%` }} />
                   </div>
                 </li>
               ))}
@@ -248,11 +248,11 @@ export default function RenewalsApp({ orgName, initialTools }: { orgName: string
       </section>
 
       {/* Tool list */}
-      <section className="bg-surface border border-border rounded-[18px]">
+      <section className="bg-surface border border-border rounded-[22px]">
         <div className="flex flex-wrap items-center gap-3 p-4 border-b border-border">
           <h2 className="text-xs uppercase tracking-[0.12em] text-muted mr-auto">All tools</h2>
           <label className="flex items-center gap-2 text-sm text-muted">
-            <input type="checkbox" checked={showCancelled} onChange={e => setShowCancelled(e.target.checked)} className="accent-ink" />
+            <input type="checkbox" checked={showCancelled} onChange={e => setShowCancelled(e.target.checked)} className="accent-primary" />
             Show cancelled
           </label>
           <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search" className="bg-bg border border-border rounded-xl px-3 py-2 text-sm w-full sm:w-52" />
@@ -338,9 +338,9 @@ export default function RenewalsApp({ orgName, initialTools }: { orgName: string
 
 function Kpi({ label, value, sub, tone }: { label: string; value: string; sub?: string; tone?: 'alert' }) {
   return (
-    <div className={`rounded-[18px] border p-4 sm:p-5 ${tone === 'alert' ? 'bg-negative-tint/50 border-negative-tint' : 'bg-surface border-border'}`}>
+    <div className={`rounded-[22px] border p-4 sm:p-5 ${tone === 'alert' ? 'bg-negative-tint/50 border-negative-tint' : 'bg-surface border-border'}`}>
       <p className="text-xs text-muted mb-2 leading-snug">{label}</p>
-      <p className="font-display uppercase text-2xl sm:text-3xl leading-none">{value}</p>
+      <p className="text-3xl sm:text-4xl font-bold tracking-[-0.04em] text-primary leading-none">{value}</p>
       {sub && <p className="text-xs text-muted mt-2">{sub}</p>}
     </div>
   );

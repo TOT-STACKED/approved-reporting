@@ -195,7 +195,7 @@ export default function ToolEditor({ initial, filled, warning, onClose, onSaved,
           <label>{label('notice_days', 'Notice (days)')}<input inputMode="numeric" value={d.notice_days} onChange={e => set('notice_days', e.target.value.replace(/\D/g, ''))} className={`${field('notice_days')} font-mono`} placeholder="90" /></label>
 
           <label className="col-span-2 flex items-center gap-3 text-sm">
-            <input type="checkbox" checked={d.auto_renew} onChange={e => set('auto_renew', e.target.checked)} className="w-4 h-4 accent-ink" />
+            <input type="checkbox" checked={d.auto_renew} onChange={e => set('auto_renew', e.target.checked)} className="w-4 h-4 accent-primary" />
             Renews automatically unless we give notice
             {filled.has('auto_renew') && <span className="rounded-full bg-warning-tint text-warning-dark px-2 py-0.5 text-[10px] uppercase tracking-wide">From contract · check</span>}
           </label>

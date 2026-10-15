@@ -91,7 +91,7 @@ export default function AskRenewals() {
       {!open && (
         <button
           onClick={() => setOpen(true)}
-          className="fixed bottom-5 right-5 z-40 flex items-center gap-2 rounded-full bg-ink text-white pl-4 pr-5 py-3 text-sm font-semibold shadow-lg hover:bg-ink-deep"
+          className="fixed bottom-5 right-5 z-40 flex items-center gap-2 rounded-full bg-primary text-white pl-4 pr-5 py-3 text-sm font-bold uppercase shadow-lg hover:bg-primary-hover"
         >
           <span aria-hidden className="text-base leading-none">✦</span> Ask Renewals
         </button>
@@ -127,7 +127,7 @@ export default function AskRenewals() {
               <div key={i} className={t.role === 'user' ? 'flex justify-end' : 'flex'}>
                 <div
                   className={`max-w-[85%] rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed whitespace-pre-wrap ${
-                    t.role === 'user' ? 'bg-ink text-white rounded-br-md' : 'bg-surface border border-border rounded-bl-md'
+                    t.role === 'user' ? 'bg-primary text-white rounded-br-md' : 'bg-surface-2 rounded-bl-md'
                   }`}
                 >
                   {t.role === 'assistant' ? <Linkified text={t.content} /> : t.content}

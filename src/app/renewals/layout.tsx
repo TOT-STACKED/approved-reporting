@@ -6,6 +6,8 @@ export const metadata: Metadata = {
   robots: { index: false },
 };
 
+// .renewals-theme (globals.css) gives every Renewals page the operator
+// website's palette instead of the partner portal's.
 export default function RenewalsLayout({ children }: { children: React.ReactNode }) {
-  return <div className="min-h-screen bg-bg text-ink">{children}</div>;
+  return <div className="renewals-theme min-h-screen">{children}</div>;
 }
