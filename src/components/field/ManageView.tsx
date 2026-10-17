@@ -119,7 +119,7 @@ export default function ManageView({ agents, visits }: { agents: FieldAgent[]; v
 
   return (
     <main className="mx-auto w-full max-w-6xl lg:grid lg:grid-cols-[1fr_380px] lg:gap-4 lg:px-4 lg:pt-4">
-      <div className="lg:sticky lg:top-18 lg:self-start">
+      <div className="lg:sticky lg:top-[108px] lg:self-start">
         {/* Filters */}
         <div className="flex gap-2 overflow-x-auto px-4 pt-3 pb-2 lg:px-0 [&::-webkit-scrollbar]:hidden">
           {RANGES.map(r => <Chip key={r.id} on={range === r.id} onClick={() => setRange(r.id)}>{r.label}</Chip>)}
@@ -136,7 +136,7 @@ export default function ManageView({ agents, visits }: { agents: FieldAgent[]; v
 
         <div className="relative lg:overflow-hidden lg:rounded-2xl">
           <FieldMap
-            className="h-[52vh] min-h-72 w-full lg:h-[calc(100dvh-220px)]"
+            className="h-[52vh] min-h-72 w-full lg:h-[calc(100dvh-260px)]"
             pins={pins}
             trails={trails}
             fit

@@ -1,6 +1,6 @@
 {
   "name": "Stacked Field",
-  "short_name": "Field",
+  "short_name": "Stacked Field",
   "description": "Tag venues and record what you see.",
   "start_url": "/field",
   "scope": "/field",

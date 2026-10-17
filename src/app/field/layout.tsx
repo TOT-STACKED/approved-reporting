@@ -1,12 +1,12 @@
 import type { Metadata, Viewport } from 'next';
 
 export const metadata: Metadata = {
-  title: 'Field · Stacked',
+  title: 'Stacked Field',
   description: 'Tag venues and record what you see.',
   robots: { index: false },
   manifest: '/field.webmanifest',
   icons: { icon: '/field-icon.svg', apple: '/field-icon.svg' },
-  appleWebApp: { capable: true, title: 'Field', statusBarStyle: 'default' },
+  appleWebApp: { capable: true, title: 'Stacked Field', statusBarStyle: 'default' },
 };
 
 export const viewport: Viewport = {

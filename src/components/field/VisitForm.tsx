@@ -233,7 +233,7 @@ export default function VisitForm({ visit, photoUrls = [], fromStop }: { visit?:
   return (
     <div className="mx-auto w-full max-w-md md:max-w-2xl">
       {/* Progress */}
-      <div className="sticky top-14 z-10 border-b border-border bg-bg/95 px-4 py-2.5 backdrop-blur">
+      <div className="sticky top-[calc(92px+env(safe-area-inset-top))] z-10 border-b border-border bg-bg/95 px-4 py-2.5 backdrop-blur">
         <ol className="flex gap-1.5">
           {STEPS.map((s, i) => (
             <li key={s} className="flex-1">

@@ -6,20 +6,39 @@ import { usePathname } from 'next/navigation';
 // Header and bottom tab bar for Stacked Field. The tab bar sits in the thumb
 // zone and clears the iPhone home indicator.
 
+/** The Stacked logo (the wordmark itself, not typed text) with "Field" beside it. */
+export function FieldLockup({ size = 'sm' }: { size?: 'sm' | 'lg' }) {
+  return (
+    <span className="flex items-center gap-2">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src="/stacked-wordmark.svg" alt="Stacked" className={size === 'lg' ? 'h-9 w-auto' : 'h-[23px] w-auto'} />
+      <span className={`font-display uppercase leading-none tracking-tight text-white ${size === 'lg' ? 'text-[34px]' : 'text-[21px]'}`}>Field</span>
+    </span>
+  );
+}
+
+// Every Field page: the Stacked Field lockup on top, then the page's own title.
 export function FieldHeader({ title, back, right }: { title: string; back?: string; right?: React.ReactNode }) {
+  const showTitle = title && title !== 'Field';
   return (
     <header className="sticky top-0 z-20 bg-ink text-white" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
-      <div className="mx-auto flex w-full h-14 max-w-5xl items-center gap-2 px-4">
-        {back ? (
-          <Link href={back} aria-label="Back" className="-ml-2 grid h-11 w-11 place-items-center rounded-full active:bg-white/10">
+      <div className="mx-auto flex h-14 max-w-5xl items-center gap-1 px-4">
+        {back && (
+          <Link href={back} aria-label="Back" className="-ml-2 grid h-11 w-11 shrink-0 place-items-center rounded-full active:bg-white/10">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6" /></svg>
           </Link>
-        ) : (
-          <span className="grid h-8 w-8 place-items-center rounded-lg bg-primary text-[13px] font-bold">F</span>
         )}
-        <h1 className="flex-1 truncate font-display text-lg uppercase tracking-tight">{title}</h1>
+        <Link href="/field" aria-label="Stacked Field home" className="flex h-11 items-center">
+          <FieldLockup />
+        </Link>
+        <span className="flex-1" />
         {right}
       </div>
+      {showTitle && (
+        <div className="mx-auto max-w-5xl px-4 pb-3">
+          <h1 className="truncate font-display text-[24px] uppercase leading-none tracking-tight">{title}</h1>
+        </div>
+      )}
     </header>
   );
 }

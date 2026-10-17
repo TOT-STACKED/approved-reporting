@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { FieldLockup } from '@/components/field/FieldChrome';
 
 // Sign in with a six-digit code by email. Invite-only: a manager adds agents
 // on the Team page. The session lasts 60 days, so an agent signs in once on
@@ -43,10 +44,8 @@ export default function FieldSignIn() {
   return (
     <main className="flex min-h-dvh flex-col bg-ink px-6 text-white" style={{ paddingTop: 'max(env(safe-area-inset-top), 48px)' }}>
       <div className="mx-auto flex w-full w-full max-w-sm flex-1 flex-col">
-        <div className="mb-10 flex items-center gap-3">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/field-icon.svg" alt="" width={44} height={44} className="rounded-xl" />
-          <span className="text-sm font-bold uppercase tracking-[0.12em] text-white/70">Stacked Field</span>
+        <div className="mb-10">
+          <FieldLockup size="lg" />
         </div>
 
         <h1 className="mb-3 font-display text-[40px] uppercase leading-[0.95] tracking-tight">
