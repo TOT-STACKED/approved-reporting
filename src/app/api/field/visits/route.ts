@@ -1,6 +1,7 @@
-import { NextResponse, type NextRequest } from 'next/server';
+import { after, NextResponse, type NextRequest } from 'next/server';
 import { requireAgent } from '@/lib/field-api';
-import { VisitInputError, cleanVisitInput, createVisit, listVisits } from '@/lib/field-db';
+import { VisitInputError, cleanVisitInput, createVisit, listVisits, updateVisit } from '@/lib/field-db';
+import { ReviewInputError, buildReviewSubmission, requestIntelligenceReport, reviewFrom, saveReview } from '@/lib/field-review';
 
 export const dynamic = 'force-dynamic';
 
@@ -25,10 +26,22 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
-    const id = await createVisit(agent.id, cleanVisitInput(body, agent.id));
-    return NextResponse.json({ id });
+    const fields = cleanVisitInput(body, agent.id);
+    // Check the review before saving anything, so a half-filled one doesn't leave a visit behind.
+    const rawReview = reviewFrom(body);
+    const review = rawReview ? buildReviewSubmission(rawReview, String(fields.venue_name)) : null;
+
+    const id = await createVisit(agent.id, fields);
+    if (review) {
+      const submissionId = await saveReview(review);
+      await updateVisit(id, { submission_id: submissionId });
+      after(() => requestIntelligenceReport(submissionId).catch(err => console.warn('[field] report request failed', err)));
+    }
+    return NextResponse.json({ id, review: Boolean(review) });
   } catch (error: unknown) {
-    if (error instanceof VisitInputError) return NextResponse.json({ error: error.message }, { status: 400 });
+    if (error instanceof VisitInputError || error instanceof ReviewInputError) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
+    }
     console.warn('[field] create visit failed', error);
     return NextResponse.json({ error: "Couldn't save the visit. Try again." }, { status: 500 });
   }

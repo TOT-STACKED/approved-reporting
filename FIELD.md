@@ -33,6 +33,16 @@ plan is to feed visits into the venue marketplace as "Field-verified".
   centre if there's no postcode (marked as approximate). It's idempotent
   (`field_visits.submission_id` is unique), so re-running it only adds new reviews.
 
+- **Intelligence Review in the field**: the visit's last step, *Review*, runs the
+  full review with the operator. It's pre-filled from the contact and the tech the
+  agent saw. On save it's written to `submissions` (same shape and scoring as the form
+  and Renewals, via `lib/intelligence-review.ts`), so the Slack ping, the AI report
+  emailed to the operator, the portal and the marketplace all pick it up. The visit
+  links to it through `submission_id`. Consent is required (the agent ticks it on the
+  operator's say-so), because the report is emailed to them.
+- **No location yet**: imported reviews that can't be placed come in without a pin
+  (migration 007) and are listed on the team map. Edit one and tap the map to place it.
+
 ## Where things live
 
 - Supabase `kohnakdevwfudzgfjmab`: tables `field_agents` and `field_visits`, plus the
@@ -42,7 +52,7 @@ plan is to feed visits into the venue marketplace as "Field-verified".
 
 ## One-time setup
 
-1. Run `supabase/migrations/006_field.sql` in the Supabase SQL editor for kohnakdevwfudzgfjmab.
+1. Run `supabase/migrations/006_field.sql`, then `007_field_unplaced.sql`, in the Supabase SQL editor for kohnakdevwfudzgfjmab.
 2. Netlify env vars:
    - `FIELD_MANAGERS`: comma-separated manager emails, e.g. `fletch@wearestacked.io`
    - `NEXT_PUBLIC_GOOGLE_MAPS_KEY` (optional, switches the map to Google). In Google Cloud,

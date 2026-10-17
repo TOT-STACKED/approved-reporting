@@ -191,3 +191,29 @@ export function productNps(stack: Stack): Record<string, number> {
   }
   return out;
 }
+
+/**
+ * Rebuild a review stack from what a browser sent, keeping only known shapes
+ * and listed tool names (or a typed "other"). Shared by Renewals and Field so
+ * both save reviews by the same rules.
+ */
+export function cleanReviewStack(input: unknown): Stack {
+  const text = (v: unknown, max: number) => (typeof v === 'string' ? v.trim().slice(0, max) : '');
+  const raw = (input && typeof input === 'object' ? input : {}) as Record<string, unknown>;
+  const out: Stack = {};
+  for (const c of REVIEW_CATEGORIES) {
+    const e = (raw[c.id] && typeof raw[c.id] === 'object' ? raw[c.id] : {}) as Record<string, unknown>;
+    const none = e.none === true;
+    const tools = none ? [] : (Array.isArray(e.tools) ? e.tools : [])
+      .filter((t): t is string => typeof t === 'string' && c.options.includes(t));
+    const other = none ? '' : text(e.other, 80);
+    const allowed = new Set([...tools, ...(other ? [otherKey(other)] : [])]);
+    const nps: Record<string, number> = {};
+    const rawNps = (e.nps && typeof e.nps === 'object' ? e.nps : {}) as Record<string, unknown>;
+    for (const [k, v] of Object.entries(rawNps)) {
+      if (allowed.has(k) && typeof v === 'number' && Number.isInteger(v) && v >= 0 && v <= 10) nps[k] = v;
+    }
+    out[c.id] = { tools: [...new Set(tools)], other, none, nps };
+  }
+  return out;
+}

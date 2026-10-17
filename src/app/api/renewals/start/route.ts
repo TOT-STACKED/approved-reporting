@@ -8,13 +8,11 @@ import {
   requestIntelligenceReport,
 } from '@/lib/renewals-db';
 import {
-  REVIEW_CATEGORIES,
   bandForSiteCount,
+  cleanReviewStack,
   isVenueType,
-  otherKey,
   productNps,
   scoreReview,
-  type Stack,
 } from '@/lib/intelligence-review';
 
 export const dynamic = 'force-dynamic';
@@ -25,27 +23,6 @@ export const dynamic = 'force-dynamic';
 
 function text(v: unknown, max = 120): string {
   return typeof v === 'string' ? v.trim().slice(0, max) : '';
-}
-
-/** Rebuild the stack from what the browser sent, keeping only known shapes and tool names typed or picked. */
-function cleanStack(input: unknown): Stack {
-  const raw = (input && typeof input === 'object' ? input : {}) as Record<string, unknown>;
-  const out: Stack = {};
-  for (const c of REVIEW_CATEGORIES) {
-    const e = (raw[c.id] && typeof raw[c.id] === 'object' ? raw[c.id] : {}) as Record<string, unknown>;
-    const none = e.none === true;
-    const tools = none ? [] : (Array.isArray(e.tools) ? e.tools : [])
-      .filter((t): t is string => typeof t === 'string' && c.options.includes(t));
-    const other = none ? '' : text(e.other, 80);
-    const allowed = new Set([...tools, ...(other ? [otherKey(other)] : [])]);
-    const nps: Record<string, number> = {};
-    const rawNps = (e.nps && typeof e.nps === 'object' ? e.nps : {}) as Record<string, unknown>;
-    for (const [k, v] of Object.entries(rawNps)) {
-      if (allowed.has(k) && typeof v === 'number' && Number.isInteger(v) && v >= 0 && v <= 10) nps[k] = v;
-    }
-    out[c.id] = { tools: [...new Set(tools)], other, none, nps };
-  }
-  return out;
 }
 
 export async function POST(request: NextRequest) {
@@ -74,7 +51,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Enter a phone number' }, { status: 400 });
     }
 
-    const stack = cleanStack(body.stack);
+    const stack = cleanReviewStack(body.stack);
     const nps = productNps(stack);
     const scores = Object.values(nps);
     const r = scoreReview(venueType, siteCount, stack);

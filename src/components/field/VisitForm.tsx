@@ -6,6 +6,7 @@ import FieldMap, { type MapPin } from './FieldMap';
 import { HAS_GOOGLE } from './google-loader';
 import { googleNearby } from './google-places';
 import { Chip } from './FieldChrome';
+import ReviewStep, { emptyReview, seedReview, type ReviewDraft } from './ReviewStep';
 import {
   BUSYNESS,
   COVER_BANDS,
@@ -28,6 +29,8 @@ import {
 //   3 Tech    — what you can see, category by category
 //   4 Photos  — camera opens straight away; notes
 //   5 Contact — who you spoke to, are they up for a demo
+//   6 Review  — optional full Intelligence Review with the operator, saved
+//               into the main system (they get their report by email)
 // Only step 1 is required; "Save" works from any step after that.
 //
 // A new visit is kept as a draft on the phone as you go, so losing signal or
@@ -35,7 +38,7 @@ import {
 // the phone first so they go up quickly on 4G.
 
 const DRAFT_KEY = 'stacked-field-draft-v1';
-const STEPS = ['Where', 'Venue', 'Tech', 'Photos', 'Contact'] as const;
+const STEPS = ['Where', 'Venue', 'Tech', 'Photos', 'Contact', 'Review'] as const;
 
 interface Place {
   venue_name: string;
@@ -64,6 +67,7 @@ interface Draft {
   contact_email: string;
   contact_phone: string;
   demo_interest: string;
+  review: ReviewDraft;
 }
 
 function emptyDraft(): Draft {
@@ -72,6 +76,7 @@ function emptyDraft(): Draft {
     place: null, venue_type: '', covers: '', ownership: '', group_name: '', busyness: '',
     stack: {}, notes: '', photos: [],
     contact_name: '', contact_role: '', contact_email: '', contact_phone: '', demo_interest: '',
+    review: emptyReview(),
   };
 }
 
@@ -86,6 +91,7 @@ function fromVisit(v: FieldVisit): Draft {
     busyness: v.busyness || '', stack: v.stack || {}, notes: v.notes || '', photos: v.photos,
     contact_name: v.contact_name || '', contact_role: v.contact_role || '', contact_email: v.contact_email || '',
     contact_phone: v.contact_phone || '', demo_interest: v.demo_interest || '',
+    review: emptyReview(),
   };
 }
 
@@ -147,7 +153,7 @@ export default function VisitForm({ visit, photoUrls = [] }: { visit?: FieldVisi
       const saved = JSON.parse(raw) as Draft;
       // Drafts older than 12 hours are from another day's round; drop them.
       if (Date.now() - Date.parse(saved.visited_at) > 12 * 3600 * 1000) { localStorage.removeItem(DRAFT_KEY); return; }
-      if (saved.place || saved.photos.length || saved.notes) { setD(saved); setRestored(true); }
+      if (saved.place || saved.photos.length || saved.notes) { setD({ ...saved, review: saved.review || emptyReview() }); setRestored(true); }
     } catch { /* storage blocked: carry on without drafts */ }
   }, [editing]);
 
@@ -184,6 +190,7 @@ export default function VisitForm({ visit, photoUrls = [] }: { visit?: FieldVisi
         stack: d.stack, notes: d.notes, photos: d.photos,
         contact_name: d.contact_name, contact_role: d.contact_role, contact_email: d.contact_email,
         contact_phone: d.contact_phone, demo_interest: d.demo_interest,
+        review: d.review.enabled ? d.review : undefined,
         // Proof of visit: where the phone was. Only for new visits, so an edit back at the office doesn't overwrite it.
         ...(editing ? {
           gps_lat: visit!.gps_lat, gps_lng: visit!.gps_lng, gps_accuracy_m: visit!.gps_accuracy_m,
@@ -239,6 +246,18 @@ export default function VisitForm({ visit, photoUrls = [] }: { visit?: FieldVisi
         {step === 2 && <TechStep stack={d.stack} onChange={s => set('stack', s)} />}
         {step === 3 && <PhotoStep d={d} set={set} existingUrls={editing ? photoUrls : []} originalPhotos={visit?.photos || []} />}
         {step === 4 && <ContactStep d={d} set={set} toggle={toggle} />}
+        {step === 5 && (
+          <ReviewStep
+            review={d.review}
+            onChange={r => set('review', r)}
+            alreadyDone={Boolean(visit?.submission_id)}
+            onStart={() => set('review', seedReview({
+              contact_name: d.contact_name, contact_email: d.contact_email, contact_phone: d.contact_phone,
+              venue_type: d.venue_type, ownership: d.ownership, address: d.place?.address || '',
+              postcode: d.place?.postcode || '', stack: d.stack,
+            }))}
+          />
+        )}
       </div>
 
       {error && <p role="alert" className="mx-4 mt-4 rounded-xl bg-negative-tint px-4 py-3 text-[15px] text-negative-dark">{error}</p>}
@@ -269,7 +288,7 @@ export default function VisitForm({ visit, photoUrls = [] }: { visit?: FieldVisi
               onClick={save}
               className={`h-14 rounded-2xl bg-primary text-[16px] font-bold uppercase tracking-tight text-white active:bg-primary-press disabled:opacity-60 ${step === STEPS.length - 1 ? 'flex-1' : 'px-5'}`}
             >
-              {saving ? 'Saving…' : editing ? 'Save' : step === STEPS.length - 1 ? 'Save visit' : 'Save'}
+              {saving ? 'Saving…' : step === STEPS.length - 1 && d.review.enabled ? 'Save + send report' : editing ? 'Save' : step === STEPS.length - 1 ? 'Save visit' : 'Save'}
             </button>
           )}
         </div>
