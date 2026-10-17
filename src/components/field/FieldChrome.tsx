@@ -1,6 +1,6 @@
 'use client';
 
-import Link from 'next/link';
+import Link, { useLinkStatus } from 'next/link';
 import { usePathname } from 'next/navigation';
 
 // Header and bottom tab bar for Stacked Field. The tab bar sits in the thumb
@@ -32,6 +32,17 @@ const TABS = [
   { href: '/field/manage', label: 'Team map', icon: 'M9 20l-6-3V4l6 3m0 13l6-3m-6 3V7m6 10l6 3V7l-6-3m0 13V4', manager: true },
 ];
 
+/** Lights a tab the moment it's tapped, before the next page has loaded. */
+function TabInner({ icon, label, active }: { icon: string; label: string; active: boolean }) {
+  const { pending } = useLinkStatus();
+  return (
+    <span className={`flex flex-col items-center gap-1 transition-colors ${pending ? 'animate-pulse text-ink' : active ? 'text-ink' : 'text-dim'}`}>
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d={icon} /></svg>
+      <span className="text-[11px] font-bold">{label}</span>
+    </span>
+  );
+}
+
 export function FieldTabs({ manager }: { manager: boolean }) {
   const pathname = usePathname();
   const tabs = TABS.filter(t => !t.manager || manager);
@@ -57,9 +68,8 @@ export function FieldTabs({ manager }: { manager: boolean }) {
               );
             }
             return (
-              <Link key={t.href} href={t.href} className={`flex min-w-14 flex-col items-center gap-1 py-1 ${active ? 'text-ink' : 'text-dim'}`}>
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d={t.icon} /></svg>
-                <span className="text-[11px] font-bold">{t.label}</span>
+              <Link key={t.href} href={t.href} className="flex min-h-12 min-w-14 flex-col items-center justify-center py-1">
+                <TabInner icon={t.icon} label={t.label} active={Boolean(active)} />
               </Link>
             );
           })}

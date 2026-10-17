@@ -20,5 +20,5 @@ export const viewport: Viewport = {
 // venue. Every page sits in a single column that only widens for the
 // manager's screens on a desktop.
 export default function FieldLayout({ children }: { children: React.ReactNode }) {
-  return <div className="min-h-dvh w-full bg-bg text-ink">{children}</div>;
+  return <div className="field-app min-h-dvh w-full touch-manipulation bg-bg text-ink">{children}</div>;
 }

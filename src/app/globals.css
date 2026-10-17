@@ -255,3 +255,19 @@ body {
 .renewals-theme :focus-visible {
   outline-color: rgba(78, 113, 242, 0.5);
 }
+
+/* Stacked Field: every tap visibly lands. No grey iOS flash; buttons and
+   links dip slightly while pressed, and taps skip the double-tap-zoom wait. */
+.field-app {
+  -webkit-tap-highlight-color: transparent;
+}
+.field-app :is(button, a, label, summary) {
+  touch-action: manipulation;
+  transition: transform 80ms ease-out, background-color 120ms, color 120ms, opacity 120ms;
+}
+.field-app :is(button, a, summary):active:not(:disabled) {
+  transform: scale(0.97);
+}
+.field-app .leaflet-container :is(a, button):active {
+  transform: none;
+}
