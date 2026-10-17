@@ -12,7 +12,8 @@ import { NAV } from '@/lib/nav';
 // this nav to a signed-in partner sent them straight to /login. /venues is
 // the marketplace tech partners pay for, with its own header. /renewals is
 // the operator product, which must never show any partner or team chrome.
-const BARE_PREFIXES = ['/p/', '/login', '/dashboard', '/signin', '/venues', '/renewals'];
+// /field is the phone app for agents visiting venues.
+const BARE_PREFIXES = ['/p/', '/login', '/dashboard', '/signin', '/venues', '/renewals', '/field'];
 
 function isBareRoute(pathname: string | null): boolean {
   if (!pathname) return false;

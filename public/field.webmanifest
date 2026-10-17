@@ -1,0 +1,14 @@
+{
+  "name": "Stacked Field",
+  "short_name": "Field",
+  "description": "Tag venues and record what you see.",
+  "start_url": "/field",
+  "scope": "/field",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#F1F0E9",
+  "theme_color": "#38278F",
+  "icons": [
+    { "src": "/field-icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}

@@ -19,6 +19,8 @@ import { SESSION_COOKIE, verifySessionToken } from '@/lib/session';
 //                        subscriber session; the webhook checks Stripe's signature
 // - /renewals, /api/renewals/* : Stacked Renewals for operators, gated on its own
 //                        operator session; the alerts cron checks DIGEST_SECRET
+// - /field, /api/field/* : Stacked Field for agents in venues, gated on its own
+//                        agent session (invite-only, see FIELD.md)
 const PUBLIC_PREFIXES = [
   '/login',
   '/api/auth/',
@@ -35,6 +37,8 @@ const PUBLIC_PREFIXES = [
   '/api/venues',
   '/renewals',
   '/api/renewals/',
+  '/field',
+  '/api/field/',
 ];
 
 // Stacked Renewals has its own domain for operators. On that host only the
