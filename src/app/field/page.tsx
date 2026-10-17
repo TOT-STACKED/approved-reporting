@@ -33,7 +33,7 @@ export default async function FieldHome() {
   return (
     <>
       <FieldHeader title="Field" right={<SignOut />} />
-      <main className="mx-auto w-full max-w-md px-4 pt-5">
+      <main className="mx-auto w-full max-w-md md:max-w-2xl px-4 pt-5">
         <p className="mb-4 text-[17px]">Hi {first}.</p>
 
         <div className="mb-5 grid grid-cols-2 gap-3">

@@ -48,7 +48,7 @@ export default async function VisitPage({ params, searchParams }: {
   return (
     <>
       <FieldHeader title={visit.venue_name} back={back} />
-      <main className="mx-auto w-full max-w-md pb-4">
+      <main className="mx-auto w-full max-w-md md:max-w-2xl pb-4">
         {saved && <p className="mx-4 mt-3 rounded-xl bg-positive-tint px-4 py-3 text-[15px] font-bold text-positive">Saved.</p>}
 
         <VisitMapCard visit={visit} />
@@ -85,7 +85,7 @@ export default async function VisitPage({ params, searchParams }: {
           {photos.length > 0 && (
             <>
               <h2 className="mb-2 text-xs font-bold uppercase tracking-[0.1em] text-muted">Photos</h2>
-              <div className="mb-4 grid grid-cols-2 gap-2">
+              <div className="mb-4 grid grid-cols-2 gap-2 md:grid-cols-3">
                 {photos.map(u => (
                   <a key={u} href={u} target="_blank" rel="noreferrer" className="block aspect-square overflow-hidden rounded-xl bg-surface-2">
                     {/* eslint-disable-next-line @next/next/no-img-element */}

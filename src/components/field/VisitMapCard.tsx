@@ -19,7 +19,7 @@ export default function VisitMapCard({ visit }: { visit: FieldVisit }) {
     : null;
   return (
     <div className="mb-4 sm:mx-4 sm:mt-4 sm:overflow-hidden sm:rounded-2xl">
-      <FieldMap className="h-52 w-full" pins={pins} me={me} center={at} zoom={visit.geo_precision === 'town' ? 12 : 17} />
+      <FieldMap className="h-52 w-full md:h-72" pins={pins} me={me} center={at} zoom={visit.geo_precision === 'town' ? 12 : 17} />
     </div>
   );
 }

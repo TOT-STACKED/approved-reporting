@@ -97,9 +97,15 @@ export default function LeafletMap({ pins, trails = [], me, center, zoom = 17, f
       layer.current = mod.layerGroup().addTo(m);
       map.current = m;
       draw.current();
+      // Redraw tiles when the box changes size (iPad rotation, layout
+      // changes); otherwise Leaflet leaves the new area grey.
+      resize = new ResizeObserver(() => m.invalidateSize());
+      resize.observe(el.current!);
     });
+    let resize: ResizeObserver | null = null;
     return () => {
       cancelled = true;
+      resize?.disconnect();
       map.current?.remove();
       map.current = null;
     };

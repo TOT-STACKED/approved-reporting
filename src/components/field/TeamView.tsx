@@ -35,7 +35,7 @@ export default function TeamView({ agents, meId, status }: { agents: FieldAgent[
   }
 
   return (
-    <main className="mx-auto w-full max-w-md px-4 pt-4">
+    <main className="mx-auto w-full max-w-md md:max-w-2xl px-4 pt-4">
       <h2 className="mb-2 text-xs font-bold uppercase tracking-[0.1em] text-muted">Agents</h2>
       <ul className="mb-6 divide-y divide-border overflow-hidden rounded-2xl bg-surface">
         {agents.map(a => (

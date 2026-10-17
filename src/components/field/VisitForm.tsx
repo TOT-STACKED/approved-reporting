@@ -214,7 +214,7 @@ export default function VisitForm({ visit, photoUrls = [] }: { visit?: FieldVisi
   }
 
   return (
-    <div className="mx-auto w-full max-w-md">
+    <div className="mx-auto w-full max-w-md md:max-w-2xl">
       {/* Progress */}
       <div className="sticky top-14 z-10 border-b border-border bg-bg/95 px-4 py-2.5 backdrop-blur">
         <ol className="flex gap-1.5">
@@ -265,7 +265,7 @@ export default function VisitForm({ visit, photoUrls = [] }: { visit?: FieldVisi
       {/* Thumb-zone action bar */}
       <div className="h-28" />
       <div className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-surface/95 backdrop-blur" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
-        <div className="mx-auto flex w-full max-w-md gap-2 px-4 py-3">
+        <div className="mx-auto flex w-full max-w-md md:max-w-2xl gap-2 px-4 py-3">
           {step > 0 && (
             <button type="button" onClick={() => go(step - 1)} className="h-14 rounded-2xl border border-border px-5 text-[15px] font-bold active:bg-surface-2">
               Back
@@ -378,7 +378,7 @@ function WhereStep({ d, set, pos, gpsError, editing }: {
 
       <div className="-mx-4 mb-4 overflow-hidden sm:mx-0 sm:rounded-2xl">
         <FieldMap
-          className="h-[38vh] min-h-64 w-full"
+          className="h-[38vh] min-h-64 w-full md:h-[46vh]"
           pins={pins}
           me={pos}
           center={placeAt && !changing ? placeAt : pos}
@@ -646,7 +646,7 @@ function PhotoStep({ d, set, existingUrls, originalPhotos }: { d: Draft; set: Se
         <h2 className="mb-1 font-display text-[28px] uppercase leading-none tracking-tight">Photos</h2>
         <p className="mb-3 text-[14px] text-muted">The till, card machines, QR codes, kiosks, the shopfront.</p>
         <input ref={input} type="file" accept="image/*" capture="environment" multiple className="hidden" onChange={e => add(e.target.files)} />
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-3 gap-2 md:grid-cols-4">
           {d.photos.map(p => (
             <div key={p} className="relative aspect-square overflow-hidden rounded-xl bg-surface-2">
               {previews[p] ? (
