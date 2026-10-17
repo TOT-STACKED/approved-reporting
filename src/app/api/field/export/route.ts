@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
     agentId: p.get('agent') || undefined,
     from: p.get('from') || undefined,
     to: p.get('to') || undefined,
-    limit: 5000,
+    limit: 20000,
   });
 
   const head = [

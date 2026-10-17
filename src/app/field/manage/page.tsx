@@ -13,7 +13,7 @@ export default async function Manage() {
   if (!agent) redirect('/field/signin');
   if (agent.role !== 'manager') redirect('/field');
 
-  const [agents, visits] = await Promise.all([listAgents(), listVisits({ limit: 5000 })]);
+  const [agents, visits] = await Promise.all([listAgents(), listVisits({ limit: 20000 })]);
 
   return (
     <>

@@ -50,6 +50,33 @@ export async function rest<T>(path: string, init: RequestInit = {}): Promise<T> 
 
 const enc = encodeURIComponent;
 
+/**
+ * Every row a query matches. Supabase caps how many rows one request returns
+ * (max_rows), silently, so page through with offsets until a page comes back
+ * empty, whatever the cap is.
+ */
+export async function allRows<T>(path: string, cap = 20000): Promise<T[]> {
+  const out: T[] = [];
+  const sep = path.includes('?') ? '&' : '?';
+  while (out.length < cap) {
+    const page = await rest<T[]>(`${path}${sep}limit=1000&offset=${out.length}`);
+    if (!page.length) break;
+    out.push(...page);
+  }
+  return out;
+}
+
+/** Exact number of rows a filter matches, without fetching them. */
+export async function countRows(table: string, filter = ''): Promise<number> {
+  const res = await fetch(`${URL_}/rest/v1/${table}?select=id${filter ? `&${filter}` : ''}&limit=1`, {
+    headers: headers({ Prefer: 'count=exact' }),
+    cache: 'no-store',
+  });
+  if (!res.ok) throw new Error(`supabase ${res.status} counting ${table}`);
+  const total = Number((res.headers.get('content-range') || '').split('/')[1]);
+  return Number.isFinite(total) ? total : 0;
+}
+
 // ── Agents ───────────────────────────────────────────────────────────────────
 
 const AGENT_COLUMNS = 'id,email,name,role,active,last_sign_in_at';
@@ -157,11 +184,12 @@ export interface VisitFilter {
 }
 
 export async function listVisits(f: VisitFilter = {}): Promise<FieldVisit[]> {
-  const q = [`select=${VISIT_COLUMNS},field_agents(name,email)`, 'order=visited_at.desc', `limit=${Math.min(f.limit || 2000, 5000)}`];
+  // id as a tiebreak so paging is stable when visits share a time (imports).
+  const q = [`select=${VISIT_COLUMNS},field_agents(name,email)`, 'order=visited_at.desc,id.asc'];
   if (f.agentId) q.push(`agent_id=eq.${enc(f.agentId)}`);
   if (f.from) q.push(`visited_at=gte.${enc(f.from)}`);
   if (f.to) q.push(`visited_at=lt.${enc(f.to)}`);
-  const rows = await rest<VisitRow[]>(`field_visits?${q.join('&')}`);
+  const rows = await allRows<VisitRow>(`field_visits?${q.join('&')}`, Math.min(f.limit || 2000, 20000));
   return rows.map(toVisit);
 }
 

@@ -7,7 +7,7 @@ import { fmtWhen, type FieldAgent } from '@/lib/field-shared';
 
 const INPUT = 'h-12 w-full rounded-xl border border-border bg-surface px-4 text-[16px] placeholder:text-dim focus:border-ink focus:outline-none';
 
-export default function TeamView({ agents, meId, imported }: { agents: FieldAgent[]; meId: string; imported: number }) {
+export default function TeamView({ agents, meId, status }: { agents: FieldAgent[]; meId: string; status: { reviews: number; imported: number } }) {
   const router = useRouter();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -78,13 +78,13 @@ export default function TeamView({ agents, meId, imported }: { agents: FieldAgen
         {msg && <p className="text-[14px]">{msg}</p>}
       </form>
 
-      <ImportHistory agents={agents.filter(a => a.active)} imported={imported} />
+      <ImportHistory agents={agents.filter(a => a.active)} status={status} />
     </main>
   );
 }
 
 /** Bring every Intelligence Review in as a back-dated visit, a batch at a time. */
-function ImportHistory({ agents, imported }: { agents: FieldAgent[]; imported: number }) {
+function ImportHistory({ agents, status }: { agents: FieldAgent[]; status: { reviews: number; imported: number } }) {
   const router = useRouter();
   const [agent, setAgent] = useState(() => agents.find(a => /^caz/i.test(a.name || a.email))?.id || '');
   const [running, setRunning] = useState(false);
@@ -121,8 +121,11 @@ function ImportHistory({ agents, imported }: { agents: FieldAgent[]; imported: n
     <section className="mb-6 rounded-2xl border-2 border-dashed border-border p-4">
       <h2 className="mb-1 text-[16px] font-bold">Intelligence history</h2>
       <p className="mb-3 text-[14px] text-muted">
-        Put every Intelligence Review on the map as a back-dated visit. {imported ? `${imported} already imported. ` : ''}
-        Safe to run again: it only adds reviews that aren’t in yet.
+        Put every Intelligence Review on the map as a back-dated visit. Safe to run again: it only adds reviews that aren’t in yet.
+      </p>
+      <p className="mb-3 rounded-xl bg-surface px-4 py-3 text-[15px]">
+        <b className="font-mono">{status.imported}</b> of <b className="font-mono">{status.reviews}</b> Intelligence Reviews are in
+        {status.reviews > status.imported ? ` · ${status.reviews - status.imported} to import` : ' · all in'}
       </p>
       <label className="mb-2 block text-xs font-bold uppercase tracking-[0.1em] text-muted" htmlFor="imp-agent">Credit them to</label>
       <select id="imp-agent" value={agent} onChange={e => setAgent(e.target.value)} className="mb-3 h-12 w-full rounded-xl border border-border bg-surface px-3 text-[16px]">

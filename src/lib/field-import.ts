@@ -12,7 +12,7 @@
 // Anything still unfound is imported anyway with no pin (geo_precision='none')
 // and listed on the team map as "No location yet", so every review comes in.
 
-import { rest } from './field-db';
+import { allRows, countRows, rest } from './field-db';
 
 const POSTCODE_RE = /\b([A-Z]{1,2}\d[A-Z\d]?)\s*(\d[A-Z]{2})\b/i;
 const BATCH = 15;
@@ -138,8 +138,8 @@ export interface ImportResult {
 /** Import the next batch of reviews not yet brought in. Every review is imported, placed or not. */
 export async function importIntelligenceBatch(agentId: string): Promise<ImportResult> {
   const [subs, done] = await Promise.all([
-    rest<{ id: string }[]>('submissions?select=id&order=created_at.asc&limit=10000'),
-    rest<{ submission_id: string }[]>('field_visits?submission_id=not.is.null&select=submission_id&limit=10000'),
+    allRows<{ id: string }>('submissions?select=id&order=created_at.asc,id.asc'),
+    allRows<{ submission_id: string }>('field_visits?submission_id=not.is.null&select=submission_id&order=id.asc'),
   ]);
   const have = new Set(done.map(d => d.submission_id));
   const todo = subs.map(s => s.id).filter(id => !have.has(id));
@@ -200,4 +200,13 @@ export async function importIntelligenceBatch(agentId: string): Promise<ImportRe
     });
   }
   return { imported: rows.length, remaining: Math.max(0, todo.length - batchIds.length), unplaced };
+}
+
+/** How many reviews exist, and how many are on the map, for the Team page. */
+export async function importStatus(): Promise<{ reviews: number; imported: number }> {
+  const [reviews, imported] = await Promise.all([
+    countRows('submissions'),
+    countRows('field_visits', 'submission_id=not.is.null'),
+  ]);
+  return { reviews, imported };
 }
