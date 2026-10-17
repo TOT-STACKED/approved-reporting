@@ -48,9 +48,12 @@ export function isFieldCategory(v: unknown): boolean {
   return typeof v === 'string' && FIELD_CATEGORIES.some(c => c.id === v);
 }
 
-/** Any category a visit's stack may hold: the field ones plus the review's. */
+/**
+ * Any category a visit's stack may hold: the field ones, the review's, and
+ * plain labels kept from older StackCollect reviews (e.g. "Analytics & Reporting").
+ */
 export function isStackKey(v: unknown): boolean {
-  return isFieldCategory(v) || (typeof v === 'string' && REVIEW_CATEGORIES.some(c => c.id === v));
+  return isFieldCategory(v) || (typeof v === 'string' && (REVIEW_CATEGORIES.some(c => c.id === v) || /^[\w &/,.()+-]{2,60}$/.test(v)));
 }
 
 export const FIELD_VENUE_TYPES = [

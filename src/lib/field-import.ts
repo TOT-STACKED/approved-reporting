@@ -1,8 +1,17 @@
 // Bring Intelligence Reviews into Stacked Field as back-dated visits, so the
-// team map shows every venue we already know about. One visit per submission
-// (field_visits.submission_id is unique), so running it again only picks up
-// reviews that arrived since. Chris's call, 17 Oct 2026: assign every
-// historical review to one agent (Caz); new visits carry their own agent.
+// team map shows every venue we already know about. Chris's call, 17 Oct 2026:
+// assign every historical review to one agent (Caz); new visits carry their
+// own agent.
+//
+// Two sources, imported in this order:
+//   1 `submissions` in kohnakdevwfudzgfjmab: the current review form, Renewals
+//     and Field. One visit each, keyed by field_visits.submission_id.
+//   2 `business_submissions` + `tech_stack_entries` in the StackCollect project
+//     (STACKCOLLECT_SUPABASE_*): older reviews from before the current form.
+//     Every current review is also copied there (techstackreview slack-notify),
+//     so a row whose email + business name matches a submission is a copy and is
+//     skipped. Keyed by field_visits.stackcollect_id (migration 008).
+// Both keys are unique, so running it again only picks up what's new.
 //
 // Reviews have no coordinates, only free-text `location` and `sites`, so each
 // is placed by, in order:
@@ -13,6 +22,7 @@
 // and listed on the team map as "No location yet", so every review comes in.
 
 import { allRows, countRows, rest } from './field-db';
+import { isTestSubmission } from './stackcollect';
 
 const POSTCODE_RE = /\b([A-Z]{1,2}\d[A-Z\d]?)\s*(\d[A-Z]{2})\b/i;
 const BATCH = 15;
@@ -128,6 +138,19 @@ function cleanStack(stack: Submission['stack']) {
   return out;
 }
 
+/** Place a review: postcode, else the venue by name near its town, else the town. */
+async function placeFor(name: string, where: string, postcode: string | null, pcPlaces: Map<string, Place>): Promise<Place | null> {
+  const byPostcode = postcode ? pcPlaces.get(postcode) || null : null;
+  if (byPostcode) return byPostcode;
+  const town = where ? await townLookup(where) : null;
+  return (await venueLookup(name, where, town).catch(() => null)) || town;
+}
+
+function postcodeIn(text: string): string | null {
+  const m = text.match(POSTCODE_RE);
+  return m ? normalisePostcode(m) : null;
+}
+
 export interface ImportResult {
   imported: number;
   remaining: number;
@@ -135,23 +158,33 @@ export interface ImportResult {
   unplaced: { id: string; name: string; location: string }[];
 }
 
-/** Import the next batch of reviews not yet brought in. Every review is imported, placed or not. */
-export async function importIntelligenceBatch(agentId: string): Promise<ImportResult> {
+async function insertVisits(rows: Record<string, unknown>[], key: 'submission_id' | 'stackcollect_id'): Promise<void> {
+  if (!rows.length) return;
+  await rest(`field_visits?on_conflict=${key}`, {
+    method: 'POST',
+    // A second import running at the same time can't double up a review.
+    headers: { Prefer: 'resolution=ignore-duplicates,return=minimal' },
+    body: JSON.stringify(rows),
+  });
+}
+
+// ── Source 1: submissions ───────────────────────────────────────────────────
+
+async function pendingSubmissions(): Promise<string[]> {
   const [subs, done] = await Promise.all([
     allRows<{ id: string }>('submissions?select=id&order=created_at.asc,id.asc'),
     allRows<{ submission_id: string }>('field_visits?submission_id=not.is.null&select=submission_id&order=id.asc'),
   ]);
   const have = new Set(done.map(d => d.submission_id));
-  const todo = subs.map(s => s.id).filter(id => !have.has(id));
-  const batchIds = todo.slice(0, BATCH);
-  if (!batchIds.length) return { imported: 0, remaining: 0, unplaced: [] };
+  return subs.map(s => s.id).filter(id => !have.has(id));
+}
 
-  const batch = await rest<Submission[]>(`submissions?id=in.(${batchIds.join(',')})&select=${SUBMISSION_COLUMNS}`);
-
+async function importSubmissions(agentId: string, ids: string[]): Promise<ImportResult['unplaced']> {
+  const batch = await rest<Submission[]>(`submissions?id=in.(${ids.join(',')})&select=${SUBMISSION_COLUMNS}`);
   const pcFor = new Map<string, string>();
   for (const s of batch) {
-    const m = `${s.location || ''} ${s.sites || ''}`.match(POSTCODE_RE);
-    if (m) pcFor.set(s.id, normalisePostcode(m));
+    const pc = postcodeIn(`${s.location || ''} ${s.sites || ''}`);
+    if (pc) pcFor.set(s.id, pc);
   }
   const pcPlaces = await postcodeLookup([...new Set(pcFor.values())]).catch(() => new Map<string, Place>());
 
@@ -160,12 +193,7 @@ export async function importIntelligenceBatch(agentId: string): Promise<ImportRe
   const rows = await Promise.all(batch.map(async s => {
     const name = (s.brand_trading_name || s.company || 'Unnamed venue').trim();
     const where = (s.location || '').trim();
-    const pc = pcFor.get(s.id);
-    let place = pc ? pcPlaces.get(pc) || null : null;
-    if (!place) {
-      const town = where ? await townLookup(where) : null;
-      place = (await venueLookup(name, where, town).catch(() => null)) || town;
-    }
+    const place = await placeFor(name, where, pcFor.get(s.id) || null, pcPlaces);
     if (!place) unplaced.push({ id: s.id, name, location: where || s.sites || '' });
     const type = TYPE_MAP[s.venue_type || ''] || null;
     return {
@@ -190,23 +218,185 @@ export async function importIntelligenceBatch(agentId: string): Promise<ImportRe
       photos: [],
     };
   }));
-
-  if (rows.length) {
-    await rest('field_visits?on_conflict=submission_id', {
-      method: 'POST',
-      // A second import running at the same time can't double up a review.
-      headers: { Prefer: 'resolution=ignore-duplicates,return=minimal' },
-      body: JSON.stringify(rows),
-    });
-  }
-  return { imported: rows.length, remaining: Math.max(0, todo.length - batchIds.length), unplaced };
+  await insertVisits(rows, 'submission_id');
+  return unplaced;
 }
 
-/** How many reviews exist, and how many are on the map, for the Team page. */
+// ── Source 2: StackCollect ──────────────────────────────────────────────────
+
+const SC_URL = process.env.STACKCOLLECT_SUPABASE_URL;
+const SC_KEY = process.env.STACKCOLLECT_SUPABASE_KEY;
+
+async function sc<T>(path: string): Promise<T> {
+  const res = await fetch(`${SC_URL}/rest/v1/${path}`, {
+    headers: { apikey: SC_KEY!, Authorization: `Bearer ${SC_KEY}` },
+    cache: 'no-store',
+  });
+  if (!res.ok) throw new Error(`stackcollect ${res.status} on ${path.split('?')[0]}: ${(await res.text()).slice(0, 200)}`);
+  return res.json() as Promise<T>;
+}
+
+async function scAll<T>(path: string): Promise<T[]> {
+  const out: T[] = [];
+  while (out.length < 20000) {
+    const page = await sc<T[]>(`${path}&limit=1000&offset=${out.length}`);
+    if (!page.length) break;
+    out.push(...page);
+  }
+  return out;
+}
+
+interface ScBusiness {
+  id: string;
+  created_at: string;
+  business_name: string | null;
+  brand_trading_name: string | null;
+  location: string | null;
+  contact_name: string | null;
+  contact_email: string | null;
+  phone_number: string | null;
+  number_of_locations: string | null;
+  size: string | null;
+  vertical: string | null;
+  site_count: number | null;
+}
+
+const SC_COLUMNS = 'id,created_at,business_name,brand_trading_name,location,contact_name,contact_email,phone_number,number_of_locations,size,vertical,site_count';
+
+// StackCollect's category and vertical labels → our keys (the reverse of
+// techstackreview slack-notify's CATEGORY_LABEL / VERTICAL_LABEL). Labels not
+// listed are kept as they are, so nothing is lost.
+const SC_CATEGORY: Record<string, string> = {
+  'point of sale': 'pos', payments: 'payments', 'people management': 'workforce',
+  'inventory & stock management': 'inventory', 'loyalty & crm': 'loyalty',
+  'learning & development': 'learning', 'finance & accounting': 'finance_ops',
+  'guest feedback': 'guest_feedback', reservations: 'reservations', 'bookings & reservations': 'reservations',
+  'kitchen display': 'kds', 'kitchen display systems': 'kds', 'online ordering': 'ordering',
+  'order & pay': 'ordering', 'order at table': 'ordering', kiosks: 'kiosk', 'self-service kiosks': 'kiosk',
+};
+const SC_VERTICAL: Record<string, string> = {
+  'independent restaurant': 'indie', 'multi-site restaurant group': 'group', 'bar / pub': 'bar',
+  'qsr / fast casual': 'qsr', 'hotel f&b': 'hotel', other: 'other',
+};
+const NA_TOOL = /^(n\/?a|none|null|n\.a\.?|—|-|other)$/i;
+
+const dupKey = (email: string | null | undefined, name: string | null | undefined) =>
+  `${(email || '').trim().toLowerCase()}|${(name || '').trim().toLowerCase()}`;
+
+function scConfigured(): boolean {
+  return Boolean(SC_URL && SC_KEY);
+}
+
+/** StackCollect reviews that are real, not a copy of a submission, and not imported yet. Oldest first. */
+async function pendingStackCollect(): Promise<ScBusiness[]> {
+  if (!scConfigured()) return [];
+  const [all, subs, done] = await Promise.all([
+    scAll<ScBusiness>(`business_submissions?select=${SC_COLUMNS}&order=created_at.asc,id.asc`),
+    allRows<{ email: string | null; company: string | null; brand_trading_name: string | null }>('submissions?select=email,company,brand_trading_name&order=id.asc'),
+    allRows<{ stackcollect_id: string }>('field_visits?stackcollect_id=not.is.null&select=stackcollect_id&order=id.asc'),
+  ]);
+  const copies = new Set<string>();
+  for (const s of subs) {
+    copies.add(dupKey(s.email, s.company));
+    if (s.brand_trading_name) copies.add(dupKey(s.email, s.brand_trading_name));
+  }
+  const have = new Set(done.map(d => d.stackcollect_id));
+  return all.filter(b =>
+    !have.has(b.id) &&
+    !isTestSubmission(b.business_name) &&
+    (b.business_name || b.brand_trading_name) &&
+    !copies.has(dupKey(b.contact_email, b.business_name)),
+  );
+}
+
+function siteCountOf(b: ScBusiness): number | null {
+  if (typeof b.site_count === 'number') return b.site_count;
+  const m = (b.number_of_locations || b.size || '').match(/\d+/);
+  return m ? Number(m[0]) : null;
+}
+
+async function importStackCollect(agentId: string, batch: ScBusiness[]): Promise<ImportResult['unplaced']> {
+  const entries = await sc<{ submission_id: string; category: string | null; tool_name: string | null }[]>(
+    `tech_stack_entries?submission_id=in.(${batch.map(b => b.id).join(',')})&select=submission_id,category,tool_name&limit=5000`,
+  );
+  const stacks = new Map<string, Record<string, { tools: string[]; other: string; none: boolean }>>();
+  for (const e of entries) {
+    const tool = (e.tool_name || '').trim();
+    if (!tool || NA_TOOL.test(tool) || !e.category) continue;
+    const key = SC_CATEGORY[e.category.trim().toLowerCase()] || e.category.trim().slice(0, 60);
+    const stack = stacks.get(e.submission_id) || {};
+    const entry = stack[key] || { tools: [], other: '', none: false };
+    if (!entry.tools.includes(tool)) entry.tools.push(tool);
+    stack[key] = entry;
+    stacks.set(e.submission_id, stack);
+  }
+
+  const pcFor = new Map<string, string>();
+  for (const b of batch) {
+    const pc = postcodeIn(b.location || '');
+    if (pc) pcFor.set(b.id, pc);
+  }
+  const pcPlaces = await postcodeLookup([...new Set(pcFor.values())]).catch(() => new Map<string, Place>());
+
+  const unplaced: ImportResult['unplaced'] = [];
+  const rows = await Promise.all(batch.map(async b => {
+    const name = (b.brand_trading_name || b.business_name || 'Unnamed venue').trim();
+    const where = (b.location || '').trim();
+    const place = await placeFor(name, where, pcFor.get(b.id) || null, pcPlaces);
+    if (!place) unplaced.push({ id: b.id, name, location: where });
+    const sites = siteCountOf(b);
+    const type = TYPE_MAP[SC_VERTICAL[(b.vertical || '').trim().toLowerCase()] || ''] || null;
+    return {
+      agent_id: agentId,
+      source: 'intelligence',
+      stackcollect_id: b.id,
+      visited_at: b.created_at,
+      venue_name: name,
+      address: where.slice(0, 300) || null,
+      postcode: place?.postcode ?? null,
+      lat: place?.lat ?? null,
+      lng: place?.lng ?? null,
+      geo_precision: place?.precision ?? 'none',
+      venue_type: type?.venue_type ?? null,
+      ownership: type?.ownership ?? (sites && sites > 1 ? 'group' : null),
+      group_name: sites && sites > 1 ? b.business_name : null,
+      stack: stacks.get(b.id) || {},
+      notes: `From an earlier Intelligence Review (StackCollect)${sites ? ` · ${sites} site${sites === 1 ? '' : 's'}` : ''}`,
+      contact_name: b.contact_name,
+      contact_email: b.contact_email?.toLowerCase() || null,
+      contact_phone: b.phone_number,
+      photos: [],
+    };
+  }));
+  await insertVisits(rows, 'stackcollect_id');
+  return unplaced;
+}
+
+// ── Both ────────────────────────────────────────────────────────────────────
+
+/** Import the next batch of reviews not yet brought in, current reviews first. Every review comes in, placed or not. */
+export async function importIntelligenceBatch(agentId: string): Promise<ImportResult> {
+  const subs = await pendingSubmissions();
+  if (subs.length) {
+    const ids = subs.slice(0, BATCH);
+    const unplaced = await importSubmissions(agentId, ids);
+    const scLeft = (await pendingStackCollect().catch(() => [])).length;
+    return { imported: ids.length, remaining: subs.length - ids.length + scLeft, unplaced };
+  }
+  const older = await pendingStackCollect();
+  if (!older.length) return { imported: 0, remaining: 0, unplaced: [] };
+  const batch = older.slice(0, BATCH);
+  const unplaced = await importStackCollect(agentId, batch);
+  return { imported: batch.length, remaining: older.length - batch.length, unplaced };
+}
+
+/** How many reviews exist across both sources, and how many are in, for the Team page. */
 export async function importStatus(): Promise<{ reviews: number; imported: number }> {
-  const [reviews, imported] = await Promise.all([
+  const [subs, subsIn, scIn, scLeft] = await Promise.all([
     countRows('submissions'),
     countRows('field_visits', 'submission_id=not.is.null'),
+    countRows('field_visits', 'stackcollect_id=not.is.null').catch(() => 0),
+    pendingStackCollect().then(r => r.length).catch(() => 0),
   ]);
-  return { reviews, imported };
+  return { reviews: subs + scIn + scLeft, imported: subsIn + scIn };
 }

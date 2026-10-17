@@ -262,7 +262,7 @@ const TEST_PATTERNS = [
   /^14652073$/,
 ];
 
-function isTestSubmission(businessName: string | null | undefined): boolean {
+export function isTestSubmission(businessName: string | null | undefined): boolean {
   if (!businessName) return false;
   return TEST_PATTERNS.some(p => p.test(businessName));
 }
