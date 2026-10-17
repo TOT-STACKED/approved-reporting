@@ -38,7 +38,8 @@ export default function RouteEditor({ route, me, agents, known, actual }: {
   actual: FieldVisit[];
 }) {
   const router = useRouter();
-  const today = ukDay(Date.now());
+  // Today as of page load, so rendering stays pure.
+  const [today] = useState(() => ukDay(Date.now()));
   const [period, setPeriod] = useState<'day' | 'week'>(route?.period || 'day');
   const [startsOn, setStartsOn] = useState(route?.starts_on || today);
   const [name, setName] = useState(route?.name || '');
@@ -63,7 +64,7 @@ export default function RouteEditor({ route, me, agents, known, actual }: {
   const shownName = name || defaultRouteName(period, period === 'week' ? mondayOf(startsOn) : startsOn);
   const p = progress({ stops });
   const nextStop = stops.find(s => s.status === 'planned');
-  const current = route ? routeIsCurrent(route) : false;
+  const current = route ? routeIsCurrent(route, today) : false;
   const url = directionsUrl(stops);
 
   function change(fn: () => void) {
