@@ -50,7 +50,11 @@ export default function ManageView({ agents, visits }: { agents: FieldAgent[]; v
     );
   }, [visits, range, who, showHistory, now]);
 
-  const pins: MapPin[] = shown.map(v => ({
+  type Placed = FieldVisit & { lat: number; lng: number };
+  const placed = shown.filter((v): v is Placed => v.lat != null && v.lng != null);
+  const noPin = shown.filter(v => v.lat == null || v.lng == null);
+
+  const pins: MapPin[] = placed.map(v => ({
     id: v.id,
     lat: v.lat,
     lng: v.lng,
@@ -63,8 +67,8 @@ export default function ManageView({ agents, visits }: { agents: FieldAgent[]; v
   // One trail per agent per UK day, field visits only, oldest first.
   const trails: MapTrail[] = useMemo(() => {
     if (!routes) return [];
-    const groups = new Map<string, FieldVisit[]>();
-    for (const v of shown) {
+    const groups = new Map<string, Placed[]>();
+    for (const v of placed) {
       if (v.source !== 'field') continue;
       const k = `${v.agent_id}:${ukDay(v.visited_at)}`;
       groups.set(k, [...(groups.get(k) || []), v]);
@@ -74,6 +78,7 @@ export default function ManageView({ agents, visits }: { agents: FieldAgent[]; v
       color: colorFor(vs[0].agent_id),
       points: [...vs].sort((a, b) => a.visited_at.localeCompare(b.visited_at)).map(v => ({ lat: v.lat, lng: v.lng })),
     }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shown, routes, colorFor]);
 
   const perAgent = agents
@@ -187,6 +192,16 @@ export default function ManageView({ agents, visits }: { agents: FieldAgent[]; v
             </li>
           ))}
         </ul>
+
+        {noPin.length > 0 && (
+          <details className="mb-5">
+            <summary className="mb-2 flex min-h-11 cursor-pointer list-none items-center justify-between rounded-2xl bg-warning-tint px-4 text-[14px] font-bold text-warning-dark">
+              <span>No location yet · {noPin.length}</span>
+              <span className="text-[12px] font-normal">Open one and tap Edit to drop its pin</span>
+            </summary>
+            <VisitList visits={noPin} showAgent />
+          </details>
+        )}
 
         <div className="mb-2 flex items-center justify-between">
           <h2 className="text-xs font-bold uppercase tracking-[0.1em] text-muted">Visits</h2>

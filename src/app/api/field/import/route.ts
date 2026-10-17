@@ -13,17 +13,14 @@ export async function POST(request: NextRequest) {
   const me = await requireAgent({ manager: true });
   if (me instanceof NextResponse) return me;
 
-  const { agent, skip } = (await request.json().catch(() => ({}))) as { agent?: string; skip?: string[] };
+  const { agent } = (await request.json().catch(() => ({}))) as { agent?: string };
   const target = agent && /^[0-9a-f-]{36}$/.test(agent)
     ? (await listAgents()).find(a => a.id === agent)
     : null;
   if (!target) return NextResponse.json({ error: 'Pick who the history belongs to.' }, { status: 400 });
 
   try {
-    const result = await importIntelligenceBatch(
-      target.id,
-      Array.isArray(skip) ? skip.filter(s => typeof s === 'string' && /^[0-9a-f-]{36}$/.test(s)).slice(0, 1000) : [],
-    );
+    const result = await importIntelligenceBatch(target.id);
     return NextResponse.json(result);
   } catch (error: unknown) {
     console.warn('[field] import failed', error);

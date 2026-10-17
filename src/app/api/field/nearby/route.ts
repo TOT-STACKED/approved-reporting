@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { requireAgent } from '@/lib/field-api';
-import { nearbyPlaces, visitsToPlace } from '@/lib/field-db';
+import { lastVisits, nearbyPlaces } from '@/lib/field-db';
 
 export const dynamic = 'force-dynamic';
 
@@ -9,6 +9,12 @@ export const dynamic = 'force-dynamic';
 export async function GET(request: NextRequest) {
   const agent = await requireAgent();
   if (agent instanceof NextResponse) return agent;
+
+  // ?refs=a,b,c — when the phone found places itself (Google), just say which were visited before.
+  const refs = request.nextUrl.searchParams.get('refs');
+  if (refs != null) {
+    return NextResponse.json({ history: await lastVisits(refs.split(',')).catch(() => ({})) });
+  }
 
   const lat = Number(request.nextUrl.searchParams.get('lat'));
   const lng = Number(request.nextUrl.searchParams.get('lng'));
@@ -19,11 +25,8 @@ export async function GET(request: NextRequest) {
 
   try {
     const places = await nearbyPlaces(lat, lng, radius);
-    const withHistory = await Promise.all(places.slice(0, 15).map(async p => ({
-      ...p,
-      last_visit: (await visitsToPlace(p.ref).catch(() => []))[0]?.visited_at ?? null,
-    })));
-    return NextResponse.json({ places: [...withHistory, ...places.slice(15).map(p => ({ ...p, last_visit: null }))] });
+    const history = await lastVisits(places.map(p => p.ref)).catch(() => ({} as Record<string, string>));
+    return NextResponse.json({ places: places.map(p => ({ ...p, last_visit: history[p.ref] ?? null })) });
   } catch (error: unknown) {
     console.warn('[field] nearby failed', error);
     // The app falls back to a dropped pin, so this is soft.

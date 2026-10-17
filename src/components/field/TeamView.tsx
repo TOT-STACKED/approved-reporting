@@ -97,15 +97,14 @@ function ImportHistory({ agents, imported }: { agents: FieldAgent[]; imported: n
     setRunning(true);
     setErr('');
     let count = 0;
-    const skip: string[] = [];
     const missed: typeof unplaced = [];
     try {
       for (let i = 0; i < 60; i++) {
-        const res = await fetch('/api/field/import', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ agent, skip }) });
+        const res = await fetch('/api/field/import', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ agent }) });
         const json = await res.json().catch(() => ({}));
         if (!res.ok) { setErr(json.error || 'The import stopped. Press it again to carry on.'); break; }
         count += json.imported;
-        for (const u of json.unplaced || []) { skip.push(u.id); missed.push(u); }
+        for (const u of json.unplaced || []) missed.push(u);
         setDone(count);
         setLeft(json.remaining);
         setUnplaced([...missed]);
@@ -123,7 +122,7 @@ function ImportHistory({ agents, imported }: { agents: FieldAgent[]; imported: n
       <h2 className="mb-1 text-[16px] font-bold">Intelligence history</h2>
       <p className="mb-3 text-[14px] text-muted">
         Put every Intelligence Review on the map as a back-dated visit. {imported ? `${imported} already imported. ` : ''}
-        Safe to run again: it only adds reviews that aren’t on the map yet.
+        Safe to run again: it only adds reviews that aren’t in yet.
       </p>
       <label className="mb-2 block text-xs font-bold uppercase tracking-[0.1em] text-muted" htmlFor="imp-agent">Credit them to</label>
       <select id="imp-agent" value={agent} onChange={e => setAgent(e.target.value)} className="mb-3 h-12 w-full rounded-xl border border-border bg-surface px-3 text-[16px]">
@@ -138,7 +137,7 @@ function ImportHistory({ agents, imported }: { agents: FieldAgent[]; imported: n
       {err && <p className="mt-3 text-[14px] text-negative">{err}</p>}
       {unplaced.length > 0 && (
         <div className="mt-3 text-[13px]">
-          <p className="mb-1 font-bold">Couldn’t place {unplaced.length} (no postcode or town we could find):</p>
+          <p className="mb-1 font-bold">{unplaced.length} came in without a location (listed on the Team map under “No location yet”):</p>
           <ul className="max-h-48 overflow-auto rounded-xl bg-surface p-3">
             {unplaced.map(u => <li key={u.id}>{u.name}{u.location ? ` — “${u.location}”` : ''}</li>)}
           </ul>

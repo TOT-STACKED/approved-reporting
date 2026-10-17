@@ -58,7 +58,7 @@ export default async function VisitPage({ params, searchParams }: {
             <span className="rounded-full bg-ink px-3 py-1 font-bold text-white">{visit.agent_name || 'Unknown agent'}</span>
             <span className="rounded-full bg-surface px-3 py-1">{fmtWhen(visit.visited_at)}</span>
             {visit.source === 'intelligence' && <span className="rounded-full bg-tag-advisory px-3 py-1 font-bold">Intelligence</span>}
-            {visit.geo_precision !== 'exact' && <span className="rounded-full bg-warning-tint px-3 py-1 text-warning-dark">Approx. location</span>}
+            {visit.geo_precision !== 'exact' && <span className="rounded-full bg-warning-tint px-3 py-1 text-warning-dark">{visit.geo_precision === 'none' ? 'No location yet' : 'Approx. location'}</span>}
             {visit.demo_interest === 'yes' && <span className="rounded-full bg-positive-tint px-3 py-1 font-bold text-positive">Wants a demo</span>}
           </div>
 

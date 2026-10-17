@@ -1,32 +1,12 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { loadGoogleMaps } from './google-loader';
 import { LONDON, ME_COLOR, TAP_RADIUS, pinLook, pinsKey, type MapProps } from './map-types';
 
 // Google Maps backend, used when NEXT_PUBLIC_GOOGLE_MAPS_KEY is set. The key
 // is public by design (it ships to the browser), so lock it to
 // partners.wearestacked.io/* in Google Cloud. The script loads once per page.
-
-const KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY || '';
-
-let loader: Promise<void> | null = null;
-
-function loadGoogleMaps(): Promise<void> {
-  if (typeof window === 'undefined') return Promise.reject(new Error('no window'));
-  if (window.google?.maps?.Map) return Promise.resolve();
-  if (!loader) {
-    loader = new Promise((resolve, reject) => {
-      const cb = '__fieldGoogleMapsReady';
-      (window as unknown as Record<string, () => void>)[cb] = () => resolve();
-      const s = document.createElement('script');
-      s.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(KEY)}&v=weekly&loading=async&callback=${cb}`;
-      s.async = true;
-      s.onerror = () => { loader = null; reject(new Error('Google Maps failed to load')); };
-      document.head.appendChild(s);
-    });
-  }
-  return loader;
-}
 
 /** A filled circle, so pins match the Leaflet map and are easy to tap. */
 function circleIcon(fill: string, stroke: string, radius: number, weight: number): google.maps.Symbol {

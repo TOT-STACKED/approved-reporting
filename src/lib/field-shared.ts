@@ -105,9 +105,10 @@ export interface FieldVisit {
   address: string | null;
   postcode: string | null;
   osm_ref: string | null;
-  lat: number;
-  lng: number;
-  geo_precision: 'exact' | 'postcode' | 'town';
+  /** Null for imported reviews whose location couldn't be found ("No location yet"). */
+  lat: number | null;
+  lng: number | null;
+  geo_precision: 'exact' | 'postcode' | 'town' | 'none';
   gps_lat: number | null;
   gps_lng: number | null;
   gps_accuracy_m: number | null;

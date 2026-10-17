@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import FieldMap, { type MapPin } from './FieldMap';
+import { HAS_GOOGLE } from './google-loader';
+import { googleNearby } from './google-places';
 import { Chip } from './FieldChrome';
 import {
   BUSYNESS,
@@ -40,9 +42,10 @@ interface Place {
   address: string;
   postcode: string;
   osm_ref: string | null;
-  lat: number;
-  lng: number;
-  geo_precision: 'exact' | 'postcode' | 'town';
+  /** Null until pinned: imported reviews whose location couldn't be found. */
+  lat: number | null;
+  lng: number | null;
+  geo_precision: 'exact' | 'postcode' | 'town' | 'none';
 }
 
 interface Draft {
@@ -170,6 +173,7 @@ export default function VisitForm({ visit, photoUrls = [] }: { visit?: FieldVisi
 
   async function save() {
     if (!d.place?.venue_name.trim()) { setError('Pick the venue first.'); go(0); return; }
+    if (d.place.lat == null) { setError('Tap the map where the venue is.'); go(0); return; }
     setSaving(true);
     setError('');
     try {
@@ -293,6 +297,17 @@ function WhereStep({ d, set, pos, gpsError, editing }: {
     setLoading(true);
     setListError('');
     try {
+      if (HAS_GOOGLE) {
+        try {
+          const found = await googleNearby(at.lat, at.lng, radius);
+          const res = await fetch(`/api/field/nearby?refs=${encodeURIComponent(found.map(p => p.ref).join(','))}`);
+          const { history = {} } = await res.json().catch(() => ({}));
+          setPlaces(found.map(p => ({ ...p, last_visit: history[p.ref] ?? null })));
+          return;
+        } catch {
+          // Places not enabled on the key, or quota: fall back to OpenStreetMap.
+        }
+      }
       const res = await fetch(`/api/field/nearby?lat=${at.lat}&lng=${at.lng}&r=${radius}`);
       const json = await res.json();
       setPlaces(json.places || []);
@@ -318,7 +333,7 @@ function WhereStep({ d, set, pos, gpsError, editing }: {
   }
 
   function startManual() {
-    const at = pos || d.place;
+    const at = pos || placeAt;
     if (!at) return;
     set('place', { venue_name: '', address: '', postcode: '', osm_ref: null, lat: at.lat, lng: at.lng, geo_precision: 'exact' });
     setManual(true);
@@ -327,7 +342,10 @@ function WhereStep({ d, set, pos, gpsError, editing }: {
 
   const pins: MapPin[] = [];
   if (changing && places) for (const p of places) pins.push({ id: p.ref, lat: p.lat, lng: p.lng, label: p.name, tone: 'place' });
-  if (d.place) pins.push({ id: 'selected', lat: d.place.lat, lng: d.place.lng, label: d.place.venue_name || 'Your pin', tone: 'selected' });
+  if (d.place?.lat != null && d.place.lng != null) {
+    pins.push({ id: 'selected', lat: d.place.lat, lng: d.place.lng, label: d.place.venue_name || 'Your pin', tone: 'selected' });
+  }
+  const placeAt = d.place?.lat != null && d.place.lng != null ? { lat: d.place.lat, lng: d.place.lng } : null;
 
   const canMovePin = manual || editing || (d.place && !d.place.osm_ref);
 
@@ -344,7 +362,7 @@ function WhereStep({ d, set, pos, gpsError, editing }: {
           className="h-[38vh] min-h-64 w-full"
           pins={pins}
           me={pos}
-          center={d.place && !changing ? d.place : pos}
+          center={placeAt && !changing ? placeAt : pos}
           onPinClick={id => {
             const p = places?.find(x => x.ref === id);
             if (p) pick(p);
@@ -387,7 +405,9 @@ function WhereStep({ d, set, pos, gpsError, editing }: {
               <p className="text-[14px] text-muted">{[d.place.address, d.place.postcode].filter(Boolean).join(' · ') || 'Tagged on the map'}</p>
             </>
           )}
-          {d.place.geo_precision !== 'exact' && (
+          {d.place.geo_precision === 'none' ? (
+            <p className="mt-2 text-[13px] font-bold text-warning-dark">No location yet. Tap the map where the venue is.</p>
+          ) : d.place.geo_precision !== 'exact' && (
             <p className="mt-2 text-[13px] text-warning-dark">This pin is approximate ({d.place.geo_precision} centre). Tap the map where the venue is.</p>
           )}
           <button type="button" onClick={() => { setChanging(true); setManual(false); if (pos && !places) void search(pos); }}
@@ -434,7 +454,7 @@ function WhereStep({ d, set, pos, gpsError, editing }: {
             </ul>
           )}
 
-          {pos || d.place ? (
+          {pos || placeAt ? (
             <button
               type="button"
               onClick={startManual}

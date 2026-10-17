@@ -176,6 +176,18 @@ export async function visitsToPlace(osmRef: string): Promise<{ id: string; visit
   return rest(`field_visits?osm_ref=eq.${enc(osmRef)}&select=id,visited_at&order=visited_at.desc&limit=5`);
 }
 
+/** The latest visit to each of these places, by place ref. */
+export async function lastVisits(refs: string[]): Promise<Record<string, string>> {
+  const clean = refs.filter(r => /^((node|way|relation)\/\d+|google\/[A-Za-z0-9_-]{10,300})$/.test(r)).slice(0, 40);
+  if (!clean.length) return {};
+  const rows = await rest<{ osm_ref: string; visited_at: string }[]>(
+    `field_visits?osm_ref=in.(${clean.map(r => `"${r}"`).map(enc).join(',')})&select=osm_ref,visited_at&order=visited_at.desc&limit=500`,
+  );
+  const out: Record<string, string> = {};
+  for (const r of rows) if (!out[r.osm_ref]) out[r.osm_ref] = r.visited_at;
+  return out;
+}
+
 export class VisitInputError extends Error {}
 
 const oneOf = <T extends readonly { id: string }[]>(list: T, v: unknown) =>
@@ -219,7 +231,7 @@ export function cleanVisitInput(input: Record<string, unknown>, agentId: string)
     ? new Date(Math.min(Date.parse(input.visited_at), Date.now())).toISOString()
     : new Date().toISOString();
 
-  const osmRef = typeof input.osm_ref === 'string' && /^(node|way|relation)\/\d+$/.test(input.osm_ref) ? input.osm_ref : null;
+  const osmRef = typeof input.osm_ref === 'string' && /^((node|way|relation)\/\d+|google\/[A-Za-z0-9_-]{10,300})$/.test(input.osm_ref) ? input.osm_ref : null;
   const accuracy = num(input.gps_accuracy_m, 0, 100000);
 
   return {
@@ -340,14 +352,47 @@ interface OverpassElement {
   tags?: Record<string, string>;
 }
 
-/**
- * Hospitality venues within `radius` metres, nearest first. OpenStreetMap is
- * free and needs no key; its coverage of UK high streets is good but not
- * perfect, which is why the app always lets the agent drop their own pin.
- */
-export async function nearbyPlaces(lat: number, lng: number, radius = 150): Promise<NearbyPlace[]> {
-  const r = Math.max(30, Math.min(radius, 500));
-  const query = `[out:json][timeout:10];
+const UA = 'StackedField/1.0 (partners.wearestacked.io)';
+const PHOTON_TAGS = ['amenity:restaurant', 'amenity:cafe', 'amenity:bar', 'amenity:pub', 'amenity:fast_food',
+  'amenity:nightclub', 'amenity:food_court', 'amenity:biergarten', 'amenity:ice_cream', 'tourism:hotel'];
+
+interface PhotonFeature {
+  geometry: { coordinates: [number, number] };
+  properties: {
+    osm_type?: 'N' | 'W' | 'R'; osm_id?: number; osm_value?: string; name?: string;
+    housenumber?: string; street?: string; city?: string; district?: string; postcode?: string;
+  };
+}
+
+/** Photon (Komoot's OpenStreetMap search): fast, and returns addresses and postcodes. */
+async function photonNearby(lat: number, lng: number, r: number): Promise<NearbyPlace[]> {
+  const qs = new URLSearchParams({ lat: String(lat), lon: String(lng), radius: String(r / 1000), limit: '40', lang: 'en' });
+  for (const t of PHOTON_TAGS) qs.append('osm_tag', t);
+  const res = await fetch(`https://photon.komoot.io/reverse?${qs}`, { headers: { 'User-Agent': UA }, cache: 'no-store', signal: AbortSignal.timeout(5000) });
+  if (!res.ok) throw new Error(`photon ${res.status}`);
+  const { features = [] } = (await res.json()) as { features?: PhotonFeature[] };
+  const types = { N: 'node', W: 'way', R: 'relation' } as const;
+  return features
+    .filter(f => f.properties.name && f.properties.osm_type && f.properties.osm_id)
+    .map(f => {
+      const p = f.properties;
+      const [pLng, pLat] = f.geometry.coordinates;
+      return {
+        ref: `${types[p.osm_type!]}/${p.osm_id}`,
+        name: p.name!,
+        lat: pLat,
+        lng: pLng,
+        kind: p.osm_value || '',
+        address: [[p.housenumber, p.street].filter(Boolean).join(' '), p.district || p.city].filter(Boolean).join(', '),
+        postcode: p.postcode || '',
+        distance_m: distanceM(lat, lng, pLat, pLng),
+      };
+    });
+}
+
+/** The OpenStreetMap Overpass API, as a backup: complete but often slow or down. */
+async function overpassNearby(lat: number, lng: number, r: number): Promise<NearbyPlace[]> {
+  const query = `[out:json][timeout:8];
 (
   nwr(around:${r},${lat},${lng})["amenity"~"^(${AMENITIES})$"]["name"];
   nwr(around:${r},${lat},${lng})["tourism"="hotel"]["name"];
@@ -355,10 +400,10 @@ export async function nearbyPlaces(lat: number, lng: number, radius = 150): Prom
 out center tags 60;`;
   const res = await fetch(OVERPASS, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'User-Agent': 'StackedField/1.0 (partners.wearestacked.io)' },
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'User-Agent': UA },
     body: `data=${encodeURIComponent(query)}`,
     cache: 'no-store',
-    signal: AbortSignal.timeout(12000),
+    signal: AbortSignal.timeout(8000),
   });
   if (!res.ok) throw new Error(`overpass ${res.status}`);
   const { elements = [] } = (await res.json()) as { elements?: OverpassElement[] };
@@ -381,5 +426,22 @@ out center tags 60;`;
       distance_m: distanceM(lat, lng, pLat, pLng),
     });
   }
-  return places.sort((a, b) => a.distance_m - b.distance_m).slice(0, 40);
+  return places;
+}
+
+/**
+ * Hospitality venues within `radius` metres, nearest first, from OpenStreetMap.
+ * Photon first (fast); Overpass if Photon fails. Coverage of UK high streets
+ * is good but not perfect, which is why the app always lets the agent drop
+ * their own pin. With a Google key the phone uses Google Places instead.
+ */
+export async function nearbyPlaces(lat: number, lng: number, radius = 150): Promise<NearbyPlace[]> {
+  const r = Math.max(30, Math.min(radius, 500));
+  let places: NearbyPlace[];
+  try {
+    places = await photonNearby(lat, lng, r);
+  } catch {
+    places = await overpassNearby(lat, lng, r);
+  }
+  return places.filter(p => p.distance_m <= r * 1.2).sort((a, b) => a.distance_m - b.distance_m).slice(0, 40);
 }
