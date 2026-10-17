@@ -12,7 +12,7 @@ export default async function Team() {
   if (me.role !== 'manager') redirect('/field');
   const [agents, status] = await Promise.all([
     listAgents(),
-    importStatus().catch(() => ({ reviews: 0, imported: 0 })),
+    importStatus().catch(() => ({ reviews: 0, imported: 0, main: 0, earlier: 0, venues: 0, repeats: 0 })),
   ]);
   return (
     <>

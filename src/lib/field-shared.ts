@@ -186,3 +186,13 @@ export function fmtWhen(iso: string): string {
   if (day === ukDay(Date.now() - 86400000)) return `Yesterday ${time}`;
   return `${d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: TZ })} ${time}`;
 }
+
+/**
+ * Which venue a visit is at, for grouping repeat reviews: the name with
+ * punctuation stripped, plus its pin rounded to about 1 km, so a chain's
+ * sites in different places stay separate. No pin: the name alone.
+ */
+export function venueKey(v: { venue_name: string; lat: number | null; lng: number | null }): string {
+  const name = v.venue_name.toLowerCase().replace(/^the\s+/, '').replace(/[^a-z0-9]/g, '');
+  return v.lat == null || v.lng == null ? `${name}|?` : `${name}|${v.lat.toFixed(2)},${v.lng.toFixed(2)}`;
+}

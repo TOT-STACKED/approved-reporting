@@ -5,7 +5,7 @@ import Link from 'next/link';
 import FieldMap, { type MapPin, type MapTrail } from './FieldMap';
 import { Chip } from './FieldChrome';
 import VisitList from './VisitList';
-import { fmtWhen, stackCount, ukDay, type FieldAgent, type FieldVisit } from '@/lib/field-shared';
+import { fmtWhen, stackCount, ukDay, venueKey, type FieldAgent, type FieldVisit } from '@/lib/field-shared';
 
 // The manager's view of where everyone has been. Pins are coloured per agent:
 // filled for visits logged in the app, rings for history brought in from
@@ -39,16 +39,31 @@ export default function ManageView({ agents, visits }: { agents: FieldAgent[]; v
     return (id: string) => m.get(id) || '#827D74';
   }, [agents]);
 
+  // Imported reviews of the same venue (repeat reviews over the years) show as
+  // one entry: the latest, with a count. App visits always show individually.
+  const reviewsAt = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const v of visits) if (v.source === 'intelligence') m.set(venueKey(v), (m.get(venueKey(v)) || 0) + 1);
+    return m;
+  }, [visits]);
+
   const shown = useMemo(() => {
     const today = ukDay(now);
     const r = RANGES.find(x => x.id === range)!;
     const fromDay = r.days === Infinity ? '' : r.days === 0 ? today : ukDay(now - r.days * 86400000);
-    return visits.filter(v =>
-      (who === 'all' || v.agent_id === who) &&
-      (showHistory || v.source === 'field') &&
-      (!fromDay || ukDay(v.visited_at) >= fromDay),
-    );
+    const seen = new Set<string>();
+    // visits arrive newest first, so the first of each venue is its latest review.
+    return visits.filter(v => {
+      if (!((who === 'all' || v.agent_id === who) && (showHistory || v.source === 'field') && (!fromDay || ukDay(v.visited_at) >= fromDay))) return false;
+      if (v.source !== 'intelligence') return true;
+      const k = venueKey(v);
+      if (seen.has(k)) return false;
+      seen.add(k);
+      return true;
+    });
   }, [visits, range, who, showHistory, now]);
+
+  const repeatCount = (v: FieldVisit) => (v.source === 'intelligence' ? reviewsAt.get(venueKey(v)) || 1 : 1);
 
   type Placed = FieldVisit & { lat: number; lng: number };
   const placed = shown.filter((v): v is Placed => v.lat != null && v.lng != null);
@@ -146,7 +161,7 @@ export default function ManageView({ agents, visits }: { agents: FieldAgent[]; v
                   <p className="truncate text-[17px] font-bold">{selected.venue_name}</p>
                   <p className="text-[13px] text-muted">
                     {selected.agent_name} · {fmtWhen(selected.visited_at)}
-                    {selected.source === 'intelligence' ? ' · Intelligence' : ''}
+                    {selected.source === 'intelligence' ? ` · Intelligence${repeatCount(selected) > 1 ? ` · ${repeatCount(selected)} reviews, latest shown` : ''}` : ''}
                     {` · ${stackCount(selected.stack)} tech`}
                   </p>
                 </div>

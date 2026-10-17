@@ -23,6 +23,7 @@
 
 import { allRows, countRows, rest } from './field-db';
 import { isTestSubmission } from './stackcollect';
+import { venueKey } from './field-shared';
 
 const POSTCODE_RE = /\b([A-Z]{1,2}\d[A-Z\d]?)\s*(\d[A-Z]{2})\b/i;
 const BATCH = 8;
@@ -482,15 +483,30 @@ export async function importIntelligenceBatch(agentId: string): Promise<ImportRe
   return { imported: batch.length, remaining: older.length - batch.length, unplaced };
 }
 
-/** How many reviews exist across both sources, and how many are in, for the Team page. */
-export async function importStatus(): Promise<{ reviews: number; imported: number }> {
-  const [subs, subsIn, scIn, scLeft] = await Promise.all([
+export interface ImportStatus {
+  reviews: number;
+  imported: number;
+  /** Imported, by source. */
+  main: number;
+  earlier: number;
+  /** Distinct venues among imported reviews, and how many reviews are repeats of one. */
+  venues: number;
+  repeats: number;
+}
+
+/** How many reviews exist across both sources, how many are in, and how many are repeat visits to one venue. */
+export async function importStatus(): Promise<ImportStatus> {
+  const [subs, imported, scLeft] = await Promise.all([
     countRows('submissions'),
-    countRows('field_visits', 'submission_id=not.is.null'),
-    countRows('field_visits', 'stackcollect_id=not.is.null').catch(() => 0),
+    allRows<{ venue_name: string; lat: number | null; lng: number | null; submission_id: string | null; stackcollect_id: string | null }>(
+      'field_visits?source=eq.intelligence&select=venue_name,lat,lng,submission_id,stackcollect_id&order=id.asc',
+    ),
     pendingStackCollect().then(r => r.length).catch(() => 0),
   ]);
-  return { reviews: subs + scIn + scLeft, imported: subsIn + scIn };
+  const main = imported.filter(v => v.submission_id).length;
+  const earlier = imported.filter(v => v.stackcollect_id).length;
+  const venues = new Set(imported.map(venueKey)).size;
+  return { reviews: subs + earlier + scLeft, imported: main + earlier, main, earlier, venues, repeats: imported.length - venues };
 }
 
 // ── Re-check approximate pins ───────────────────────────────────────────────

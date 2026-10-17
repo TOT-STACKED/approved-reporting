@@ -4,10 +4,11 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Chip } from './FieldChrome';
 import { fmtWhen, type FieldAgent } from '@/lib/field-shared';
+import type { ImportStatus } from '@/lib/field-import';
 
 const INPUT = 'h-12 w-full rounded-xl border border-border bg-surface px-4 text-[16px] placeholder:text-dim focus:border-ink focus:outline-none';
 
-export default function TeamView({ agents, meId, status }: { agents: FieldAgent[]; meId: string; status: { reviews: number; imported: number } }) {
+export default function TeamView({ agents, meId, status }: { agents: FieldAgent[]; meId: string; status: ImportStatus }) {
   const router = useRouter();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -85,7 +86,7 @@ export default function TeamView({ agents, meId, status }: { agents: FieldAgent[
 }
 
 /** Bring every Intelligence Review in as a back-dated visit, a batch at a time. */
-function ImportHistory({ agents, status }: { agents: FieldAgent[]; status: { reviews: number; imported: number } }) {
+function ImportHistory({ agents, status }: { agents: FieldAgent[]; status: ImportStatus }) {
   const router = useRouter();
   const [agent, setAgent] = useState(() => agents.find(a => /^caz/i.test(a.name || a.email))?.id || '');
   const [running, setRunning] = useState(false);
@@ -134,6 +135,13 @@ function ImportHistory({ agents, status }: { agents: FieldAgent[]; status: { rev
       <p className="mb-3 rounded-xl bg-surface px-4 py-3 text-[15px]">
         <b className="font-mono">{status.imported}</b> of <b className="font-mono">{status.reviews}</b> Intelligence Reviews are in
         {status.reviews > status.imported ? ` · ${status.reviews - status.imported} to import` : ' · all in'}
+        {status.imported > 0 && (
+          <span className="mt-1 block text-[13px] text-muted">
+            {status.main} from the current review form, {status.earlier} earlier ones from StackCollect.
+            {' '}That’s <b className="text-ink">{status.venues} venues</b>: {status.repeats} reviews are a repeat of a venue already reviewed,
+            and show as one pin on the map.
+          </span>
+        )}
       </p>
       <label className="mb-2 block text-xs font-bold uppercase tracking-[0.1em] text-muted" htmlFor="imp-agent">Credit them to</label>
       <select id="imp-agent" value={agent} onChange={e => setAgent(e.target.value)} className="mb-3 h-12 w-full rounded-xl border border-border bg-surface px-3 text-[16px]">
