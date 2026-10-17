@@ -5,7 +5,7 @@ export const metadata: Metadata = {
   description: 'Tag venues and record what you see.',
   robots: { index: false },
   manifest: '/field.webmanifest',
-  icons: { icon: '/field-icon.svg', apple: '/field-icon.svg' },
+  icons: { icon: [{ url: '/field-icon-192.png', sizes: '192x192', type: 'image/png' }], apple: [{ url: '/field-apple-icon.png', sizes: '180x180' }] },
   appleWebApp: { capable: true, title: 'Stacked Field', statusBarStyle: 'default' },
 };
 

@@ -6,13 +6,28 @@ import { usePathname } from 'next/navigation';
 // Header and bottom tab bar for Stacked Field. The tab bar sits in the thumb
 // zone and clears the iPhone home indicator.
 
-/** The Stacked logo (the wordmark itself, not typed text) with "Field" beside it. */
-export function FieldLockup({ size = 'sm' }: { size?: 'sm' | 'lg' }) {
+/**
+ * Sign-in only: the Stacked wordmark (the SVG logo, not typed text) with
+ * "Field" beside it. The wordmark's letters sit on a tilted baseline, so the
+ * word is nudged to its optical centre rather than its box centre.
+ */
+export function FieldLockup() {
   return (
-    <span className="flex items-center gap-2">
+    <span className="flex items-center gap-3">
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src="/stacked-wordmark.svg" alt="Stacked" className={size === 'lg' ? 'h-9 w-auto' : 'h-[23px] w-auto'} />
-      <span className={`font-display uppercase leading-none tracking-tight text-white ${size === 'lg' ? 'text-[34px]' : 'text-[21px]'}`}>Field</span>
+      <img src="/stacked-wordmark.svg" alt="Stacked" className="h-10 w-auto" />
+      <span className="translate-y-[3px] font-display text-[36px] uppercase leading-none tracking-tight text-white">Field</span>
+    </span>
+  );
+}
+
+/** App screens: the Field van badge with "Field" beside it. */
+function FieldBadge() {
+  return (
+    <span className="flex items-center gap-2.5">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src="/field-van.png" alt="" width={32} height={32} className="h-8 w-8" />
+      <span className="translate-y-[1px] font-display text-[22px] uppercase leading-none tracking-tight text-white">Field</span>
     </span>
   );
 }
@@ -29,7 +44,7 @@ export function FieldHeader({ title, back, right }: { title: string; back?: stri
           </Link>
         )}
         <Link href="/field" aria-label="Stacked Field home" className="flex h-11 items-center">
-          <FieldLockup />
+          <FieldBadge />
         </Link>
         <span className="flex-1" />
         {right}

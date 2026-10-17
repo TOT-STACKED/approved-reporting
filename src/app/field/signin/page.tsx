@@ -45,7 +45,7 @@ export default function FieldSignIn() {
     <main className="flex min-h-dvh flex-col bg-ink px-6 text-white" style={{ paddingTop: 'max(env(safe-area-inset-top), 48px)' }}>
       <div className="mx-auto flex w-full w-full max-w-sm flex-1 flex-col">
         <div className="mb-10">
-          <FieldLockup size="lg" />
+          <FieldLockup />
         </div>
 
         <h1 className="mb-3 font-display text-[40px] uppercase leading-[0.95] tracking-tight">
