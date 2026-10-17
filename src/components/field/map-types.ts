@@ -49,6 +49,9 @@ export const PIN_STYLE = {
 } as const;
 
 export const ME_COLOR = '#4E71F2';
+
+/** Invisible tap target around every pin: 44 px across, a fingertip, so pins are easy to hit on a phone. */
+export const TAP_RADIUS = 22;
 export const LONDON = { lat: 51.5074, lng: -0.1278 };
 
 /** A stable key for "the set of pins changed", used to decide when to refit. */

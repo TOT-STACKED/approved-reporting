@@ -3,7 +3,7 @@
 import { useEffect, useRef } from 'react';
 import type * as Leaflet from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { LONDON, ME_COLOR, pinLook, pinsKey, type MapProps } from './map-types';
+import { LONDON, ME_COLOR, TAP_RADIUS, pinLook, pinsKey, type MapProps } from './map-types';
 
 // The fallback map: Leaflet with OpenStreetMap tiles, free and keyless. Used
 // until NEXT_PUBLIC_GOOGLE_MAPS_KEY is set. Leaflet touches `window`, so it
@@ -22,6 +22,24 @@ export default function LeafletMap({ pins, trails = [], me, center, zoom = 17, f
   handlers.current = { onPinClick, onMapClick };
   const fitKey = useRef('');
   const draw = useRef<() => void>(() => {});
+
+  // A tap on a pin that overlaps others zooms in on the cluster; a lone pin is picked.
+  function tap(id: string) {
+    const m = map.current;
+    const mod = L.current;
+    const p = pins.find(x => x.id === id);
+    if (!m || !mod || !p) return;
+    const at = m.latLngToContainerPoint([p.lat, p.lng]);
+    const near = pins.filter(q => m.latLngToContainerPoint([q.lat, q.lng]).distanceTo(at) < TAP_RADIUS);
+    if (near.length > 1 && m.getZoom() < 18) {
+      const b = mod.latLngBounds(near.map(q => [q.lat, q.lng] as [number, number]));
+      m.flyToBounds(b, { padding: [60, 60], maxZoom: Math.min(m.getZoom() + 4, 18) });
+      return;
+    }
+    handlers.current.onPinClick?.(id);
+  }
+  const tapRef = useRef(tap);
+  tapRef.current = tap;
 
   draw.current = () => {
     const mod = L.current;
@@ -49,7 +67,13 @@ export default function LeafletMap({ pins, trails = [], me, center, zoom = 17, f
         radius: s.radius, color: s.stroke, weight: s.weight, fillColor: s.fill, fillOpacity: 1, bubblingMouseEvents: false,
       }).addTo(layer.current);
       if (p.label) marker.bindTooltip(p.label, { direction: 'top', offset: [0, -8] });
-      marker.on('click', () => handlers.current.onPinClick?.(p.id));
+      marker.on('click', () => tapRef.current(p.id));
+      if (handlers.current.onPinClick) {
+        // Transparent but still "painted", so it takes taps.
+        mod.circleMarker([p.lat, p.lng], { radius: TAP_RADIUS, stroke: false, fillColor: '#000', fillOpacity: 0, bubblingMouseEvents: false })
+          .addTo(layer.current)
+          .on('click', () => tapRef.current(p.id));
+      }
     }
 
     const key = pinsKey(pins);

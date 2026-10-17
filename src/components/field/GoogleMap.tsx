@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { LONDON, ME_COLOR, pinLook, pinsKey, type MapProps } from './map-types';
+import { LONDON, ME_COLOR, TAP_RADIUS, pinLook, pinsKey, type MapProps } from './map-types';
 
 // Google Maps backend, used when NEXT_PUBLIC_GOOGLE_MAPS_KEY is set. The key
 // is public by design (it ships to the browser), so lock it to
@@ -78,6 +78,32 @@ export default function GoogleMap({ pins, trails = [], me, center, zoom = 17, fi
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // A tap on a pin that overlaps others zooms in on the cluster; a lone pin is picked.
+  function tap(id: string): boolean {
+    const m = map.current;
+    const p = pins.find(x => x.id === id);
+    const proj = m?.getProjection();
+    if (!m || !p || !proj) return false;
+    const scale = 2 ** (m.getZoom() || 0);
+    const px = (q: { lat: number; lng: number }) => {
+      const w = proj.fromLatLngToPoint(q)!;
+      return { x: w.x * scale, y: w.y * scale };
+    };
+    const at = px(p);
+    const near = pins.filter(q => { const b = px(q); return Math.hypot(b.x - at.x, b.y - at.y) < TAP_RADIUS; });
+    if (near.length > 1 && (m.getZoom() || 0) < 18) {
+      const b = new google.maps.LatLngBounds();
+      for (const q of near) b.extend(q);
+      m.fitBounds(b, 60);
+      const cap = Math.min((m.getZoom() || 0) + 4, 18);
+      google.maps.event.addListenerOnce(m, 'idle', () => { if ((m.getZoom() || 0) > cap) m.setZoom(cap); });
+      return true;
+    }
+    return false;
+  }
+  const tapRef = useRef(tap);
+  tapRef.current = tap;
+
   useEffect(() => {
     const m = map.current;
     if (!ready || !m) return;
@@ -114,6 +140,7 @@ export default function GoogleMap({ pins, trails = [], me, center, zoom = 17, fi
         zIndex: p.tone === 'selected' ? 10 : 2,
       });
       marker.addListener('click', () => {
+        if (tapRef.current(p.id)) return;
         if (handlers.current.onPinClick) handlers.current.onPinClick(p.id);
         else if (p.label && info.current) {
           info.current.setContent(p.label);
@@ -121,6 +148,16 @@ export default function GoogleMap({ pins, trails = [], me, center, zoom = 17, fi
         }
       });
       drawn.current.push(marker);
+      if (handlers.current.onPinClick) {
+        const target = new google.maps.Marker({
+          map: m,
+          position: { lat: p.lat, lng: p.lng },
+          icon: { path: google.maps.SymbolPath.CIRCLE, scale: TAP_RADIUS, fillOpacity: 0, strokeOpacity: 0 },
+          zIndex: p.tone === 'selected' ? 11 : 3,
+        });
+        target.addListener('click', () => { if (!tapRef.current(p.id)) handlers.current.onPinClick?.(p.id); });
+        drawn.current.push(target);
+      }
     }
 
     const key = pinsKey(pins);
