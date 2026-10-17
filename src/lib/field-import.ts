@@ -25,7 +25,7 @@ import { allRows, countRows, rest } from './field-db';
 import { isTestSubmission } from './stackcollect';
 
 const POSTCODE_RE = /\b([A-Z]{1,2}\d[A-Z\d]?)\s*(\d[A-Z]{2})\b/i;
-const BATCH = 15;
+const BATCH = 10;
 
 interface Submission {
   id: string;
@@ -68,15 +68,42 @@ function km(a: { lat: number; lng: number }, b: { lat: number; lng: number }): n
   return 2 * 6371 * Math.asin(Math.sqrt(h));
 }
 
-interface PhotonFeature { geometry: { coordinates: [number, number] }; properties: { name?: string; postcode?: string; countrycode?: string } }
+interface PhotonFeature {
+  geometry: { coordinates: [number, number] };
+  properties: { name?: string; postcode?: string; countrycode?: string; osm_key?: string; osm_value?: string };
+}
 
-async function photon(q: string, tags: string[]): Promise<PhotonFeature | null> {
+// Photon is a free public service and answers 503 to bursts, so at most three
+// requests are in flight per import batch, with a short retry when it's busy.
+let inFlight = 0;
+const waiting: (() => void)[] = [];
+async function throttled<T>(fn: () => Promise<T>): Promise<T> {
+  if (inFlight >= 3) await new Promise<void>(r => waiting.push(r));
+  inFlight++;
+  try {
+    return await fn();
+  } finally {
+    inFlight--;
+    waiting.shift()?.();
+  }
+}
+
+async function photon(q: string, tags: string[] = []): Promise<PhotonFeature | null> {
   const qs = new URLSearchParams({ q, limit: '1', lang: 'en', bbox: UK_BBOX });
   for (const t of tags) qs.append('osm_tag', t);
-  const res = await fetch(`${PHOTON}?${qs}`, { headers: { 'User-Agent': 'StackedField/1.0 (partners.wearestacked.io)' }, signal: AbortSignal.timeout(6000) }).catch(() => null);
-  if (!res?.ok) return null;
-  const { features } = (await res.json().catch(() => ({}))) as { features?: PhotonFeature[] };
-  return features?.[0] || null;
+  return throttled(async () => {
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const res = await fetch(`${PHOTON}?${qs}`, { headers: { 'User-Agent': 'StackedField/1.0 (partners.wearestacked.io)' }, signal: AbortSignal.timeout(6000) }).catch(() => null);
+      if (res && (res.status === 503 || res.status === 429)) {
+        await new Promise(r => setTimeout(r, 700 * (attempt + 1)));
+        continue;
+      }
+      if (!res?.ok) return null;
+      const { features } = (await res.json().catch(() => ({}))) as { features?: PhotonFeature[] };
+      return features?.[0] || null;
+    }
+    return null;
+  });
 }
 
 /** The venue itself, by name, if it's within 25 km of its town (or anywhere in the UK when there's no town). */
@@ -117,10 +144,54 @@ async function townLookup(text: string): Promise<Place | null> {
   }
   // Photon copes with misspellings ("Portabello", "Shepards bush") and areas ("Midlands").
   for (const part of parts) {
-    const f = await photon(part, ['place', 'boundary']);
+    const f = await photon(part, ['place:city', 'place:town', 'place:suburb', 'place:quarter', 'place:neighbourhood', 'place:village', 'boundary:administrative']);
     if (f) return { lat: f.geometry.coordinates[1], lng: f.geometry.coordinates[0], postcode: null, precision: 'town' };
   }
   return null;
+}
+
+// Big places: a pin on these is a town centre, so it stays marked approximate.
+const BROAD = new Set(['city', 'town', 'village', 'hamlet', 'county', 'state', 'region', 'country', 'island', 'administrative']);
+
+/**
+ * The location text as a clue, as close as it goes: "Borough Market", "Portobello
+ * Road" or "London O2" land on that landmark or street; "Camden" on the area.
+ * Searched whole first (Photon, any kind of place in the UK), then piece by
+ * piece as towns.
+ */
+async function clueLookup(text: string): Promise<Place | null> {
+  const clue = text.trim();
+  if (clue.length >= 3) {
+    const f = await photon(clue);
+    if (f && trustClue(clue, f)) {
+      const p = f.properties;
+      const broad = p.osm_key === 'place' ? BROAD.has(p.osm_value || '') : p.osm_key === 'boundary';
+      return {
+        lat: f.geometry.coordinates[1],
+        lng: f.geometry.coordinates[0],
+        postcode: broad ? null : p.postcode || null,
+        precision: broad ? 'town' : 'postcode',
+      };
+    }
+  }
+  return townLookup(clue);
+}
+
+// What a location clue may land on. Landmarks, stations, markets, parks and
+// areas, yes. A single business or a farmyard that happens to share the name
+// ("Portabello" the Nottingham restaurant), no. A street only when the clue
+// names one ("Portobello Road"), since one-word clues match streets everywhere.
+const TRUSTED_KEYS = new Set(['place', 'boundary', 'railway', 'tourism', 'leisure', 'historic', 'building', 'public_transport', 'aeroway']);
+const TRUSTED_AMENITIES = new Set(['marketplace', 'theatre', 'arts_centre', 'events_venue', 'conference_centre', 'university', 'college', 'bus_station', 'ferry_terminal', 'townhall', 'library', 'cinema']);
+const STREET_WORD = /\b(road|rd|street|st|lane|ln|avenue|ave|row|place|square|sq|hill|walk|way|terrace|gardens|parade|market|yard|mews|wharf|quay)\b/i;
+
+function trustClue(clue: string, f: PhotonFeature): boolean {
+  const { osm_key: key = '', osm_value: value = '' } = f.properties;
+  if (key === 'place') return value !== 'hamlet' && value !== 'isolated_dwelling' && value !== 'farm';
+  if (TRUSTED_KEYS.has(key)) return true;
+  if (key === 'amenity') return TRUSTED_AMENITIES.has(value);
+  if (key === 'highway') return STREET_WORD.test(clue);
+  return false;
 }
 
 function normalisePostcode(m: RegExpMatchArray): string {
@@ -138,12 +209,12 @@ function cleanStack(stack: Submission['stack']) {
   return out;
 }
 
-/** Place a review: postcode, else the venue by name near its town, else the town. */
+/** Place a review: postcode, else the venue by name near its clue, else the clue itself. */
 async function placeFor(name: string, where: string, postcode: string | null, pcPlaces: Map<string, Place>): Promise<Place | null> {
   const byPostcode = postcode ? pcPlaces.get(postcode) || null : null;
   if (byPostcode) return byPostcode;
-  const town = where ? await townLookup(where) : null;
-  return (await venueLookup(name, where, town).catch(() => null)) || town;
+  const clue = where ? await clueLookup(where).catch(() => null) : null;
+  return (await venueLookup(name, where, clue).catch(() => null)) || clue;
 }
 
 function postcodeIn(text: string): string | null {
@@ -399,4 +470,36 @@ export async function importStatus(): Promise<{ reviews: number; imported: numbe
     pendingStackCollect().then(r => r.length).catch(() => 0),
   ]);
   return { reviews: subs + scIn + scLeft, imported: subsIn + scIn };
+}
+
+// ── Re-check approximate pins ───────────────────────────────────────────────
+
+const RANK = { none: 0, town: 1, postcode: 2, exact: 3 } as const;
+
+/**
+ * Run imported visits pinned to a town centre (or with no pin) back through
+ * the lookup, and move any that now land closer. Works through them by id, a
+ * batch at a time; pass back `after` to carry on.
+ */
+export async function recheckBatch(after = ''): Promise<{ checked: number; moved: number; last: string; done: boolean }> {
+  const rows = await rest<{ id: string; venue_name: string; address: string | null; geo_precision: keyof typeof RANK }[]>(
+    `field_visits?source=eq.intelligence&geo_precision=in.(town,none)${after ? `&id=gt.${after}` : ''}` +
+    '&select=id,venue_name,address,geo_precision&order=id.asc&limit=15',
+  );
+  if (!rows.length) return { checked: 0, moved: 0, last: after, done: true };
+
+  const results = await Promise.all(rows.map(async v => {
+    // Imported addresses are "location · sites"; the clue is the first part.
+    const where = (v.address || '').split(' · ')[0].trim();
+    const pc = postcodeIn(where);
+    const pcPlaces = pc ? await postcodeLookup([pc]).catch(() => new Map<string, Place>()) : new Map<string, Place>();
+    const place = await placeFor(v.venue_name, where, pc, pcPlaces);
+    if (!place || RANK[place.precision] <= RANK[v.geo_precision]) return false;
+    await rest(`field_visits?id=eq.${v.id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ lat: place.lat, lng: place.lng, postcode: place.postcode, geo_precision: place.precision, updated_at: new Date().toISOString() }),
+    });
+    return true;
+  }));
+  return { checked: rows.length, moved: results.filter(Boolean).length, last: rows[rows.length - 1].id, done: rows.length < 15 };
 }

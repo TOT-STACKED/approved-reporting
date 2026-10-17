@@ -79,6 +79,7 @@ export default function TeamView({ agents, meId, status }: { agents: FieldAgent[
       </form>
 
       <ImportHistory agents={agents.filter(a => a.active)} status={status} />
+      <RecheckLocations />
     </main>
   );
 }
@@ -146,6 +147,58 @@ function ImportHistory({ agents, status }: { agents: FieldAgent[]; status: { rev
           </ul>
         </div>
       )}
+    </section>
+  );
+}
+
+/** Re-run approximate and missing pins through the location lookup, a batch at a time. */
+function RecheckLocations() {
+  const router = useRouter();
+  const [running, setRunning] = useState(false);
+  const [checked, setChecked] = useState(0);
+  const [moved, setMoved] = useState(0);
+  const [done, setDone] = useState(false);
+  const [err, setErr] = useState('');
+
+  async function run() {
+    setRunning(true);
+    setDone(false);
+    setErr('');
+    let after = '';
+    let c = 0;
+    let m = 0;
+    try {
+      for (let i = 0; i < 200; i++) {
+        const res = await fetch('/api/field/recheck', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ after }) });
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok) { setErr(json.error || 'The re-check stopped. Press it again to carry on.'); break; }
+        c += json.checked;
+        m += json.moved;
+        setChecked(c);
+        setMoved(m);
+        after = json.last;
+        if (json.done) { setDone(true); break; }
+      }
+    } catch {
+      setErr('Lost connection. Press it again to carry on.');
+    }
+    setRunning(false);
+    router.refresh();
+  }
+
+  return (
+    <section className="mb-6 rounded-2xl border-2 border-dashed border-border p-4">
+      <h2 className="mb-1 text-[16px] font-bold">Sharpen approximate locations</h2>
+      <p className="mb-3 text-[14px] text-muted">
+        Imported venues pinned to a town centre, or with no location yet, are looked up again from the clue in their address,
+        such as “Borough Market” or “Portobello Road”. A pin only moves if the new spot is more precise.
+      </p>
+      <button type="button" disabled={running} onClick={run}
+        className="h-12 w-full rounded-xl bg-ink text-[15px] font-bold text-white disabled:opacity-40">
+        {running ? `Checking… ${checked} checked, ${moved} moved` : 'Re-check approximate locations'}
+      </button>
+      {done && !running && <p className="mt-3 text-[14px] font-bold text-positive">Done: {checked} checked, {moved} moved closer.</p>}
+      {err && <p className="mt-3 text-[14px] text-negative">{err}</p>}
     </section>
   );
 }
