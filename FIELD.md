@@ -43,6 +43,22 @@ plan is to feed visits into the venue marketplace as "Field-verified".
 - **No location yet**: imported reviews that can't be placed come in without a pin
   (migration 007) and are listed on the team map. Edit one and tap the map to place it.
 
+- **Routes** (`/field/routes`): plan a day or a week as an ordered list of stops,
+  picked by search, by tapping known venues, or by dropping a pin. *Best order* sorts
+  them nearest-next, and *Directions* opens Google Maps walking directions. *Start visit
+  here* opens a visit pre-filled for that stop, and saving it ticks the stop off. A visit
+  saved within 75 m of a planned stop on today's route is ticked off too. Every route is
+  kept, showing planned (orange) vs where the agent actually went (green). Managers can
+  plan for anyone. Table `field_routes` (migration 009).
+- **Insights** (`/field/insights`): what's being seen (POS, card terminals,
+  order-at-table, bookings), gaps (where agents ticked "None here"), postcode areas,
+  venue mix and weekly activity per agent. Repeat reviews of one venue count once.
+- **Seen tech in the portal**: app visits without a review feed the portal's market
+  stats (`getFieldObservedVenues` in `lib/stackcollect.ts`), labelled `field-observed`.
+  They count in tool and category counts and in `/api/stacks`, but never in review
+  counts. A visit is skipped if it has a review or if a review exists for a business
+  with the same name. They're not in the Airtable tech-usage sync or the marketplace.
+
 ## Where things live
 
 - Supabase `kohnakdevwfudzgfjmab`: tables `field_agents` and `field_visits`, plus the
@@ -52,7 +68,7 @@ plan is to feed visits into the venue marketplace as "Field-verified".
 
 ## One-time setup
 
-1. Run `supabase/migrations/006_field.sql`, then `007_field_unplaced.sql`, in the Supabase SQL editor for kohnakdevwfudzgfjmab.
+1. Run `supabase/migrations/006_field.sql`, then `007_field_unplaced.sql`, `008_field_stackcollect.sql` and `009_field_routes.sql`, in the Supabase SQL editor for kohnakdevwfudzgfjmab.
 2. Netlify env vars:
    - `FIELD_MANAGERS`: comma-separated manager emails, e.g. `fletch@wearestacked.io`
    - `NEXT_PUBLIC_GOOGLE_MAPS_KEY` (optional, switches the map to Google). In Google Cloud,

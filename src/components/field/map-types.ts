@@ -37,6 +37,8 @@ export interface MapProps {
   zoom?: number;
   /** Fit the view to every pin whenever the set of pins changes. */
   fit?: boolean;
+  /** When fitting, only these pins count (e.g. a route's stops, not the venues around it). */
+  fitIds?: string[];
   onPinClick?: (id: string) => void;
   onMapClick?: (lat: number, lng: number) => void;
   className?: string;
@@ -53,6 +55,14 @@ export const ME_COLOR = '#4E71F2';
 /** Invisible tap target around every pin: 44 px across, a fingertip, so pins are easy to hit on a phone. */
 export const TAP_RADIUS = 22;
 export const LONDON = { lat: 51.5074, lng: -0.1278 };
+
+/** The pins to fit the view to. */
+export function fitPinsOf(pins: MapPin[], fitIds?: string[]): MapPin[] {
+  if (!fitIds) return pins;
+  const ids = new Set(fitIds);
+  const chosen = pins.filter(p => ids.has(p.id));
+  return chosen.length ? chosen : pins;
+}
 
 /** A stable key for "the set of pins changed", used to decide when to refit. */
 export function pinsKey(pins: MapPin[]): string {

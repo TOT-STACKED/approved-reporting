@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { loadGoogleMaps } from './google-loader';
-import { LONDON, ME_COLOR, TAP_RADIUS, pinLook, pinsKey, type MapProps } from './map-types';
+import { LONDON, ME_COLOR, TAP_RADIUS, fitPinsOf, pinLook, pinsKey, type MapProps } from './map-types';
 
 // Google Maps backend, used when NEXT_PUBLIC_GOOGLE_MAPS_KEY is set. The key
 // is public by design (it ships to the browser), so lock it to
@@ -20,7 +20,7 @@ function circleIcon(fill: string, stroke: string, radius: number, weight: number
   };
 }
 
-export default function GoogleMap({ pins, trails = [], me, center, zoom = 17, fit, onPinClick, onMapClick, className = '' }: MapProps) {
+export default function GoogleMap({ pins, trails = [], me, center, zoom = 17, fit, fitIds, onPinClick, onMapClick, className = '' }: MapProps) {
   const el = useRef<HTMLDivElement>(null);
   const map = useRef<google.maps.Map | null>(null);
   const drawn = useRef<{ setMap(m: google.maps.Map | null): void }[]>([]);
@@ -140,15 +140,16 @@ export default function GoogleMap({ pins, trails = [], me, center, zoom = 17, fi
       }
     }
 
-    const key = pinsKey(pins);
-    if (fit && pins.length && key !== fitKey.current) {
+    const fitTo = fitPinsOf(pins, fitIds);
+    const key = pinsKey(fitTo);
+    if (fit && fitTo.length && key !== fitKey.current) {
       fitKey.current = key;
-      if (pins.length === 1) {
-        m.setCenter(pins[0]);
+      if (fitTo.length === 1) {
+        m.setCenter(fitTo[0]);
         m.setZoom(Math.max(m.getZoom() || 15, 15));
       } else {
         const b = new google.maps.LatLngBounds();
-        for (const p of pins) b.extend(p);
+        for (const p of fitTo) b.extend(p);
         m.fitBounds(b, 40);
         google.maps.event.addListenerOnce(m, 'idle', () => { if ((m.getZoom() || 0) > 17) m.setZoom(17); });
       }

@@ -1,13 +1,14 @@
 import { NextResponse } from 'next/server';
-import { getTechStackEntries, getBusinessSubmissions, getToolUsageStats, getPOSMarketShare } from '@/lib/stackcollect';
+import { getTechStackEntries, getBusinessSubmissions, getToolUsageStats, getPOSMarketShare, getFieldObservedVenues } from '@/lib/stackcollect';
 
 export async function GET() {
   try {
-    const [entries, businesses, toolUsage, posData] = await Promise.all([
+    const [entries, businesses, toolUsage, posData, observed] = await Promise.all([
       getTechStackEntries(),
       getBusinessSubmissions(),
       getToolUsageStats(),
       getPOSMarketShare(),
+      getFieldObservedVenues().catch(() => []),
     ]);
 
     // Build a lookup of submission_id → business info
@@ -46,9 +47,22 @@ export async function GET() {
       uniqueBusinesses: t.unique_businesses,
     }));
 
-    // Categories from entries
+    // Venues a field agent has seen (no review yet), labelled as such.
+    const fieldObserved = observed.map(v => ({
+      id: v.id,
+      businessName: v.venue_name,
+      industry: 'Hospitality',
+      location: v.postcode,
+      size: null,
+      numberOfLocations: null,
+      created_at: v.visited_at,
+      submissionType: 'field-observed',
+      tools: v.entries.map(e => ({ category: e.category, tool_name: e.tool_name })),
+    }));
+
+    // Categories from entries, review and field-observed
     const categoryCounts: Record<string, number> = {};
-    for (const e of entries) {
+    for (const e of [...entries, ...observed.flatMap(v => v.entries)]) {
       categoryCounts[e.category] = (categoryCounts[e.category] || 0) + 1;
     }
     const categories = Object.entries(categoryCounts)
@@ -58,6 +72,7 @@ export async function GET() {
     return NextResponse.json({
       reviews,
       totalReviews: reviews.length,
+      fieldObserved,
       totalEntries: entries.length,
       topTools,
       categories,

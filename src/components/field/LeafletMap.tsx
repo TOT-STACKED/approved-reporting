@@ -3,7 +3,7 @@
 import { useEffect, useRef } from 'react';
 import type * as Leaflet from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { LONDON, ME_COLOR, TAP_RADIUS, pinLook, pinsKey, type MapProps } from './map-types';
+import { LONDON, ME_COLOR, TAP_RADIUS, fitPinsOf, pinLook, pinsKey, type MapProps } from './map-types';
 
 // The fallback map: Leaflet with OpenStreetMap tiles, free and keyless. Used
 // until NEXT_PUBLIC_GOOGLE_MAPS_KEY is set. Leaflet touches `window`, so it
@@ -12,7 +12,7 @@ import { LONDON, ME_COLOR, TAP_RADIUS, pinLook, pinsKey, type MapProps } from '.
 // Pins are drawn as circles rather than Leaflet's image markers, which break
 // under bundlers and are too small to tap on a phone.
 
-export default function LeafletMap({ pins, trails = [], me, center, zoom = 17, fit, onPinClick, onMapClick, className = '' }: MapProps) {
+export default function LeafletMap({ pins, trails = [], me, center, zoom = 17, fit, fitIds, onPinClick, onMapClick, className = '' }: MapProps) {
   const el = useRef<HTMLDivElement>(null);
   const map = useRef<Leaflet.Map | null>(null);
   const L = useRef<typeof Leaflet | null>(null);
@@ -76,11 +76,12 @@ export default function LeafletMap({ pins, trails = [], me, center, zoom = 17, f
       }
     }
 
-    const key = pinsKey(pins);
-    if (fit && pins.length && key !== fitKey.current) {
+    const fitTo = fitPinsOf(pins, fitIds);
+    const key = pinsKey(fitTo);
+    if (fit && fitTo.length && key !== fitKey.current) {
       fitKey.current = key;
-      if (pins.length === 1) m.setView([pins[0].lat, pins[0].lng], Math.max(m.getZoom(), 15));
-      else m.fitBounds(mod.latLngBounds(pins.map(p => [p.lat, p.lng] as [number, number])), { padding: [32, 32], maxZoom: 17 });
+      if (fitTo.length === 1) m.setView([fitTo[0].lat, fitTo[0].lng], Math.max(m.getZoom(), 15));
+      else m.fitBounds(mod.latLngBounds(fitTo.map(p => [p.lat, p.lng] as [number, number])), { padding: [32, 32], maxZoom: 17 });
     }
   };
 

@@ -26,7 +26,9 @@ export function FieldHeader({ title, back, right }: { title: string; back?: stri
 
 const TABS = [
   { href: '/field', label: 'Visits', icon: 'M3 10l9-7 9 7v10a1 1 0 01-1 1h-5v-6H9v6H4a1 1 0 01-1-1V10z', manager: false },
+  { href: '/field/routes', label: 'Routes', icon: 'M6 19a2 2 0 100-4 2 2 0 000 4zM18 9a2 2 0 100-4 2 2 0 000 4zM6 15V9a4 4 0 014-4h2M18 9v6a4 4 0 01-4 4h-2', manager: false },
   { href: '/field/visit', label: 'New visit', icon: 'M12 5v14M5 12h14', manager: false, primary: true },
+  { href: '/field/insights', label: 'Insights', icon: 'M4 20V10M10 20V4M16 20v-7M22 20H2', manager: false },
   { href: '/field/manage', label: 'Team map', icon: 'M9 20l-6-3V4l6 3m0 13l6-3m-6 3V7m6 10l6 3V7l-6-3m0 13V4', manager: true },
 ];
 
@@ -55,7 +57,7 @@ export function FieldTabs({ manager }: { manager: boolean }) {
               );
             }
             return (
-              <Link key={t.href} href={t.href} className={`flex min-w-16 flex-col items-center gap-1 py-1 ${active ? 'text-ink' : 'text-dim'}`}>
+              <Link key={t.href} href={t.href} className={`flex min-w-14 flex-col items-center gap-1 py-1 ${active ? 'text-ink' : 'text-dim'}`}>
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d={t.icon} /></svg>
                 <span className="text-[11px] font-bold">{t.label}</span>
               </Link>

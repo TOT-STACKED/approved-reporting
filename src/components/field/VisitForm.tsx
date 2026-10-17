@@ -133,20 +133,36 @@ function useGps(enabled: boolean) {
 const INPUT = 'h-12 w-full rounded-xl border border-border bg-surface px-4 text-[16px] text-ink placeholder:text-dim focus:border-ink focus:outline-none';
 const LABEL = 'mb-2 block text-xs font-bold uppercase tracking-[0.1em] text-muted';
 
-export default function VisitForm({ visit, photoUrls = [] }: { visit?: FieldVisit; photoUrls?: string[] }) {
+interface FromStop { route_id: string; stop_id: string; venue_name: string; address: string; postcode: string; lat: number; lng: number; ref: string | null }
+
+/** A new visit started from a route stop: the venue is already chosen. */
+function draftFromStop(f: FromStop): Draft {
+  return {
+    ...emptyDraft(),
+    place: {
+      venue_name: f.venue_name, address: f.address, postcode: f.postcode,
+      // Only place refs carry over; "visit/<id>" refs are just route bookkeeping.
+      osm_ref: f.ref && !f.ref.startsWith('visit/') ? f.ref : null,
+      lat: f.lat, lng: f.lng, geo_precision: 'exact',
+    },
+  };
+}
+
+export default function VisitForm({ visit, photoUrls = [], fromStop }: { visit?: FieldVisit; photoUrls?: string[]; fromStop?: FromStop }) {
   const router = useRouter();
   const editing = Boolean(visit);
   const [step, setStep] = useState(0);
-  const [d, setD] = useState<Draft>(() => (visit ? fromVisit(visit) : emptyDraft()));
+  const [d, setD] = useState<Draft>(() => (visit ? fromVisit(visit) : fromStop ? draftFromStop(fromStop) : emptyDraft()));
   const [restored, setRestored] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
   const { pos, error: gpsError } = useGps(true);
 
-  // Restore an unsaved new visit, once, after hydration.
+  // Restore an unsaved new visit, once, after hydration. Not when starting
+  // from a route stop: that's a fresh visit to a chosen venue.
   useEffect(() => {
-    if (editing) return;
+    if (editing || fromStop) return;
     try {
       const raw = localStorage.getItem(DRAFT_KEY);
       if (!raw) return;
@@ -155,7 +171,7 @@ export default function VisitForm({ visit, photoUrls = [] }: { visit?: FieldVisi
       if (Date.now() - Date.parse(saved.visited_at) > 12 * 3600 * 1000) { localStorage.removeItem(DRAFT_KEY); return; }
       if (saved.place || saved.photos.length || saved.notes) { setD({ ...saved, review: saved.review || emptyReview() }); setRestored(true); }
     } catch { /* storage blocked: carry on without drafts */ }
-  }, [editing]);
+  }, [editing, fromStop]);
 
   useEffect(() => {
     if (editing) return;
@@ -191,6 +207,7 @@ export default function VisitForm({ visit, photoUrls = [] }: { visit?: FieldVisi
         contact_name: d.contact_name, contact_role: d.contact_role, contact_email: d.contact_email,
         contact_phone: d.contact_phone, demo_interest: d.demo_interest,
         review: d.review.enabled ? d.review : undefined,
+        ...(fromStop ? { route_id: fromStop.route_id, stop_id: fromStop.stop_id } : {}),
         // Proof of visit: where the phone was. Only for new visits, so an edit back at the office doesn't overwrite it.
         ...(editing ? {
           gps_lat: visit!.gps_lat, gps_lng: visit!.gps_lng, gps_accuracy_m: visit!.gps_accuracy_m,
@@ -204,7 +221,7 @@ export default function VisitForm({ visit, photoUrls = [] }: { visit?: FieldVisi
       const json = await res.json().catch(() => ({}));
       if (!res.ok) { setError(json.error || 'Couldn’t save. Your visit is kept on this phone, try again.'); return; }
       if (!editing) { try { localStorage.removeItem(DRAFT_KEY); } catch { /* ignore */ } }
-      router.replace(`/field/visits/${editing ? visit!.id : json.id}?saved=1`);
+      router.replace(fromStop ? `/field/routes/${fromStop.route_id}` : `/field/visits/${editing ? visit!.id : json.id}?saved=1`);
       router.refresh();
     } catch {
       setError('No signal. Your visit is kept on this phone. Try again when you’re back online.');

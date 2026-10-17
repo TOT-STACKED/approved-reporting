@@ -1,4 +1,6 @@
 import { cache } from 'react';
+import { allRows, fieldConfigured } from './field-db';
+import { venueKey, type FieldStack } from './field-shared';
 
 const SUPABASE_URL = process.env.STACKCOLLECT_SUPABASE_URL!;
 const SUPABASE_KEY = process.env.STACKCOLLECT_SUPABASE_KEY!;
@@ -209,6 +211,8 @@ export interface POSMarketShare {
 
 export interface StackCollectStats {
   totalReviews: number;
+  /** Venues counted from Stacked Field sightings (no review), included in tool and category counts. */
+  fieldObserved: number;
   totalToolEntries: number;
   partnerMentions: number;
   categories: Record<string, number>;
@@ -330,6 +334,67 @@ export const getTechStackEntries = cache(async (): Promise<TechStackEntry[]> => 
   );
 });
 
+// --- Field-observed tech (Stacked Field) ---
+//
+// Tech a field agent saw in a venue, without the operator doing a review.
+// Chris's call, 17 Oct 2026: it counts in the portal's market stats, labelled
+// "Field-observed". To avoid counting a venue twice it's left out when:
+//   - the visit has its own Intelligence Review (that review is already here)
+//   - a review exists for a business with the same name
+// Only categories with a name in the portal taxonomy are mapped; Wi-Fi and
+// signage have none, so they stay in Field. Never includes contact details.
+
+const FIELD_TO_PORTAL: Record<string, string> = {
+  pos: 'Point of Sale',
+  handhelds: 'Point of Sale',
+  payments: 'Payments',
+  ordering: 'Mobile/QR Ordering',
+  kiosk: 'Kiosks & Self-Service',
+  kds: 'Kitchen Display System',
+  reservations: 'Reservations',
+  loyalty: 'Loyalty & CRM',
+  guest_feedback: 'Guest Feedback',
+};
+
+const normName = (n: string | null | undefined) => (n || '').toLowerCase().replace(/^the\s+/, '').replace(/[^a-z0-9]/g, '');
+
+export interface FieldObservedVenue {
+  id: string;
+  venue_name: string;
+  postcode: string | null;
+  visited_at: string;
+  entries: TechStackEntry[];
+}
+
+export const getFieldObservedVenues = cache(async (): Promise<FieldObservedVenue[]> => {
+  if (!fieldConfigured()) return [];
+  const [visits, businesses] = await Promise.all([
+    allRows<{ id: string; venue_name: string; postcode: string | null; lat: number | null; lng: number | null; stack: FieldStack; visited_at: string }>(
+      'field_visits?source=eq.field&submission_id=is.null&select=id,venue_name,postcode,lat,lng,stack,visited_at&order=visited_at.desc',
+    ).catch(() => []),
+    getBusinessSubmissions(),
+  ]);
+  const reviewed = new Set(businesses.map(b => normName(b.business_name)).concat(businesses.map(b => normName(b.brand_trading_name))));
+  const seen = new Set<string>();
+  const out: FieldObservedVenue[] = [];
+  for (const v of visits) {
+    const key = venueKey(v);
+    if (seen.has(key) || reviewed.has(normName(v.venue_name))) continue;
+    seen.add(key);
+    const entries: TechStackEntry[] = [];
+    for (const [cat, e] of Object.entries(v.stack || {})) {
+      const category = FIELD_TO_PORTAL[cat];
+      if (!category || !e || e.none) continue;
+      for (const tool of [...(e.tools || []), ...(e.other?.trim() ? [e.other.trim()] : [])]) {
+        if (!isMeaningfulTool(tool)) continue;
+        entries.push({ id: `field:${v.id}:${cat}:${tool}`, submission_id: `field:${v.id}`, category, tool_name: tool, created_at: v.visited_at });
+      }
+    }
+    if (entries.length) out.push({ id: `field:${v.id}`, venue_name: v.venue_name, postcode: v.postcode, visited_at: v.visited_at, entries });
+  }
+  return out;
+});
+
 export async function getToolUsageStats(): Promise<ToolUsageStat[]> {
   const all = await supabaseFetchAll('analytics_tool_usage', 'select=*&order=usage_count.desc');
   return all.filter((t: ToolUsageStat) => isMeaningfulTool(t.tool_name));
@@ -405,7 +470,8 @@ export function rollupNpsByVendor(scores: NpsScore[]): NpsVendorRollup[] {
 // --- Aggregation functions ---
 
 export async function getStackCollectStats(): Promise<StackCollectStats> {
-  const entries: TechStackEntry[] = await getTechStackEntries();
+  const [reviewEntries, observed] = await Promise.all([getTechStackEntries(), getFieldObservedVenues().catch(() => [])]);
+  const entries: TechStackEntry[] = [...reviewEntries, ...observed.flatMap(v => v.entries)];
 
   const categories: Record<string, number> = {};
   const tools: Record<string, number> = {};
@@ -415,7 +481,8 @@ export async function getStackCollectStats(): Promise<StackCollectStats> {
     categories[e.category] = (categories[e.category] || 0) + 1;
     const toolLower = e.tool_name.toLowerCase().trim();
     tools[toolLower] = (tools[toolLower] || 0) + 1;
-    submissions.add(e.submission_id);
+    // Reviews are counted as reviews; field-observed venues are counted separately.
+    if (!e.submission_id.startsWith('field:')) submissions.add(e.submission_id);
   }
 
   const topTools = Object.entries(tools)
@@ -425,6 +492,7 @@ export async function getStackCollectStats(): Promise<StackCollectStats> {
 
   return {
     totalReviews: submissions.size,
+    fieldObserved: observed.length,
     totalToolEntries: entries.length,
     partnerMentions: 0,
     categories,

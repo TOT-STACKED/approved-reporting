@@ -5,6 +5,8 @@ import VisitList from '@/components/field/VisitList';
 import SignOut from '@/components/field/SignOut';
 import { currentAgent, fieldConfigured, listVisits } from '@/lib/field-db';
 import { ukDay } from '@/lib/field-shared';
+import { listRoutes } from '@/lib/field-routes';
+import { progress, routeIsCurrent } from '@/lib/field-routes-shared';
 
 export const dynamic = 'force-dynamic';
 
@@ -23,7 +25,11 @@ export default async function FieldHome() {
   const agent = await currentAgent();
   if (!agent) redirect('/field/signin');
 
-  const visits = await listVisits({ agentId: agent.id, limit: 200 });
+  const [visits, routes] = await Promise.all([
+    listVisits({ agentId: agent.id, limit: 200 }),
+    listRoutes({ agentId: agent.id, from: ukDay(Date.now() - 7 * 86400000) }).catch(() => []),
+  ]);
+  const onNow = routes.find(r => routeIsCurrent(r));
   const today = ukDay(Date.now());
   const todayCount = visits.filter(v => ukDay(v.visited_at) === today).length;
   const weekStart = weekStartDay();
@@ -46,6 +52,20 @@ export default async function FieldHome() {
             <p className="mt-1.5 text-sm text-muted">this week</p>
           </div>
         </div>
+
+        {onNow && (() => {
+          const p = progress(onNow);
+          const next = onNow.stops.find(st => st.status === 'planned');
+          return (
+            <Link href={`/field/routes/${onNow.id}`} className="mb-3 block rounded-2xl bg-ink p-4 text-white active:bg-ink-deep">
+              <p className="text-xs font-bold uppercase tracking-[0.1em] text-white/70">{onNow.name} · {p.done} of {p.total} done</p>
+              <p className="mt-1 text-[18px] font-bold leading-tight">{next ? `Next: ${next.venue_name}` : 'Route complete'}</p>
+              <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white/20">
+                <div className="h-full rounded-full bg-positive-bright" style={{ width: `${p.total ? (p.done / p.total) * 100 : 0}%` }} />
+              </div>
+            </Link>
+          );
+        })()}
 
         <Link
           href="/field/visit"
