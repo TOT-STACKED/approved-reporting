@@ -99,11 +99,18 @@ function ImportHistory({ agents, status }: { agents: FieldAgent[]; status: { rev
     setErr('');
     let count = 0;
     const missed: typeof unplaced = [];
+    let failures = 0;
     try {
-      for (let i = 0; i < 60; i++) {
+      for (let i = 0; i < 400; i++) {
         const res = await fetch('/api/field/import', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ agent }) });
         const json = await res.json().catch(() => ({}));
-        if (!res.ok) { setErr(json.error || 'The import stopped. Press it again to carry on.'); break; }
+        if (!res.ok) {
+          // A slow batch can time out; nothing is half-saved, so just go again.
+          if (++failures < 4) continue;
+          setErr(json.error || 'The import stopped. Press it again to carry on.');
+          break;
+        }
+        failures = 0;
         count += json.imported;
         for (const u of json.unplaced || []) missed.push(u);
         setDone(count);
@@ -167,11 +174,17 @@ function RecheckLocations() {
     let after = '';
     let c = 0;
     let m = 0;
+    let failures = 0;
     try {
-      for (let i = 0; i < 200; i++) {
+      for (let i = 0; i < 400; i++) {
         const res = await fetch('/api/field/recheck', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ after }) });
         const json = await res.json().catch(() => ({}));
-        if (!res.ok) { setErr(json.error || 'The re-check stopped. Press it again to carry on.'); break; }
+        if (!res.ok) {
+          if (++failures < 4) continue;
+          setErr(json.error || 'The re-check stopped. Press it again to carry on.');
+          break;
+        }
+        failures = 0;
         c += json.checked;
         m += json.moved;
         setChecked(c);

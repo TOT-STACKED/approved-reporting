@@ -25,7 +25,7 @@ import { allRows, countRows, rest } from './field-db';
 import { isTestSubmission } from './stackcollect';
 
 const POSTCODE_RE = /\b([A-Z]{1,2}\d[A-Z\d]?)\s*(\d[A-Z]{2})\b/i;
-const BATCH = 10;
+const BATCH = 8;
 
 interface Submission {
   id: string;
@@ -73,8 +73,22 @@ interface PhotonFeature {
   properties: { name?: string; postcode?: string; countrycode?: string; osm_key?: string; osm_value?: string };
 }
 
+// Each batch has a time budget, well inside Netlify's 30 s limit. Lookups that
+// would start after it return nothing, so the batch finishes: unplaced imports
+// land in "No location yet" and the re-check fills them in later.
+let deadline = Infinity;
+let photonFailures = 0;
+const outOfTime = () => Date.now() > deadline;
+const timeLeft = (cap: number) => Math.max(500, Math.min(cap, deadline - Date.now()));
+
+function startBudget(ms: number) {
+  deadline = Date.now() + ms;
+  photonFailures = 0;
+}
+
 // Photon is a free public service and answers 503 to bursts, so at most three
-// requests are in flight per import batch, with a short retry when it's busy.
+// requests are in flight per batch, with one retry when it's busy. After three
+// failures in a batch it's left alone and the postcode/town lookups carry on.
 let inFlight = 0;
 const waiting: (() => void)[] = [];
 async function throttled<T>(fn: () => Promise<T>): Promise<T> {
@@ -92,13 +106,18 @@ async function photon(q: string, tags: string[] = []): Promise<PhotonFeature | n
   const qs = new URLSearchParams({ q, limit: '1', lang: 'en', bbox: UK_BBOX });
   for (const t of tags) qs.append('osm_tag', t);
   return throttled(async () => {
-    for (let attempt = 0; attempt < 3; attempt++) {
-      const res = await fetch(`${PHOTON}?${qs}`, { headers: { 'User-Agent': 'StackedField/1.0 (partners.wearestacked.io)' }, signal: AbortSignal.timeout(6000) }).catch(() => null);
-      if (res && (res.status === 503 || res.status === 429)) {
-        await new Promise(r => setTimeout(r, 700 * (attempt + 1)));
+    for (let attempt = 0; attempt < 2; attempt++) {
+      if (outOfTime() || photonFailures >= 3) return null;
+      const res = await fetch(`${PHOTON}?${qs}`, {
+        headers: { 'User-Agent': 'StackedField/1.0 (partners.wearestacked.io)' },
+        signal: AbortSignal.timeout(timeLeft(4000)),
+      }).catch(() => null);
+      if (!res || res.status === 503 || res.status === 429) {
+        photonFailures++;
+        await new Promise(r => setTimeout(r, 600));
         continue;
       }
-      if (!res?.ok) return null;
+      if (!res.ok) return null;
       const { features } = (await res.json().catch(() => ({}))) as { features?: PhotonFeature[] };
       return features?.[0] || null;
     }
@@ -123,7 +142,7 @@ async function postcodeLookup(postcodes: string[]): Promise<Map<string, Place>> 
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ postcodes }),
-    signal: AbortSignal.timeout(8000),
+    signal: AbortSignal.timeout(timeLeft(5000)),
   });
   if (!res.ok) return out;
   const { result } = (await res.json()) as { result: { query: string; result: { latitude: number; longitude: number; postcode: string } | null }[] };
@@ -137,7 +156,8 @@ async function townLookup(text: string): Promise<Place | null> {
   // "Shoreditch, London" → try "Shoreditch", then "London".
   const parts = text.split(/[,/;]|\band\b/i).map(s => s.trim()).filter(s => s.length > 2).slice(0, 3);
   for (const part of parts) {
-    const res = await fetch(`https://api.postcodes.io/places?q=${encodeURIComponent(part)}&limit=1`, { signal: AbortSignal.timeout(6000) }).catch(() => null);
+    if (outOfTime()) return null;
+    const res = await fetch(`https://api.postcodes.io/places?q=${encodeURIComponent(part)}&limit=1`, { signal: AbortSignal.timeout(timeLeft(4000)) }).catch(() => null);
     if (!res?.ok) continue;
     const { result } = (await res.json().catch(() => ({}))) as { result?: { latitude: number; longitude: number }[] | null };
     if (result?.[0]) return { lat: result[0].latitude, lng: result[0].longitude, postcode: null, precision: 'town' };
@@ -447,6 +467,7 @@ async function importStackCollect(agentId: string, batch: ScBusiness[]): Promise
 
 /** Import the next batch of reviews not yet brought in, current reviews first. Every review comes in, placed or not. */
 export async function importIntelligenceBatch(agentId: string): Promise<ImportResult> {
+  startBudget(17000);
   const subs = await pendingSubmissions();
   if (subs.length) {
     const ids = subs.slice(0, BATCH);
@@ -482,9 +503,10 @@ const RANK = { none: 0, town: 1, postcode: 2, exact: 3 } as const;
  * batch at a time; pass back `after` to carry on.
  */
 export async function recheckBatch(after = ''): Promise<{ checked: number; moved: number; last: string; done: boolean }> {
+  startBudget(18000);
   const rows = await rest<{ id: string; venue_name: string; address: string | null; geo_precision: keyof typeof RANK }[]>(
     `field_visits?source=eq.intelligence&geo_precision=in.(town,none)${after ? `&id=gt.${after}` : ''}` +
-    '&select=id,venue_name,address,geo_precision&order=id.asc&limit=15',
+    '&select=id,venue_name,address,geo_precision&order=id.asc&limit=8',
   );
   if (!rows.length) return { checked: 0, moved: 0, last: after, done: true };
 
@@ -501,5 +523,5 @@ export async function recheckBatch(after = ''): Promise<{ checked: number; moved
     });
     return true;
   }));
-  return { checked: rows.length, moved: results.filter(Boolean).length, last: rows[rows.length - 1].id, done: rows.length < 15 };
+  return { checked: rows.length, moved: results.filter(Boolean).length, last: rows[rows.length - 1].id, done: rows.length < 8 };
 }
