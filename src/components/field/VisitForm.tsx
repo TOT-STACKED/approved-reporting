@@ -272,7 +272,15 @@ export default function VisitForm({ visit, photoUrls = [], fromStop }: { visit?:
 
       <div className="px-4 pt-4">
         {screen === 'where' && <WhereStep d={d} set={set} pos={pos} gpsError={gpsError} editing={editing} />}
-        {screen === 'hub' && <Hub d={d} reviewDone={Boolean(visit?.submission_id)} onOpen={go} />}
+        {screen === 'hub' && <Hub d={d} reviewDone={Boolean(visit?.submission_id)} onOpen={to => {
+          // Tapping the review tile means "doing the review": start it, pre-filled.
+          if (to === 'review' && !d.review.enabled && !visit?.submission_id) set('review', seedReview({
+            contact_name: d.contact_name, contact_email: d.contact_email, contact_phone: d.contact_phone,
+            venue_type: d.venue_type, ownership: d.ownership, address: d.place?.address || '',
+            postcode: d.place?.postcode || '', stack: d.stack,
+          }));
+          go(to);
+        }} />}
         {screen === 'tech' && <TechStep stack={d.stack} onChange={s => set('stack', s)} />}
         {screen === 'notes' && <PhotoStep d={d} set={set} existingUrls={editing ? photoUrls : []} originalPhotos={visit?.photos || []} />}
         {screen === 'details' && (

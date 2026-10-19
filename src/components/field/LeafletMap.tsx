@@ -22,6 +22,10 @@ export default function LeafletMap({ pins, trails = [], me, center, zoom = 17, f
   handlers.current = { onPinClick, onMapClick };
   const fitKey = useRef('');
   const draw = useRef<() => void>(() => {});
+  // Where to look, as of the latest render: the map loads asynchronously, and
+  // a GPS fix often lands before it's ready, so the first view reads this.
+  const latest = useRef({ center, me });
+  latest.current = { center, me };
 
   // A tap on a pin that overlaps others zooms in on the cluster; a lone pin is picked.
   function tap(id: string) {
@@ -90,7 +94,7 @@ export default function LeafletMap({ pins, trails = [], me, center, zoom = 17, f
     import('leaflet').then(mod => {
       if (cancelled || !el.current || map.current) return;
       L.current = mod;
-      const start = center || me || LONDON;
+      const start = latest.current.center || latest.current.me || LONDON;
       const m = mod.map(el.current, { zoomControl: false }).setView([start.lat, start.lng], zoom);
       mod.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap' }).addTo(m);
       mod.control.zoom({ position: 'bottomright' }).addTo(m);
