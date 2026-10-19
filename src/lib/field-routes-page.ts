@@ -29,3 +29,9 @@ export async function actualVisits(route: FieldRoute): Promise<FieldVisit[]> {
     .catch(() => []);
   return visits.filter(v => v.source === 'field');
 }
+
+/** Targets the team hasn't been to yet, for the route planner. */
+export async function openTargets() {
+  const { targetsWithStatus } = await import('./field-targets');
+  return (await targetsWithStatus().catch(() => [])).filter(t => t.status === 'todo');
+}

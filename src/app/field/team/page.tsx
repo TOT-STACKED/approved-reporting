@@ -3,6 +3,7 @@ import { FieldHeader, FieldTabs } from '@/components/field/FieldChrome';
 import TeamView from '@/components/field/TeamView';
 import { currentAgent, listAgents } from '@/lib/field-db';
 import { importStatus } from '@/lib/field-import';
+import { listTargetLists } from '@/lib/field-targets';
 
 export const dynamic = 'force-dynamic';
 
@@ -10,14 +11,15 @@ export default async function Team() {
   const me = await currentAgent();
   if (!me) redirect('/field/signin');
   if (me.role !== 'manager') redirect('/field');
-  const [agents, status] = await Promise.all([
+  const [agents, status, targetLists] = await Promise.all([
     listAgents(),
     importStatus().catch(() => ({ reviews: 0, imported: 0, main: 0, earlier: 0, venues: 0, repeats: 0 })),
+    listTargetLists().catch(() => []),
   ]);
   return (
     <>
       <FieldHeader title="Team" back="/field/manage" />
-      <TeamView agents={agents} meId={me.id} status={status} />
+      <TeamView agents={agents} meId={me.id} status={status} targetLists={targetLists} />
       <FieldTabs manager />
     </>
   );

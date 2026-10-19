@@ -5,10 +5,12 @@ import { useRouter } from 'next/navigation';
 import { Chip } from './FieldChrome';
 import { fmtWhen, type FieldAgent } from '@/lib/field-shared';
 import type { ImportStatus } from '@/lib/field-import';
+import type { TargetList } from '@/lib/field-targets-shared';
+import TargetsAdmin from './TargetsAdmin';
 
 const INPUT = 'h-12 w-full rounded-xl border border-border bg-surface px-4 text-[16px] placeholder:text-dim focus:border-ink focus:outline-none';
 
-export default function TeamView({ agents, meId, status }: { agents: FieldAgent[]; meId: string; status: ImportStatus }) {
+export default function TeamView({ agents, meId, status, targetLists }: { agents: FieldAgent[]; meId: string; status: ImportStatus; targetLists: TargetList[] }) {
   const router = useRouter();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -79,6 +81,7 @@ export default function TeamView({ agents, meId, status }: { agents: FieldAgent[
         {msg && <p className="text-[14px]">{msg}</p>}
       </form>
 
+      <TargetsAdmin lists={targetLists} />
       <ImportHistory agents={agents.filter(a => a.active)} status={status} />
       <RecheckLocations />
     </main>

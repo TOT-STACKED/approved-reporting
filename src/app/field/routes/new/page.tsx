@@ -3,6 +3,7 @@ import { FieldHeader, FieldTabs } from '@/components/field/FieldChrome';
 import RouteEditor from '@/components/field/RouteEditor';
 import { currentAgent, listAgents } from '@/lib/field-db';
 import { knownVenues } from '@/lib/field-routes-page';
+import { openTargets } from '@/lib/field-routes-page';
 
 export const dynamic = 'force-dynamic';
 
@@ -13,10 +14,11 @@ export default async function NewRoute() {
     me.role === 'manager' ? listAgents() : Promise.resolve([me]),
     knownVenues().catch(() => []),
   ]);
+  const targets = await openTargets();
   return (
     <>
       <FieldHeader title="Plan a route" back="/field/routes" />
-      <RouteEditor me={me} agents={agents} known={known} actual={[]} />
+      <RouteEditor me={me} agents={agents} known={known} actual={[]} targets={targets} />
       <FieldTabs manager={me.role === 'manager'} />
     </>
   );

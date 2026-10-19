@@ -4,6 +4,7 @@ import RouteEditor from '@/components/field/RouteEditor';
 import { currentAgent, listAgents } from '@/lib/field-db';
 import { canAccessRoute, getRoute } from '@/lib/field-routes';
 import { actualVisits, knownVenues } from '@/lib/field-routes-page';
+import { openTargets } from '@/lib/field-routes-page';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,10 +19,11 @@ export default async function RoutePage({ params }: { params: Promise<{ id: stri
     knownVenues().catch(() => []),
     actualVisits(route),
   ]);
+  const targets = await openTargets();
   return (
     <>
       <FieldHeader title={route.name} back="/field/routes" />
-      <RouteEditor route={route} me={me} agents={agents} known={known} actual={actual} />
+      <RouteEditor route={route} me={me} agents={agents} known={known} actual={actual} targets={targets} />
       <FieldTabs manager={me.role === 'manager'} />
     </>
   );

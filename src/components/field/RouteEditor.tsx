@@ -5,7 +5,8 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import FieldMap, { type MapPin } from './FieldMap';
 import { Chip } from './FieldChrome';
-import { fmtWhen, ukDay, type FieldAgent, type FieldVisit } from '@/lib/field-shared';
+import { distanceM, fmtWhen, ukDay, type FieldAgent, type FieldVisit } from '@/lib/field-shared';
+import type { FieldTarget } from '@/lib/field-targets-shared';
 import {
   bestOrder,
   defaultRouteName,
@@ -27,7 +28,7 @@ interface SearchResult { name: string; address: string; postcode: string; lat: n
 const INPUT = 'h-12 w-full rounded-xl border border-border bg-surface px-4 text-[16px] text-ink placeholder:text-dim focus:border-ink focus:outline-none';
 const LABEL = 'mb-2 block text-xs font-bold uppercase tracking-[0.1em] text-muted';
 
-export default function RouteEditor({ route, me, agents, known, actual }: {
+export default function RouteEditor({ route, me, agents, known, actual, targets = [] }: {
   route?: FieldRoute;
   me: FieldAgent;
   /** Managers: who a route can be planned for. */
@@ -36,6 +37,8 @@ export default function RouteEditor({ route, me, agents, known, actual }: {
   known: { id: string; venue_name: string; address: string | null; postcode: string | null; lat: number; lng: number; osm_ref: string | null }[];
   /** The agent's visits during the route's day/week: where they actually went. */
   actual: FieldVisit[];
+  /** Brand targets the team hasn't visited yet. */
+  targets?: FieldTarget[];
 }) {
   const router = useRouter();
   // Today as of page load, so rendering stays pure.
@@ -54,6 +57,7 @@ export default function RouteEditor({ route, me, agents, known, actual }: {
   const [searching, setSearching] = useState(false);
   const [pos, setPos] = useState<{ lat: number; lng: number } | null>(null);
   const [showKnown, setShowKnown] = useState(true);
+  const [showTargets, setShowTargets] = useState(targets.length > 0);
   const debounce = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -147,6 +151,13 @@ export default function RouteEditor({ route, me, agents, known, actual }: {
         out.push({ id: `k:${k.id}`, lat: k.lat, lng: k.lng, label: `${k.venue_name} (tap to add)`, tone: 'place' });
       }
     }
+    if (showTargets) {
+      const onRoute = stops.map(st => `${st.lat.toFixed(5)},${st.lng.toFixed(5)}`);
+      for (const t of targets) {
+        if (onRoute.includes(`${t.lat.toFixed(5)},${t.lng.toFixed(5)}`)) continue;
+        out.push({ id: `g:${t.id}`, lat: t.lat, lng: t.lng, label: `${t.name} · target (tap to add)`, tone: 'place', color: '#0E7C86', hollow: true });
+      }
+    }
     for (const v of actual) {
       if (v.lat == null || v.lng == null) continue;
       out.push({ id: `a:${v.id}`, lat: v.lat, lng: v.lng, label: `Visited: ${v.venue_name} · ${fmtWhen(v.visited_at)}`, tone: 'visited', color: '#167034' });
@@ -158,7 +169,7 @@ export default function RouteEditor({ route, me, agents, known, actual }: {
       hollow: s.status === 'planned' && s.id !== nextStop?.id,
     }));
     return out;
-  }, [stops, known, actual, showKnown, nextStop?.id]);
+  }, [stops, known, actual, showKnown, showTargets, targets, nextStop?.id]);
 
   const trails = [
     ...(stops.length > 1 ? [{ id: 'plan', color: '#FF5014', points: stops.map(s => ({ lat: s.lat, lng: s.lng })) }] : []),
@@ -226,22 +237,57 @@ export default function RouteEditor({ route, me, agents, known, actual }: {
           zoom={14}
           center={stops[0] || pos}
           onPinClick={id => {
+            if (id.startsWith('g:')) {
+              const t = targets.find(x => x.id === id.slice(2));
+              if (t) addStop({ venue_name: t.name, address: t.address || '', postcode: t.postcode || '', lat: t.lat, lng: t.lng, ref: null });
+              return;
+            }
             if (id.startsWith('k:')) {
               const k = known.find(x => x.id === id.slice(2));
               if (k) addStop({ venue_name: k.venue_name, address: k.address || '', postcode: k.postcode || '', lat: k.lat, lng: k.lng, ref: k.osm_ref || `visit/${k.id}` });
             }
           }}
         />
-        <button type="button" onClick={() => setShowKnown(!showKnown)}
-          className={`absolute top-3 left-3 z-[500] h-10 rounded-full px-4 text-[13px] font-bold shadow ${showKnown ? 'bg-ink text-white' : 'bg-surface text-ink'}`}>
-          Known venues {showKnown ? 'on' : 'off'}
-        </button>
+        <div className="absolute top-3 left-3 z-[500] flex flex-col gap-2">
+          <button type="button" onClick={() => setShowKnown(!showKnown)}
+            className={`h-10 rounded-full px-4 text-[13px] font-bold shadow ${showKnown ? 'bg-ink text-white' : 'bg-surface text-ink'}`}>
+            Known venues {showKnown ? 'on' : 'off'}
+          </button>
+          {targets.length > 0 && (
+            <button type="button" onClick={() => setShowTargets(!showTargets)}
+              className={`h-10 rounded-full px-4 text-[13px] font-bold shadow ${showTargets ? 'bg-ink text-white' : 'bg-surface text-ink'}`}>
+              Targets {showTargets ? 'on' : 'off'}
+            </button>
+          )}
+        </div>
       </div>
       <p className="mb-4 text-[13px] text-muted">
         <span className="font-bold text-primary">Orange line</span>: the plan.
         {actual.length > 0 && <> <span className="font-bold text-positive">Green</span>: where {route?.agent_name || 'they'} actually went.</>}
         {showKnown && ' Tap a white pin to add that venue.'}
+        {showTargets && targets.length > 0 && <> <span className="font-bold text-[#0E7C86]">Teal rings</span>: targets not visited yet; tap to add.</>}
       </p>
+
+      {targets.length > 0 && (
+        <button type="button" onClick={() => {
+          // The ten nearest targets to here (or the last stop) not already on the route, in a sensible order.
+          const from = pos || stops[stops.length - 1] || null;
+          if (!from) { alert('Turn on location, or add a first stop, so the nearest targets can be found.'); return; }
+          const taken = new Set(stops.map(st => `${st.lat.toFixed(5)},${st.lng.toFixed(5)}`));
+          const near = targets
+            .filter(t => !taken.has(`${t.lat.toFixed(5)},${t.lng.toFixed(5)}`))
+            .map(t => ({ t, d: distanceM(from.lat, from.lng, t.lat, t.lng) }))
+            .sort((a, b) => a.d - b.d)
+            .slice(0, 10);
+          if (!near.length) return;
+          change(() => setStops(prev => bestOrder([
+            ...prev,
+            ...near.map(({ t }) => ({ id: crypto.randomUUID(), venue_name: t.name, address: t.address || '', postcode: t.postcode || '', lat: t.lat, lng: t.lng, ref: null, status: 'planned' as const, visit_id: null, visited_at: null })),
+          ], pos)));
+        }} className="mb-4 flex h-12 w-full items-center justify-center rounded-2xl border-2 border-[#0E7C86] text-[15px] font-bold text-[#0E7C86] active:bg-surface">
+          Add 10 nearest targets
+        </button>
+      )}
 
       {/* Add stops */}
       <section className="mb-4">

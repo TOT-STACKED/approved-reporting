@@ -6,6 +6,7 @@ import FieldMap, { type MapPin, type MapTrail } from './FieldMap';
 import { Chip } from './FieldChrome';
 import VisitList from './VisitList';
 import { fmtWhen, stackCount, ukDay, venueKey, type FieldAgent, type FieldVisit } from '@/lib/field-shared';
+import type { FieldTarget, TargetList } from '@/lib/field-targets-shared';
 
 // The manager's view of where everyone has been. Pins are coloured per agent:
 // filled for visits logged in the app, rings for history brought in from
@@ -24,12 +25,21 @@ const RANGES = [
 
 type RangeId = (typeof RANGES)[number]['id'];
 
-export default function ManageView({ agents, visits }: { agents: FieldAgent[]; visits: FieldVisit[] }) {
+// Target pins: a teal ring = still to do; filled green = the team has been.
+const TARGET_TODO = '#0E7C86';
+const TARGET_DONE = '#167034';
+
+export default function ManageView({ agents, visits, targets = [], targetLists = [] }: {
+  agents: FieldAgent[]; visits: FieldVisit[]; targets?: FieldTarget[]; targetLists?: TargetList[];
+}) {
   const [range, setRange] = useState<RangeId>('7d');
   const [who, setWho] = useState<string>('all');
   const [showHistory, setShowHistory] = useState(false);
   const [routes, setRoutes] = useState(true);
   const [selected, setSelected] = useState<FieldVisit | null>(null);
+  const [targetIds, setTargetIds] = useState<string[]>([]);
+  const [selectedTarget, setSelectedTarget] = useState<FieldTarget | null>(null);
+  const shownTargets = useMemo(() => targets.filter(t => targetIds.includes(t.list_id)), [targets, targetIds]);
   // "Now" as of page load, so filtering stays pure across re-renders.
   const [now] = useState(() => Date.now());
 
@@ -69,7 +79,17 @@ export default function ManageView({ agents, visits }: { agents: FieldAgent[]; v
   const placed = shown.filter((v): v is Placed => v.lat != null && v.lng != null);
   const noPin = shown.filter(v => v.lat == null || v.lng == null);
 
-  const pins: MapPin[] = placed.map(v => ({
+  const targetPins: MapPin[] = shownTargets.map(t => ({
+    id: `t:${t.id}`,
+    lat: t.lat,
+    lng: t.lng,
+    label: `${t.name} · ${t.status === 'todo' ? 'target' : 'done'}`,
+    tone: 'place',
+    color: t.status === 'todo' ? TARGET_TODO : TARGET_DONE,
+    hollow: t.status === 'todo',
+  }));
+
+  const visitPins: MapPin[] = placed.map(v => ({
     id: v.id,
     lat: v.lat,
     lng: v.lng,
@@ -78,6 +98,8 @@ export default function ManageView({ agents, visits }: { agents: FieldAgent[]; v
     color: selected?.id === v.id ? undefined : colorFor(v.agent_id),
     hollow: v.source === 'intelligence' && selected?.id !== v.id,
   }));
+  // Targets under visits, so a visit pin is always the one tapped.
+  const pins: MapPin[] = [...targetPins, ...visitPins];
 
   // One trail per agent per UK day, field visits only, oldest first.
   const trails: MapTrail[] = useMemo(() => {
@@ -140,19 +162,58 @@ export default function ManageView({ agents, visits }: { agents: FieldAgent[]; v
             pins={pins}
             trails={trails}
             fit
+            fitIds={visitPins.length ? visitPins.map(p => p.id) : undefined}
             zoom={12}
-            onPinClick={id => setSelected(shown.find(v => v.id === id) || null)}
+            onPinClick={id => {
+              if (id.startsWith('t:')) { setSelected(null); setSelectedTarget(shownTargets.find(t => t.id === id.slice(2)) || null); return; }
+              setSelectedTarget(null);
+              setSelected(shown.find(v => v.id === id) || null);
+            }}
           />
           <div className="absolute top-3 left-3 z-[500] flex flex-col gap-2">
             <button type="button" onClick={() => setRoutes(!routes)}
               className={`h-10 rounded-full px-4 text-[13px] font-bold shadow ${routes ? 'bg-ink text-white' : 'bg-surface text-ink'}`}>
               Routes {routes ? 'on' : 'off'}
             </button>
+            {targetLists.length > 0 && (
+              <button type="button" onClick={() => setTargetIds(targetIds.length ? [] : targetLists.map(l => l.id))}
+                className={`h-10 rounded-full px-4 text-[13px] font-bold shadow ${targetIds.length ? 'bg-ink text-white' : 'bg-surface text-ink'}`}>
+                Targets {targetIds.length ? 'on' : 'off'}
+              </button>
+            )}
             <button type="button" onClick={() => setShowHistory(!showHistory)}
               className={`h-10 rounded-full px-4 text-[13px] font-bold shadow ${showHistory ? 'bg-ink text-white' : 'bg-surface text-ink'}`}>
               Intelligence {showHistory ? 'on' : 'off'}
             </button>
           </div>
+          {selectedTarget && (
+            <div className="absolute inset-x-3 bottom-3 z-[500] rounded-2xl bg-surface p-4 shadow-xl">
+              <div className="flex items-start gap-3">
+                <span className="mt-1.5 h-3 w-3 shrink-0 rounded-full border-2" style={{ borderColor: selectedTarget.status === 'todo' ? TARGET_TODO : TARGET_DONE, background: selectedTarget.status === 'todo' ? 'transparent' : TARGET_DONE }} />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-[17px] font-bold">{selectedTarget.name}</p>
+                  <p className="text-[13px] text-muted">
+                    {[selectedTarget.brand, [selectedTarget.address, selectedTarget.postcode].filter(Boolean).join(' ')].filter(Boolean).join(' · ')}
+                  </p>
+                  <p className="mt-1 text-[13px] font-bold">
+                    {selectedTarget.status === 'todo' ? 'Not visited yet' : selectedTarget.status === 'visited' ? 'Visited' : 'Has an Intelligence Review'}
+                  </p>
+                </div>
+                <button type="button" aria-label="Close" onClick={() => setSelectedTarget(null)} className="-mt-1 -mr-1 grid h-10 w-10 place-items-center text-xl text-muted">×</button>
+              </div>
+              <div className="mt-3 flex gap-2">
+                {selectedTarget.visit_id && (
+                  <Link href={`/field/visits/${selectedTarget.visit_id}`} className="flex h-12 flex-1 items-center justify-center rounded-xl bg-ink text-[15px] font-bold text-white">Open visit</Link>
+                )}
+                <a href={`https://www.google.com/maps/dir/?api=1&destination=${selectedTarget.lat},${selectedTarget.lng}`} target="_blank" rel="noreferrer"
+                  className="flex h-12 flex-1 items-center justify-center rounded-xl border border-border text-[15px] font-bold">Directions</a>
+                {selectedTarget.website && (
+                  <a href={selectedTarget.website} target="_blank" rel="noreferrer"
+                    className="flex h-12 flex-1 items-center justify-center rounded-xl border border-border text-[15px] font-bold">Website</a>
+                )}
+              </div>
+            </div>
+          )}
           {selected && (
             <div className="absolute inset-x-3 bottom-3 z-[500] rounded-2xl bg-surface p-4 shadow-xl">
               <div className="flex items-start gap-3">
@@ -188,6 +249,33 @@ export default function ManageView({ agents, visits }: { agents: FieldAgent[]; v
             </div>
           ))}
         </div>
+
+        {targetLists.length > 0 && (
+          <>
+            <h2 className="mb-2 text-xs font-bold uppercase tracking-[0.1em] text-muted">Targets</h2>
+            <ul className="mb-5 divide-y divide-border overflow-hidden rounded-2xl bg-surface">
+              {targetLists.map(l => {
+                const on = targetIds.includes(l.id);
+                const done = l.visited + l.reviewed;
+                return (
+                  <li key={l.id}>
+                    <button type="button" onClick={() => setTargetIds(on ? targetIds.filter(x => x !== l.id) : [...targetIds, l.id])}
+                      className="flex min-h-14 w-full items-center gap-3 px-4 py-2.5 text-left active:bg-surface-2">
+                      <span className={`grid h-6 w-6 shrink-0 place-items-center rounded-md border-2 text-[13px] font-bold ${on ? 'border-ink bg-ink text-white' : 'border-border'}`}>{on ? '✓' : ''}</span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-[15px] font-bold">{l.name}</span>
+                        <span className="mt-1 block h-1.5 overflow-hidden rounded-full bg-surface-2">
+                          <span className="block h-full rounded-full bg-positive" style={{ width: `${l.total ? (done / l.total) * 100 : 0}%` }} />
+                        </span>
+                      </span>
+                      <span className="shrink-0 font-mono text-[13px]">{done} / {l.total}</span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          </>
+        )}
 
         <h2 className="mb-2 text-xs font-bold uppercase tracking-[0.1em] text-muted">By agent</h2>
         <ul className="mb-5 divide-y divide-border overflow-hidden rounded-2xl bg-surface">

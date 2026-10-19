@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation';
 import { FieldHeader, FieldTabs } from '@/components/field/FieldChrome';
 import ManageView from '@/components/field/ManageView';
 import { currentAgent, listAgents, listVisits } from '@/lib/field-db';
+import { listTargetLists, targetsWithStatus } from '@/lib/field-targets';
 import Link from 'next/link';
 
 export const dynamic = 'force-dynamic';
@@ -13,7 +14,12 @@ export default async function Manage() {
   if (!agent) redirect('/field/signin');
   if (agent.role !== 'manager') redirect('/field');
 
-  const [agents, visits] = await Promise.all([listAgents(), listVisits({ limit: 20000 })]);
+  const [agents, visits, targets, targetLists] = await Promise.all([
+    listAgents(),
+    listVisits({ limit: 20000 }),
+    targetsWithStatus().catch(() => []),
+    listTargetLists().catch(() => []),
+  ]);
 
   return (
     <>
@@ -22,7 +28,7 @@ export default async function Manage() {
         back="/field"
         right={<Link href="/field/team" className="flex h-11 items-center rounded-full px-3 text-sm font-bold text-white/90 active:bg-white/10">Team</Link>}
       />
-      <ManageView agents={agents} visits={visits} />
+      <ManageView agents={agents} visits={visits} targets={targets} targetLists={targetLists} />
       <FieldTabs manager />
     </>
   );
