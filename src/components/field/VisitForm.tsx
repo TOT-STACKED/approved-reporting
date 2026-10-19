@@ -8,6 +8,7 @@ import { googleNearby } from './google-places';
 import { keepPhoto, lastFix, localPhoto, rememberFix, saveOrQueue, type Fix } from '@/lib/field-outbox';
 import { Chip } from './FieldChrome';
 import ReviewStep, { emptyReview, seedReview, type ReviewDraft } from './ReviewStep';
+import { REVIEW_CATEGORIES } from '@/lib/intelligence-review';
 import {
   BUSYNESS,
   COVER_BANDS,
@@ -16,6 +17,7 @@ import {
   FIELD_VENUE_TYPES,
   OWNERSHIP,
   fmtWhen,
+  labelFor,
   stackCount,
   stackLabel,
   type FieldStack,
@@ -25,21 +27,21 @@ import {
 } from '@/lib/field-shared';
 
 // The whole "walk in and log it" flow, built for one hand on a phone:
-//   1 Where   — GPS finds you, nearby venues are listed, tap yours (or drop a pin)
-//   2 Venue   — type, size, ownership, how busy
-//   3 Tech    — what you can see, category by category
-//   4 Photos  — camera opens straight away; notes
-//   5 Contact — who you spoke to, are they up for a demo
-//   6 Review  — optional full Intelligence Review with the operator, saved
-//               into the main system (they get their report by email)
-// Only step 1 is required; "Save" works from any step after that.
+//   Where — pin it (standing, map tap, search or the nearby list), name it
+//   then four tiles; do any, in any order, or none:
+//     Full tech review — the Intelligence Review with the operator, saved
+//                        into the main system (they get their report by email)
+//     Seen tech        — what you can see, category by category
+//     Comments & photos — notes, and the camera straight away
+//     Something else   — venue type/size/busyness, and who you spoke to
+// Only Where is required; "Save" works from the tiles and every section.
 //
 // A new visit is kept as a draft on the phone as you go, so losing signal or
 // closing the tab doesn't lose it. Photos upload as they're taken, shrunk on
 // the phone first so they go up quickly on 4G.
 
 const DRAFT_KEY = 'stacked-field-draft-v1';
-const STEPS = ['Where', 'Venue', 'Tech', 'Photos', 'Contact', 'Review'] as const;
+type Screen = 'where' | 'hub' | 'review' | 'tech' | 'notes' | 'details';
 
 interface Place {
   venue_name: string;
@@ -157,8 +159,9 @@ function draftFromStop(f: FromStop): Draft {
 export default function VisitForm({ visit, photoUrls = [], fromStop }: { visit?: FieldVisit; photoUrls?: string[]; fromStop?: FromStop }) {
   const router = useRouter();
   const editing = Boolean(visit);
-  const [step, setStep] = useState(0);
   const [d, setD] = useState<Draft>(() => (visit ? fromVisit(visit) : fromStop ? draftFromStop(fromStop) : emptyDraft()));
+  // A visit with its venue already known (an edit, a route stop) opens on the tiles.
+  const [screen, setScreen] = useState<Screen>(visit || fromStop ? 'hub' : 'where');
   const [restored, setRestored] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -175,7 +178,11 @@ export default function VisitForm({ visit, photoUrls = [], fromStop }: { visit?:
       const saved = JSON.parse(raw) as Draft;
       // Drafts older than 12 hours are from another day's round; drop them.
       if (Date.now() - Date.parse(saved.visited_at) > 12 * 3600 * 1000) { localStorage.removeItem(DRAFT_KEY); return; }
-      if (saved.place || saved.photos.length || saved.notes) { setD({ ...saved, review: saved.review || emptyReview() }); setRestored(true); }
+      if (saved.place || saved.photos.length || saved.notes) {
+        setD({ ...saved, review: saved.review || emptyReview() });
+        setRestored(true);
+        if (saved.place?.venue_name) setScreen('hub');
+      }
     } catch { /* storage blocked: carry on without drafts */ }
   }, [editing, fromStop]);
 
@@ -187,21 +194,21 @@ export default function VisitForm({ visit, photoUrls = [], fromStop }: { visit?:
   const set = <K extends keyof Draft>(k: K, v: Draft[K]) => setD(prev => ({ ...prev, [k]: v }));
   const toggle = <K extends keyof Draft>(k: K, v: string) => setD(prev => ({ ...prev, [k]: prev[k] === v ? '' : v }));
 
-  function go(n: number) {
-    setStep(n);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+  function go(to: Screen) {
+    setScreen(to);
+    window.scrollTo({ top: 0 });
   }
 
   function discardDraft() {
     try { localStorage.removeItem(DRAFT_KEY); } catch { /* ignore */ }
     setD(emptyDraft());
     setRestored(false);
-    setStep(0);
+    setScreen('where');
   }
 
   async function save() {
-    if (!d.place?.venue_name.trim()) { setError('Pick the venue first.'); go(0); return; }
-    if (d.place.lat == null && d.place.geo_precision !== 'none') { setError('Tap the map where the venue is.'); go(0); return; }
+    if (!d.place?.venue_name.trim()) { setError('Pick the venue first.'); go('where'); return; }
+    if (d.place.lat == null && d.place.geo_precision !== 'none') { setError('Tap the map where the venue is.'); go('where'); return; }
     setSaving(true);
     setError('');
     try {
@@ -249,24 +256,6 @@ export default function VisitForm({ visit, photoUrls = [], fromStop }: { visit?:
 
   return (
     <div className="mx-auto w-full max-w-md md:max-w-2xl">
-      {/* Progress */}
-      <div className="sticky top-[calc(92px+env(safe-area-inset-top))] z-10 border-b border-border bg-bg/95 px-4 py-2.5 backdrop-blur">
-        <ol className="flex gap-1.5">
-          {STEPS.map((s, i) => (
-            <li key={s} className="flex-1">
-              <button
-                type="button"
-                onClick={() => (i === 0 || d.place) && go(i)}
-                className={`w-full text-left text-[11px] font-bold uppercase tracking-[0.06em] ${i === step ? 'text-ink' : 'text-dim'}`}
-              >
-                <span className={`mb-1 block h-1.5 rounded-full ${i <= step ? 'bg-ink' : 'bg-border'}`} />
-                {s}
-              </button>
-            </li>
-          ))}
-        </ol>
-      </div>
-
       {restored && (
         <div className="mx-4 mt-3 flex items-center justify-between gap-3 rounded-xl bg-primary-wash px-4 py-3 text-[14px]">
           <span>Carried on from your unsaved visit{d.place ? ` to ${d.place.venue_name}` : ''}.</span>
@@ -274,13 +263,25 @@ export default function VisitForm({ visit, photoUrls = [], fromStop }: { visit?:
         </div>
       )}
 
+      {screen !== 'where' && screen !== 'hub' && (
+        <button type="button" onClick={() => go('hub')} className="mx-4 mt-3 flex h-11 items-center gap-1 text-[15px] font-bold text-ink">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6" /></svg>
+          {d.place?.venue_name || 'This visit'}
+        </button>
+      )}
+
       <div className="px-4 pt-4">
-        {step === 0 && <WhereStep d={d} set={set} pos={pos} gpsError={gpsError} editing={editing} />}
-        {step === 1 && <VenueStep d={d} set={set} toggle={toggle} />}
-        {step === 2 && <TechStep stack={d.stack} onChange={s => set('stack', s)} />}
-        {step === 3 && <PhotoStep d={d} set={set} existingUrls={editing ? photoUrls : []} originalPhotos={visit?.photos || []} />}
-        {step === 4 && <ContactStep d={d} set={set} toggle={toggle} />}
-        {step === 5 && (
+        {screen === 'where' && <WhereStep d={d} set={set} pos={pos} gpsError={gpsError} editing={editing} />}
+        {screen === 'hub' && <Hub d={d} reviewDone={Boolean(visit?.submission_id)} onOpen={go} />}
+        {screen === 'tech' && <TechStep stack={d.stack} onChange={s => set('stack', s)} />}
+        {screen === 'notes' && <PhotoStep d={d} set={set} existingUrls={editing ? photoUrls : []} originalPhotos={visit?.photos || []} />}
+        {screen === 'details' && (
+          <div className="flex flex-col gap-8">
+            <VenueStep d={d} set={set} toggle={toggle} />
+            <ContactStep d={d} set={set} toggle={toggle} />
+          </div>
+        )}
+        {screen === 'review' && (
           <ReviewStep
             review={d.review}
             onChange={r => set('review', r)}
@@ -299,34 +300,105 @@ export default function VisitForm({ visit, photoUrls = [], fromStop }: { visit?:
       {/* Thumb-zone action bar */}
       <div className="h-28" />
       <div className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-surface/95 backdrop-blur" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
-        <div className="mx-auto flex w-full max-w-md md:max-w-2xl gap-2 px-4 py-3">
-          {step > 0 && (
-            <button type="button" onClick={() => go(step - 1)} className="h-14 rounded-2xl border border-border px-5 text-[15px] font-bold active:bg-surface-2">
-              Back
+        <div className="mx-auto flex w-full max-w-md gap-2 px-4 py-3 md:max-w-2xl">
+          {screen === 'where' && (
+            <button type="button" disabled={!d.place?.venue_name.trim()} onClick={() => go('hub')}
+              className="h-14 flex-1 rounded-2xl bg-ink text-[16px] font-bold text-white active:bg-ink-deep disabled:opacity-40">
+              {!d.place ? 'Pin the venue' : !d.place.venue_name.trim() ? 'Name the venue' : 'Next: what to log'}
             </button>
           )}
-          {step < STEPS.length - 1 && (
-            <button
-              type="button"
-              disabled={!d.place}
-              onClick={() => go(step + 1)}
-              className="h-14 flex-1 rounded-2xl bg-ink text-[16px] font-bold text-white active:bg-ink-deep disabled:opacity-40"
-            >
-              {step === 0 && !d.place ? 'Pick the venue' : `Next: ${STEPS[step + 1]}`}
+          {screen !== 'where' && screen !== 'hub' && (
+            <button type="button" onClick={() => go('hub')}
+              className="h-14 flex-1 rounded-2xl bg-ink text-[16px] font-bold text-white active:bg-ink-deep">
+              Done
             </button>
           )}
           {d.place && (
-            <button
-              type="button"
-              disabled={saving}
-              onClick={save}
-              className={`h-14 rounded-2xl bg-primary text-[16px] font-bold uppercase tracking-tight text-white active:bg-primary-press disabled:opacity-60 ${step === STEPS.length - 1 ? 'flex-1' : 'px-5'}`}
-            >
-              {saving ? 'Saving…' : step === STEPS.length - 1 && d.review.enabled ? 'Save + send report' : editing ? 'Save' : step === STEPS.length - 1 ? 'Save visit' : 'Save'}
+            <button type="button" disabled={saving} onClick={save}
+              className={`h-14 rounded-2xl bg-primary text-[16px] font-bold uppercase tracking-tight text-white active:bg-primary-press disabled:opacity-60 ${screen === 'hub' ? 'flex-1' : 'px-5'}`}>
+              {saving ? 'Saving…' : screen === 'hub' ? (d.review.enabled ? 'Save + send report' : editing ? 'Save changes' : 'Save visit') : 'Save'}
             </button>
           )}
         </div>
       </div>
+    </div>
+  );
+}
+
+// ── The tiles ────────────────────────────────────────────────────────────────
+
+/**
+ * After the venue is pinned: the visit at a glance, then four big tiles for
+ * what to log. Any, in any order, or none. Each shows how far it's got.
+ */
+function Hub({ d, reviewDone, onOpen }: { d: Draft; reviewDone: boolean; onOpen: (s: Screen) => void }) {
+  const seen = stackCount(d.stack);
+  const reviewed = REVIEW_CATEGORIES.filter(c => {
+    const e = d.review.stack[c.id];
+    return e && (e.none || e.tools.length || e.other.trim());
+  }).length;
+  const details = [labelFor(FIELD_VENUE_TYPES, d.venue_type), d.contact_name].filter(Boolean).join(' · ');
+
+  const tiles: { id: Screen; title: string; status: string; done: boolean; icon: string; lead?: boolean }[] = [
+    {
+      id: 'review', title: 'Full tech review', lead: true,
+      done: reviewDone || (d.review.enabled && d.review.consent),
+      status: reviewDone ? 'Done, report sent' : d.review.enabled ? `${reviewed} of ${REVIEW_CATEGORIES.length} answered` : 'With the owner or GM',
+      icon: 'M9 11l3 3 8-8M20 12v7a2 2 0 01-2 2H6a2 2 0 01-2-2V5a2 2 0 012-2h9',
+    },
+    {
+      id: 'tech', title: 'Seen tech', done: seen > 0,
+      status: seen ? `${seen} of ${FIELD_CATEGORIES.length} spotted` : 'What you can see',
+      icon: 'M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8zM12 15a3 3 0 100-6 3 3 0 000 6z',
+    },
+    {
+      id: 'notes', title: 'Comments & photos', done: d.photos.length > 0 || Boolean(d.notes.trim()),
+      status: [d.photos.length ? `${d.photos.length} photo${d.photos.length === 1 ? '' : 's'}` : '', d.notes.trim() ? 'notes' : ''].filter(Boolean).join(' · ') || 'Notes and the camera',
+      icon: 'M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2zM12 17a4 4 0 100-8 4 4 0 000 8z',
+    },
+    {
+      id: 'details', title: 'Something else', done: Boolean(details),
+      status: details || 'Venue details, who you met',
+      icon: 'M12 5v.01M12 12v.01M12 19v.01',
+    },
+  ];
+
+  return (
+    <div>
+      <button type="button" onClick={() => onOpen('where')}
+        className="mb-4 flex w-full items-center gap-3 rounded-2xl bg-surface p-4 text-left active:bg-surface-2">
+        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-primary text-white">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 21s-7-6.2-7-11.5a7 7 0 0114 0C19 14.8 12 21 12 21z" /><circle cx="12" cy="9.5" r="2.5" /></svg>
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-[18px] font-bold leading-tight">{d.place?.venue_name}</span>
+          <span className="block truncate text-[13px] text-muted">
+            {[d.place?.address, d.place?.postcode].filter(Boolean).join(' · ') || (d.place?.geo_precision === 'none' ? 'Pin to follow' : 'Pinned on the map')} · {fmtWhen(d.visited_at)}
+          </span>
+        </span>
+        <span className="shrink-0 text-[13px] font-bold underline underline-offset-4">Change</span>
+      </button>
+
+      <h2 className="mb-3 font-display text-[26px] uppercase leading-none tracking-tight">What are you logging?</h2>
+      <div className="grid grid-cols-2 gap-3">
+        {tiles.map(t => (
+          <button key={t.id} type="button" onClick={() => onOpen(t.id)}
+            className={`relative flex aspect-square flex-col justify-between rounded-3xl p-4 text-left md:aspect-[4/3] ${
+              t.lead ? 'bg-ink text-white active:bg-ink-deep' : 'bg-surface text-ink active:bg-surface-2'}`}>
+            <span className={`grid h-11 w-11 place-items-center rounded-2xl ${t.lead ? 'bg-white/15' : 'bg-surface-2'}`}>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={t.id === 'details' ? 3.5 : 2} strokeLinecap="round" strokeLinejoin="round"><path d={t.icon} /></svg>
+            </span>
+            {t.done && (
+              <span className={`absolute top-4 right-4 grid h-7 w-7 place-items-center rounded-full text-[14px] font-bold ${t.lead ? 'bg-positive-bright text-ink' : 'bg-positive text-white'}`}>✓</span>
+            )}
+            <span>
+              <span className="block text-[18px] font-bold leading-tight">{t.title}</span>
+              <span className={`mt-1 block text-[13px] leading-snug ${t.lead ? 'text-white/75' : 'text-muted'}`}>{t.status}</span>
+            </span>
+          </button>
+        ))}
+      </div>
+      <p className="mt-4 text-center text-[13px] text-muted">Do any, in any order. Save whenever you’re done.</p>
     </div>
   );
 }
