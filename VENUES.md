@@ -17,7 +17,7 @@ Each calendar month (UTC), a Promote user gets:
   tools in those categories. The pick is locked until the 1st so that 5 reveals can't be used to read
   every category in turn.
 
-Scores, gaps and the "unhappy" filter are off (`PROMOTE.insights` in `src/lib/venue-plans.ts`).
+Promote also includes the scores out of 10, gaps and the "unhappy" filter (`PROMOTE.insights` in `src/lib/venue-plans.ts`).
 
 ## Where things live
 

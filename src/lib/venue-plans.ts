@@ -46,7 +46,7 @@ export const PROMOTE = {
   name: 'Promote',
   reveals: 5,
   maxCategories: 5,
-  insights: false, // NPS scores, gaps, the "unhappy with their tool" filter
+  insights: true, // NPS scores, gaps, the "unhappy with their tool" filter
 };
 
 /** A score at or below this counts as "unhappy" — NPS detractor territory. */

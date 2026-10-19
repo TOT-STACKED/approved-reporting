@@ -50,6 +50,10 @@ export default function JoinPage() {
               </span>
             ))}
           </div>
+          <p className="text-sm text-muted mt-4 leading-relaxed">
+            Every reveal also shows how the venue rates each tool out of 10, the categories where it has
+            no tool at all, and lets you filter for venues unhappy with what they use.
+          </p>
         </div>
 
         <div className="flex flex-wrap gap-3">
