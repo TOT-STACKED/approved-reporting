@@ -541,3 +541,15 @@ export async function recheckBatch(after = ''): Promise<{ checked: number; moved
   }));
   return { checked: rows.length, moved: results.filter(Boolean).length, last: rows[rows.length - 1].id, done: rows.length < 8 };
 }
+
+/**
+ * Place a visit saved with "pin it later": from its postcode, else its address
+ * as a clue (the same lookups as the import). Null when nothing is found; it
+ * then stays under "No location yet" for someone to pin by hand.
+ */
+export async function placeFromClues(name: string, address: string, postcode: string): Promise<{ lat: number; lng: number; postcode: string | null; precision: 'postcode' | 'town' } | null> {
+  startBudget(8000);
+  const pc = postcodeIn(`${postcode} ${address}`);
+  const pcPlaces = pc ? await postcodeLookup([pc]).catch(() => new Map<string, Place>()) : new Map<string, Place>();
+  return placeFor(name, address || postcode, pc, pcPlaces).catch(() => null);
+}

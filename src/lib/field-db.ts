@@ -238,7 +238,10 @@ export function cleanVisitInput(input: Record<string, unknown>, agentId: string)
   if (!venue_name) throw new VisitInputError('Give the venue a name');
   const lat = num(input.lat, -90, 90);
   const lng = num(input.lng, -180, 180);
-  if (lat == null || lng == null) throw new VisitInputError('Tag the venue on the map');
+  // "Pin it later" (no signal, no GPS): allowed with no pin, placed from the
+  // postcode or address when it reaches the server, or by hand later.
+  const pinLater = input.geo_precision === 'none' && (lat == null || lng == null);
+  if (!pinLater && (lat == null || lng == null)) throw new VisitInputError('Tag the venue on the map');
 
   const stack: FieldStack = {};
   const rawStack = (input.stack && typeof input.stack === 'object' ? input.stack : {}) as Record<string, unknown>;
@@ -267,9 +270,9 @@ export function cleanVisitInput(input: Record<string, unknown>, agentId: string)
     address: text(input.address, 300),
     postcode: text(input.postcode, 12)?.toUpperCase() ?? null,
     osm_ref: osmRef,
-    lat,
-    lng,
-    geo_precision: input.geo_precision === 'postcode' || input.geo_precision === 'town' ? input.geo_precision : 'exact',
+    lat: pinLater ? null : lat,
+    lng: pinLater ? null : lng,
+    geo_precision: pinLater ? 'none' : input.geo_precision === 'postcode' || input.geo_precision === 'town' ? input.geo_precision : 'exact',
     gps_lat: num(input.gps_lat, -90, 90),
     gps_lng: num(input.gps_lng, -180, 180),
     gps_accuracy_m: accuracy == null ? null : Math.round(accuracy),
@@ -288,6 +291,17 @@ export function cleanVisitInput(input: Record<string, unknown>, agentId: string)
     demo_interest: oneOf(DEMO_INTEREST, input.demo_interest),
     photos,
   };
+}
+
+/**
+ * A visit this agent already saved with the same start time and venue: a
+ * resend from the phone's offline queue after a send dropped mid-way.
+ */
+export async function findResend(agentId: string, visitedAt: string, venueName: string): Promise<string | null> {
+  const rows = await rest<{ id: string }[]>(
+    `field_visits?agent_id=eq.${enc(agentId)}&visited_at=eq.${enc(visitedAt)}&venue_name=eq.${enc(venueName)}&select=id&limit=1`,
+  );
+  return rows[0]?.id || null;
 }
 
 export async function createVisit(agentId: string, fields: Record<string, unknown>): Promise<string> {

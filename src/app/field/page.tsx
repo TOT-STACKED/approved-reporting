@@ -18,7 +18,7 @@ function weekStartDay(): string {
 
 // An agent's home: today's and this week's count, a big "new visit" button and
 // their recent visits.
-export default async function FieldHome() {
+export default async function FieldHome({ searchParams }: { searchParams: Promise<{ queued?: string }> }) {
   if (!fieldConfigured()) {
     return <p className="p-6">Field is not switched on yet: VENUES_SUPABASE_URL / VENUES_SUPABASE_KEY are missing.</p>;
   }
@@ -35,12 +35,18 @@ export default async function FieldHome() {
   const weekStart = weekStartDay();
   const weekCount = visits.filter(v => ukDay(v.visited_at) >= weekStart).length;
   const first = (agent.name || agent.email).split(/[ @]/)[0];
+  const { queued } = await searchParams;
 
   return (
     <>
       <FieldHeader title="Field" right={<SignOut />} />
       <main className="mx-auto w-full max-w-md md:max-w-2xl px-4 pt-5">
         <p className="mb-4 text-[17px]">Hi {first}.</p>
+        {queued && (
+          <p className="mb-4 rounded-2xl bg-warning-tint px-4 py-3 text-[15px] font-bold text-warning-dark">
+            Visit saved on your phone. It sends itself when you’re back in signal.
+          </p>
+        )}
 
         <div className="mb-5 grid grid-cols-2 gap-3">
           <div className="rounded-2xl bg-surface p-4">

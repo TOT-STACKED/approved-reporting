@@ -1,6 +1,7 @@
 import { after, NextResponse, type NextRequest } from 'next/server';
 import { requireAgent } from '@/lib/field-api';
-import { VisitInputError, cleanVisitInput, createVisit, listVisits, updateVisit } from '@/lib/field-db';
+import { VisitInputError, cleanVisitInput, createVisit, findResend, listVisits, updateVisit } from '@/lib/field-db';
+import { placeFromClues } from '@/lib/field-import';
 import { markStopVisited } from '@/lib/field-routes';
 import { ReviewInputError, buildReviewSubmission, requestIntelligenceReport, reviewFrom, saveReview } from '@/lib/field-review';
 
@@ -32,6 +33,16 @@ export async function POST(request: NextRequest) {
     const rawReview = reviewFrom(body);
     const review = rawReview ? buildReviewSubmission(rawReview, String(fields.venue_name)) : null;
 
+    // A resend from the phone's offline queue: hand back the one already saved.
+    const already = await findResend(agent.id, String(fields.visited_at), String(fields.venue_name)).catch(() => null);
+    if (already) return NextResponse.json({ id: already, review: false, resent: true });
+
+    // Saved with "pin it later": try the postcode / address now it's online.
+    if (fields.geo_precision === 'none') {
+      const place = await placeFromClues(String(fields.venue_name), String(fields.address || ''), String(fields.postcode || '')).catch(() => null);
+      if (place) Object.assign(fields, { lat: place.lat, lng: place.lng, geo_precision: place.precision, postcode: fields.postcode || place.postcode });
+    }
+
     const id = await createVisit(agent.id, fields);
     if (review) {
       const submissionId = await saveReview(review);
@@ -41,7 +52,7 @@ export async function POST(request: NextRequest) {
     // Tick the route stop. Named from "Start visit here": done now, so the
     // route shows it ticked when the phone goes back to it. Otherwise matched
     // by place in the background.
-    const tick = () => markStopVisited(
+    const tick = () => fields.lat == null && !body.route_id ? Promise.resolve() : markStopVisited(
       agent.id,
       { id, visited_at: String(fields.visited_at), lat: Number(fields.lat), lng: Number(fields.lng), osm_ref: (fields.osm_ref as string | null) ?? null },
       { route_id: body.route_id, stop_id: body.stop_id },

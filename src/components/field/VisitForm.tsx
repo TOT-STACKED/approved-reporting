@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import FieldMap, { type MapPin } from './FieldMap';
 import { HAS_GOOGLE } from './google-loader';
 import { googleNearby } from './google-places';
+import { keepPhoto, lastFix, localPhoto, rememberFix, saveOrQueue, type Fix } from '@/lib/field-outbox';
 import { Chip } from './FieldChrome';
 import ReviewStep, { emptyReview, seedReview, type ReviewDraft } from './ReviewStep';
 import {
@@ -119,7 +120,12 @@ function useGps(enabled: boolean) {
   useEffect(() => {
     if (!enabled || !('geolocation' in navigator)) return;
     const id = navigator.geolocation.watchPosition(
-      p => { setPos({ lat: p.coords.latitude, lng: p.coords.longitude, accuracy: Math.round(p.coords.accuracy) }); setError(''); },
+      p => {
+        const fix = { lat: p.coords.latitude, lng: p.coords.longitude, accuracy: Math.round(p.coords.accuracy) };
+        setPos(fix);
+        setError('');
+        rememberFix({ ...fix, at: Date.now() });
+      },
       e => setError(e.code === e.PERMISSION_DENIED
         ? 'Location is off for this site. Turn it on in your browser settings, or drop a pin by hand.'
         : 'Still looking for GPS… you can drop a pin by hand.'),
@@ -195,7 +201,7 @@ export default function VisitForm({ visit, photoUrls = [], fromStop }: { visit?:
 
   async function save() {
     if (!d.place?.venue_name.trim()) { setError('Pick the venue first.'); go(0); return; }
-    if (d.place.lat == null) { setError('Tap the map where the venue is.'); go(0); return; }
+    if (d.place.lat == null && d.place.geo_precision !== 'none') { setError('Tap the map where the venue is.'); go(0); return; }
     setSaving(true);
     setError('');
     try {
@@ -213,18 +219,29 @@ export default function VisitForm({ visit, photoUrls = [], fromStop }: { visit?:
           gps_lat: visit!.gps_lat, gps_lng: visit!.gps_lng, gps_accuracy_m: visit!.gps_accuracy_m,
         } : pos ? { gps_lat: pos.lat, gps_lng: pos.lng, gps_accuracy_m: pos.accuracy } : {}),
       };
-      const res = await fetch(editing ? `/api/field/visits/${visit!.id}` : '/api/field/visits', {
-        method: editing ? 'PATCH' : 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      });
-      const json = await res.json().catch(() => ({}));
-      if (!res.ok) { setError(json.error || 'Couldn’t save. Your visit is kept on this phone, try again.'); return; }
-      if (!editing) { try { localStorage.removeItem(DRAFT_KEY); } catch { /* ignore */ } }
-      router.replace(fromStop ? `/field/routes/${fromStop.route_id}` : `/field/visits/${editing ? visit!.id : json.id}?saved=1`);
+      if (editing) {
+        const res = await fetch(`/api/field/visits/${visit!.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok) { setError(json.error || 'Couldn’t save. Try again.'); return; }
+        router.replace(`/field/visits/${visit!.id}?saved=1`);
+        router.refresh();
+        return;
+      }
+      // New visits go through the phone's queue: sent now if there's signal,
+      // otherwise kept (photos too) and sent automatically when it's back.
+      const { id, queued } = await saveOrQueue(d.place.venue_name, body);
+      try { localStorage.removeItem(DRAFT_KEY); } catch { /* ignore */ }
+      if (queued) { router.replace('/field?queued=1'); return; }
+      router.replace(fromStop ? `/field/routes/${fromStop.route_id}` : `/field/visits/${id}?saved=1`);
       router.refresh();
-    } catch {
-      setError('No signal. Your visit is kept on this phone. Try again when you’re back online.');
+    } catch (e) {
+      setError(e instanceof Error && e.message !== 'Failed to fetch' ? e.message : editing
+        ? 'No signal. Your changes are still on screen; save again when you’re back online.'
+        : 'Couldn’t save. Your visit is kept on this phone; try again.');
     } finally {
       setSaving(false);
     }
@@ -327,6 +344,18 @@ function WhereStep({ d, set, pos, gpsError, editing }: {
   const [manual, setManual] = useState(false);
   const [changing, setChanging] = useState(!d.place);
   const searchedAt = useRef<{ lat: number; lng: number } | null>(null);
+  const [online, setOnline] = useState(true);
+  const [earlier, setEarlier] = useState<Fix | null>(null);
+
+  // Signal and the last good GPS fix (e.g. at the entrance, before going underground).
+  useEffect(() => {
+    const update = () => { setOnline(navigator.onLine); setEarlier(lastFix()); };
+    update();
+    window.addEventListener('online', update);
+    window.addEventListener('offline', update);
+    const t = setInterval(update, 30000);
+    return () => { window.removeEventListener('online', update); window.removeEventListener('offline', update); clearInterval(t); };
+  }, []);
 
   async function search(at: { lat: number; lng: number }, radius = 150) {
     searchedAt.current = at;
@@ -368,13 +397,21 @@ function WhereStep({ d, set, pos, gpsError, editing }: {
     setManual(false);
   }
 
-  function startManual() {
-    const at = pos || placeAt;
+  function startManual(at: { lat: number; lng: number } | null = pos || placeAt) {
     if (!at) return;
-    set('place', { venue_name: '', address: '', postcode: '', osm_ref: null, lat: at.lat, lng: at.lng, geo_precision: 'exact' });
+    set('place', { venue_name: d.place?.venue_name || '', address: d.place?.address || '', postcode: d.place?.postcode || '', osm_ref: null, lat: at.lat, lng: at.lng, geo_precision: 'exact' });
     setManual(true);
     setChanging(false);
   }
+
+  /** No signal and no GPS: save the name and address now, place the pin later. */
+  function pinLater() {
+    set('place', { venue_name: d.place?.venue_name || '', address: d.place?.address || '', postcode: d.place?.postcode || '', osm_ref: null, lat: null, lng: null, geo_precision: 'none' });
+    setManual(true);
+    setChanging(false);
+  }
+
+  const mins = earlier ? Math.max(1, Math.round((Date.now() - earlier.at) / 60000)) : 0;
 
   const pins: MapPin[] = [];
   if (changing && places) for (const p of places) pins.push({ id: p.ref, lat: p.lat, lng: p.lng, label: p.name, tone: 'place' });
@@ -382,6 +419,7 @@ function WhereStep({ d, set, pos, gpsError, editing }: {
     pins.push({ id: 'selected', lat: d.place.lat, lng: d.place.lng, label: d.place.venue_name || 'Your pin', tone: 'selected' });
   }
   const placeAt = d.place?.lat != null && d.place.lng != null ? { lat: d.place.lat, lng: d.place.lng } : null;
+  const offerEarlier = earlier && (!pos || pos.accuracy > 100) && !(placeAt && Math.abs(placeAt.lat - earlier.lat) < 1e-6);
 
   const canMovePin = manual || editing || (d.place && !d.place.osm_ref);
 
@@ -393,7 +431,12 @@ function WhereStep({ d, set, pos, gpsError, editing }: {
         {canMovePin && d.place ? ' Tap the map to move the pin.' : ''}
       </p>
 
-      <div className="-mx-4 mb-4 overflow-hidden sm:mx-0 sm:rounded-2xl">
+      <div className="relative -mx-4 mb-4 overflow-hidden sm:mx-0 sm:rounded-2xl">
+        {!online && (
+          <p className="absolute inset-x-3 top-3 z-[500] rounded-xl bg-ink/90 px-3 py-2 text-[13px] text-white">
+            No signal, so the map may be blank. Your pin still saves.
+          </p>
+        )}
         <FieldMap
           className="h-[38vh] min-h-64 w-full md:h-[46vh]"
           pins={pins}
@@ -442,7 +485,9 @@ function WhereStep({ d, set, pos, gpsError, editing }: {
             </>
           )}
           {d.place.geo_precision === 'none' ? (
-            <p className="mt-2 text-[13px] font-bold text-warning-dark">No location yet. Tap the map where the venue is.</p>
+            <p className="mt-2 text-[13px] font-bold text-warning-dark">
+              No pin yet. Add the postcode or address and it’s placed for you when the visit sends, or tap the map if it’s showing.
+            </p>
           ) : d.place.geo_precision !== 'exact' && (
             <p className="mt-2 text-[13px] text-warning-dark">This pin is approximate ({d.place.geo_precision} centre). Tap the map where the venue is.</p>
           )}
@@ -490,18 +535,38 @@ function WhereStep({ d, set, pos, gpsError, editing }: {
             </ul>
           )}
 
-          {pos || placeAt ? (
+          {(pos || placeAt) && (
             <button
               type="button"
-              onClick={startManual}
+              onClick={() => startManual()}
               className="mb-2 h-14 w-full rounded-2xl border-2 border-dashed border-ink/40 text-[15px] font-bold active:bg-surface"
             >
-              Not listed? Drop a pin here
+              {online ? 'Not listed? Drop a pin here' : 'Drop a pin where I’m standing'}
             </button>
-          ) : (
-            <p className="mb-2 rounded-2xl border-2 border-dashed border-ink/40 p-4 text-center text-[15px] font-bold">
-              No GPS? Tap the map where the venue is.
-            </p>
+          )}
+
+          {/* Dead spots: underground centres, basements, no 4G. GPS needs no data,
+              so a pin still works; failing that, the last place the phone knew,
+              or save it now and pin it later. */}
+          {(!online || listError || !pos || offerEarlier) && (
+            <div className="mb-2 rounded-2xl bg-surface p-4">
+              <p className="mb-1 text-[15px] font-bold">{online ? 'No GPS here?' : 'No signal? You can still log it.'}</p>
+              <p className="mb-3 text-[13px] text-muted">
+                {online ? 'Tap the map where the venue is, or:' : 'Your visit is saved on this phone and sends itself when you’re back online.'}
+              </p>
+              <div className="flex flex-col gap-2">
+                {offerEarlier && earlier && (
+                  <button type="button" onClick={() => startManual(earlier)}
+                    className="h-12 rounded-xl bg-ink px-4 text-left text-[15px] font-bold text-white active:bg-ink-deep">
+                    Pin where I was {mins} min ago
+                  </button>
+                )}
+                <button type="button" onClick={pinLater}
+                  className="h-12 rounded-xl border border-border px-4 text-left text-[15px] font-bold active:bg-surface-2">
+                  Pin it later: just type the name and address
+                </button>
+              </div>
+            </div>
           )}
         </>
       )}
@@ -628,6 +693,19 @@ function PhotoStep({ d, set, existingUrls, originalPhotos }: { d: Draft; set: Se
     return m;
   });
   const [uploading, setUploading] = useState(0);
+
+  // Photos kept on the phone (taken with no signal) need their previews rebuilt after a reload.
+  useEffect(() => {
+    let cancelled = false;
+    for (const ref of d.photos) {
+      if (!ref.startsWith('local:') || previews[ref]) continue;
+      localPhoto(ref).then(blob => {
+        if (blob && !cancelled) setPreviews(p => ({ ...p, [ref]: URL.createObjectURL(blob) }));
+      }).catch(() => {});
+    }
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [d.photos]);
   const [err, setErr] = useState('');
   const photosRef = useRef(d.photos);
   photosRef.current = d.photos;
@@ -640,16 +718,24 @@ function PhotoStep({ d, set, existingUrls, originalPhotos }: { d: Draft; set: Se
     for (const file of list) {
       try {
         const blob = await shrink(file);
-        const form = new FormData();
-        form.append('photo', blob, 'photo.jpg');
-        const res = await fetch('/api/field/photos', { method: 'POST', body: form });
-        const json = await res.json().catch(() => ({}));
-        if (!res.ok || !json.path) throw new Error(json.error || 'Upload failed');
-        setPreviews(p => ({ ...p, [json.path]: URL.createObjectURL(blob) }));
-        photosRef.current = [...photosRef.current, json.path];
+        let ref: string;
+        try {
+          const form = new FormData();
+          form.append('photo', blob, 'photo.jpg');
+          const res = await fetch('/api/field/photos', { method: 'POST', body: form });
+          const json = await res.json().catch(() => ({}));
+          if (!res.ok || !json.path) throw new Error(json.error || 'Upload failed');
+          ref = json.path;
+        } catch (e) {
+          // No signal: keep it on the phone; it uploads when the visit sends.
+          if (!(e instanceof TypeError)) throw e;
+          ref = await keepPhoto(blob);
+        }
+        setPreviews(p => ({ ...p, [ref]: URL.createObjectURL(blob) }));
+        photosRef.current = [...photosRef.current, ref];
         set('photos', photosRef.current);
       } catch (e) {
-        setErr(e instanceof Error && e.message !== 'Failed to fetch' ? e.message : 'A photo didn’t upload. Check your signal and add it again.');
+        setErr(e instanceof Error && e.message !== 'Failed to fetch' ? e.message : 'A photo didn’t save. Try adding it again.');
       } finally {
         setUploading(n => n - 1);
       }
@@ -670,6 +756,7 @@ function PhotoStep({ d, set, existingUrls, originalPhotos }: { d: Draft; set: Se
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={previews[p]} alt="" className="h-full w-full object-cover" />
               ) : <span className="grid h-full place-items-center text-xs text-muted">Saved</span>}
+              {p.startsWith('local:') && <span className="absolute bottom-1 left-1 rounded-full bg-black/60 px-2 py-0.5 text-[10px] font-bold text-white">On phone</span>}
               <button type="button" aria-label="Remove photo" onClick={() => set('photos', d.photos.filter(x => x !== p))}
                 className="absolute top-1 right-1 grid h-8 w-8 place-items-center rounded-full bg-black/60 text-white">×</button>
             </div>
