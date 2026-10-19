@@ -346,6 +346,25 @@ function WhereStep({ d, set, pos, gpsError, editing }: {
   const searchedAt = useRef<{ lat: number; lng: number } | null>(null);
   const [online, setOnline] = useState(true);
   const [earlier, setEarlier] = useState<Fix | null>(null);
+  const [q, setQ] = useState('');
+  const [found, setFound] = useState<{ name: string; address: string; postcode: string; lat: number; lng: number; ref: string | null; known: boolean }[]>([]);
+  const [finding, setFinding] = useState(false);
+  const findTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Search any venue or address, e.g. a site you missed and are logging later.
+  function find(text: string) {
+    setQ(text);
+    if (findTimer.current) clearTimeout(findTimer.current);
+    if (text.trim().length < 2) { setFound([]); return; }
+    findTimer.current = setTimeout(async () => {
+      setFinding(true);
+      const at = pos || (d.place?.lat != null ? { lat: d.place.lat, lng: d.place.lng! } : null);
+      const qs = new URLSearchParams({ q: text.trim(), ...(at ? { lat: String(at.lat), lng: String(at.lng) } : {}) });
+      const json = await fetch(`/api/field/search?${qs}`).then(r => r.json()).catch(() => ({ results: [] }));
+      setFound(json.results || []);
+      setFinding(false);
+    }, 350);
+  }
 
   // Signal and the last good GPS fix (e.g. at the entrance, before going underground).
   useEffect(() => {
@@ -421,15 +440,54 @@ function WhereStep({ d, set, pos, gpsError, editing }: {
   const placeAt = d.place?.lat != null && d.place.lng != null ? { lat: d.place.lat, lng: d.place.lng } : null;
   const offerEarlier = earlier && (!pos || pos.accuracy > 100) && !(placeAt && Math.abs(placeAt.lat - earlier.lat) < 1e-6);
 
-  const canMovePin = manual || editing || (d.place && !d.place.osm_ref);
+  // Any pin can be moved: tap the map. Agents know better than the map.
+  const canMovePin = Boolean(d.place);
 
   return (
     <div>
       <h2 className="mb-1 font-display text-[28px] uppercase leading-none tracking-tight">Where are you?</h2>
       <p className="mb-3 text-[14px] text-muted">
         {gpsError || (pos ? `Located to within ${pos.accuracy} m.` : 'Finding you…')}
-        {canMovePin && d.place ? ' Tap the map to move the pin.' : ''}
+        {d.place ? ' Tap the map to move the pin.' : ' Tap the map to drop a pin anywhere.'}
       </p>
+
+      {/* Manual pinning, always on offer: where you're standing, anywhere on
+          the map (tap it), or any venue or address by search. */}
+      <div className="mb-3 flex flex-col gap-2">
+        <button type="button" disabled={!pos} onClick={() => startManual(pos)}
+          className="flex h-14 items-center justify-center gap-2 rounded-2xl bg-ink text-[16px] font-bold text-white active:bg-ink-deep disabled:opacity-40">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 21s-7-6.2-7-11.5a7 7 0 0114 0C19 14.8 12 21 12 21z" /><circle cx="12" cy="9.5" r="2.5" /></svg>
+          {pos ? 'Pin where I’m standing' : 'Waiting for GPS…'}
+        </button>
+        {online && (
+          <div className="relative">
+            <input className={INPUT} value={q} onChange={e => find(e.target.value)} placeholder="Or search a venue, street or postcode" autoComplete="off" enterKeyHint="search" />
+            {(finding || found.length > 0) && (
+              <ul className="mt-2 divide-y divide-border overflow-hidden rounded-2xl bg-surface shadow-lg">
+                {finding && !found.length && <li className="px-4 py-3 text-[14px] text-muted">Searching…</li>}
+                {found.slice(0, 8).map((r, i) => (
+                  <li key={`${r.ref}-${i}`}>
+                    <button type="button" onClick={() => {
+                      set('place', {
+                        venue_name: r.name, address: r.address, postcode: r.postcode,
+                        osm_ref: r.ref && !r.ref.startsWith('visit/') ? r.ref : null,
+                        lat: r.lat, lng: r.lng, geo_precision: 'exact',
+                      });
+                      setQ(''); setFound([]); setChanging(false); setManual(false);
+                    }} className="flex min-h-14 w-full items-center gap-3 px-4 py-2.5 text-left active:bg-surface-2">
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-[15px] font-bold">{r.name}</span>
+                        <span className="block truncate text-[13px] text-muted">{[r.address, r.postcode].filter(Boolean).join(' · ')}</span>
+                      </span>
+                      {r.known && <span className="shrink-0 rounded-full bg-tag-advisory px-2 py-0.5 text-[11px] font-bold">Known</span>}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
+      </div>
 
       <div className="relative -mx-4 mb-4 overflow-hidden sm:mx-0 sm:rounded-2xl">
         {!online && (
@@ -447,13 +505,9 @@ function WhereStep({ d, set, pos, gpsError, editing }: {
             if (p) pick(p);
           }}
           onMapClick={(lat, lng) => {
-            if (canMovePin && d.place) set('place', { ...d.place, lat, lng, geo_precision: 'exact' });
-            else if (changing && !pos) {
-              // No GPS: the agent taps where the venue is and types its name.
-              set('place', { venue_name: '', address: '', postcode: '', osm_ref: null, lat, lng, geo_precision: 'exact' });
-              setManual(true);
-              setChanging(false);
-            }
+            // A pin already placed moves here; otherwise a new pin drops here.
+            if (d.place && !changing) set('place', { ...d.place, lat, lng, geo_precision: 'exact' });
+            else startManual({ lat, lng });
           }}
         />
       </div>
@@ -482,8 +536,12 @@ function WhereStep({ d, set, pos, gpsError, editing }: {
             <>
               <p className="text-[19px] font-bold leading-tight">{d.place.venue_name}</p>
               <p className="text-[14px] text-muted">{[d.place.address, d.place.postcode].filter(Boolean).join(' · ') || 'Tagged on the map'}</p>
+              <button type="button" onClick={() => setManual(true)} className="mt-1 h-10 text-[14px] font-bold text-ink underline underline-offset-4">
+                Edit name or address
+              </button>
             </>
           )}
+          <VisitTime value={d.visited_at} onChange={v => set('visited_at', v)} />
           {d.place.geo_precision === 'none' ? (
             <p className="mt-2 text-[13px] font-bold text-warning-dark">
               No pin yet. Add the postcode or address and it’s placed for you when the visit sends, or tap the map if it’s showing.
@@ -535,16 +593,6 @@ function WhereStep({ d, set, pos, gpsError, editing }: {
             </ul>
           )}
 
-          {(pos || placeAt) && (
-            <button
-              type="button"
-              onClick={() => startManual()}
-              className="mb-2 h-14 w-full rounded-2xl border-2 border-dashed border-ink/40 text-[15px] font-bold active:bg-surface"
-            >
-              {online ? 'Not listed? Drop a pin here' : 'Drop a pin where I’m standing'}
-            </button>
-          )}
-
           {/* Dead spots: underground centres, basements, no 4G. GPS needs no data,
               so a pin still works; failing that, the last place the phone knew,
               or save it now and pin it later. */}
@@ -569,6 +617,37 @@ function WhereStep({ d, set, pos, gpsError, editing }: {
             </div>
           )}
         </>
+      )}
+    </div>
+  );
+}
+
+/**
+ * When the visit happened. "Now" by default; a missed site logged later can
+ * be set back to when they were there (never in the future).
+ */
+function VisitTime({ value, onChange }: { value: string; onChange: (iso: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const local = (iso: string) => {
+    const d = new Date(iso);
+    const pad = (n: number) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  };
+  const [max] = useState(() => local(new Date().toISOString()));
+  const minutesAgo = Math.round((Date.parse(max) - Date.parse(local(value))) / 60000);
+  return (
+    <div className="mt-3 border-t border-border pt-3">
+      {!open ? (
+        <button type="button" onClick={() => setOpen(true)} className="flex h-10 w-full items-center justify-between text-[14px]">
+          <span className="text-muted">When you were there</span>
+          <span className="font-bold underline underline-offset-4">{minutesAgo > 5 ? fmtWhen(value) : 'Now'} · change</span>
+        </button>
+      ) : (
+        <div>
+          <label className={LABEL} htmlFor="visited-at">When were you there?</label>
+          <input id="visited-at" type="datetime-local" className={INPUT} max={max} value={local(value)}
+            onChange={e => { if (e.target.value) onChange(new Date(e.target.value).toISOString()); }} />
+        </div>
       )}
     </div>
   );
