@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import VenuesHeader from '@/components/venues/VenuesHeader';
-import { CATEGORIES, CATEGORY_LABELS, PROMOTE } from '@/lib/venue-plans';
+import { CATEGORIES, CATEGORY_LABELS, PROMOTE, TOPUP_PENCE, TOPUP_TOKENS, gbp } from '@/lib/venue-plans';
 import { UPGRADE_URL } from '@/lib/partner-tier';
 
 // Venues isn't sold on its own any more: it comes with the Promote package.
@@ -55,6 +55,11 @@ export default function JoinPage() {
             no tool at all, and lets you filter for venues unhappy with what they use.
           </p>
         </div>
+
+        <p className="text-sm text-muted mb-8 max-w-2xl leading-relaxed">
+          Need more in a month? Buy {TOPUP_TOKENS} extra tokens for {gbp(TOPUP_PENCE)} any time from the
+          Venues page. Bought tokens never expire and are used once your monthly ones run out.
+        </p>
 
         <div className="flex flex-wrap gap-3">
           <Link

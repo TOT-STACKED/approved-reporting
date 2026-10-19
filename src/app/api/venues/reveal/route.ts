@@ -1,12 +1,12 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { venueById } from '@/lib/venues';
-import { recordReveal } from '@/lib/venue-subscribers';
+import { recordReveal, spendBonus } from '@/lib/venue-subscribers';
 import { viewerEntitlement } from '@/lib/venue-viewer';
 
 export const dynamic = 'force-dynamic';
 
-// Spend one of the month's reveals on a venue. Revealing something already
-// revealed is free and just says ok.
+// Spend one token on a venue: the month's allowance first, then bought tokens.
+// Revealing something already revealed is free and just says ok.
 export async function POST(request: NextRequest) {
   try {
     const ent = await viewerEntitlement(request);
@@ -23,14 +23,19 @@ export async function POST(request: NextRequest) {
     const venue = await venueById(id);
     if (!venue) return NextResponse.json({ error: 'That venue is no longer listed.' }, { status: 404 });
 
+    let usedBonus = false;
     if (ent.used >= ent.allowance) {
-      return NextResponse.json(
-        { error: 'You’ve used this month’s reveals. You get 5 more on the 1st.', outOfReveals: true },
-        { status: 402 }
-      );
+      if (ent.bonus <= 0 || !ent.subscriberId) {
+        return NextResponse.json(
+          { error: 'You’ve used this month’s tokens. Buy more, or get 5 free on the 1st.', outOfReveals: true },
+          { status: 402 }
+        );
+      }
+      usedBonus = true;
+      await spendBonus(ent);
     }
 
-    await recordReveal({ email: ent.email, venueId: venue.id, venueName: venue.name });
+    await recordReveal({ email: ent.email, venueId: venue.id, venueName: venue.name, usedBonus });
     return NextResponse.json({ ok: true });
   } catch (error: unknown) {
     console.warn('[venues] reveal failed', error);

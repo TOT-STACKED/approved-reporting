@@ -5,7 +5,9 @@
 // table. These tables only hold what a Promote user has done with it:
 //
 //   Venue Subscribers — one row per signed-in email, holding the categories
-//                       they picked and the month they picked them for.
+//                       they picked and the month they picked them for, plus
+//                       any bought tokens (Bonus) and the Stripe sessions
+//                       already credited for them.
 //   Venue Reveals     — one row per venue a user has unlocked, counted
 //                       against the month's allowance.
 //
@@ -32,6 +34,7 @@ const S = {
   customer: 'fld5CC6ydUdMyWtEv',
   subscription: 'fldOM0Rt3v0sOxv8R',
   lastSignedIn: 'fldpUm6qcmi5DH7Fv',
+  topupSessions: 'fldFYrXxzhZUYKQkz',
 } as const;
 
 const R = {
@@ -48,6 +51,9 @@ export interface Subscriber {
   email: string;
   categories: Category[];
   periodStart: string;
+  bonus: number;
+  customer: string;
+  topupSessions: string[];
 }
 
 type AirtableRecord = { id: string; fields?: Record<string, unknown> };
@@ -114,6 +120,9 @@ function toSubscriber(r: AirtableRecord): Subscriber {
     email: norm(String(f[S.email] || '')),
     categories: ((f[S.categories] as unknown[]) || []).filter(isCategory),
     periodStart: String(f[S.periodStart] || ''),
+    bonus: Number(f[S.bonus] || 0),
+    customer: String(f[S.customer] || ''),
+    topupSessions: String(f[S.topupSessions] || '').split(/\s+/).filter(Boolean),
   };
 }
 
@@ -142,8 +151,11 @@ export interface Entitlement {
   insights: boolean;
   allowance: number;
   used: number;
+  /** Bought tokens left. Never expire; spent after the monthly allowance. */
+  bonus: number;
   periodStart: string;
   revealed: Set<string>;
+  subscriberId: string | null;
 }
 
 /** The 1st of this month, UTC — when the allowance and the category pick reset. */
@@ -176,7 +188,7 @@ export async function entitlementFor(email: string): Promise<Entitlement | null>
     const f = r.fields || {};
     revealed.add(String(f[R.venueId] || ''));
     const at = Date.parse(String(f[R.revealedAt] || '')) || 0;
-    if (at >= since) used++;
+    if (at >= since && !f[R.usedBonus]) used++;
   }
 
   return {
@@ -188,8 +200,10 @@ export async function entitlementFor(email: string): Promise<Entitlement | null>
     insights: PROMOTE.insights,
     allowance: PROMOTE.reveals,
     used,
+    bonus: sub?.bonus || 0,
     periodStart,
     revealed,
+    subscriberId: sub?.id || null,
   };
 }
 
@@ -208,17 +222,45 @@ export async function saveCategories(ent: Entitlement, categories: Category[]): 
   await write(SUBS, existing ? 'PATCH' : 'POST', fields, existing?.id);
 }
 
+/** Spend one bought token. */
+export async function spendBonus(ent: Entitlement): Promise<void> {
+  if (!ent.subscriberId) throw new Error('no subscriber row to spend from');
+  await write(SUBS, 'PATCH', { [S.bonus]: Math.max(0, ent.bonus - 1) }, ent.subscriberId);
+}
+
+/**
+ * Credit a paid top-up. Idempotent on the Stripe session ID: the webhook and
+ * the return redirect both call this, and only the first adds the tokens.
+ */
+export async function creditTopup(input: {
+  email: string;
+  sessionId: string;
+  tokens: number;
+  customer?: string;
+}): Promise<void> {
+  const existing = await findSubscriber(input.email);
+  if (existing?.topupSessions.includes(input.sessionId)) return;
+  const fields: Record<string, unknown> = {
+    [S.email]: norm(input.email),
+    [S.bonus]: (existing?.bonus || 0) + input.tokens,
+    [S.topupSessions]: [...(existing?.topupSessions || []), input.sessionId].join('\n'),
+  };
+  if (input.customer) fields[S.customer] = input.customer;
+  await write(SUBS, existing ? 'PATCH' : 'POST', fields, existing?.id);
+}
+
 export async function recordReveal(input: {
   email: string;
   venueId: string;
   venueName: string;
+  usedBonus: boolean;
 }): Promise<void> {
   await write(REVEALS, 'POST', {
     [R.key]: `${norm(input.email)}|${input.venueId}`,
     [R.email]: norm(input.email),
     [R.venueId]: input.venueId,
     [R.venueName]: input.venueName,
-    [R.usedBonus]: false,
+    [R.usedBonus]: input.usedBonus,
     [R.revealedAt]: new Date().toISOString(),
   });
 }

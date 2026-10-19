@@ -21,6 +21,7 @@ export interface ViewerSummary {
   insights: boolean;
   allowance: number;
   used: number;
+  bonus: number;
   periodStart: string;
 }
 
@@ -35,6 +36,7 @@ export function summarise(ent: Entitlement): ViewerSummary {
     insights: ent.insights,
     allowance: ent.allowance,
     used: ent.used,
+    bonus: ent.bonus,
     periodStart: ent.periodStart,
   };
 }

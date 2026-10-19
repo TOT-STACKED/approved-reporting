@@ -34,7 +34,8 @@ export function isCategory(v: unknown): v is Category {
 }
 
 // Venues is part of the Promote package (£249/mo) and nothing else: no
-// pay-as-you-go plans, no top-ups. Lite and Approved partners don't get it.
+// pay-as-you-go plans. Lite and Approved partners don't get it. Promote
+// partners can buy extra tokens (TOPUP_* below).
 //
 // Each calendar month a Promote partner gets 5 reveals (one token, one venue)
 // and picks up to 5 categories to see on the venues they reveal. The choice is
@@ -48,6 +49,15 @@ export const PROMOTE = {
   maxCategories: 5,
   insights: true, // NPS scores, gaps, the "unhappy with their tool" filter
 };
+
+// Extra tokens, bought one-off from the marketplace. They never expire and are
+// only spent once the month's 5 are used up.
+export const TOPUP_PENCE = 5900;
+export const TOPUP_TOKENS = 5;
+
+export function gbp(pence: number): string {
+  return `£${(pence / 100).toFixed(pence % 100 === 0 ? 0 : 2)}`;
+}
 
 /** A score at or below this counts as "unhappy" — NPS detractor territory. */
 export const UNHAPPY_MAX = 6;

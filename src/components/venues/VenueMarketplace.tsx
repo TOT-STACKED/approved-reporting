@@ -7,8 +7,11 @@ import VenuesHeader from './VenuesHeader';
 import {
   CATEGORIES,
   CATEGORY_LABELS,
+  TOPUP_PENCE,
+  TOPUP_TOKENS,
   UNHAPPY_MAX,
   VENUE_TYPE_LABELS,
+  gbp,
   type Category,
 } from '@/lib/venue-plans';
 import { UPGRADE_URL } from '@/lib/partner-tier';
@@ -48,11 +51,14 @@ export default function VenueMarketplace() {
   const [data, setData] = useState<Payload | null>(null);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState(
-    params.get('welcome') ? 'You’re in. Reveal a venue to see its name and stack.' : ''
+    params.get('welcome') ? 'You’re in. Reveal a venue to see its name and stack.' :
+    params.get('topup') === '1' ? `Payment received. ${TOPUP_TOKENS} extra tokens added to your account.` :
+    params.get('topup') ? `Payment received. Your ${TOPUP_TOKENS} extra tokens will show here within a minute or two. Refresh to check.` : ''
   );
   const [busyId, setBusyId] = useState<string | null>(null);
   const [picks, setPicks] = useState<Category[]>([]);
   const [saving, setSaving] = useState(false);
+  const [buying, setBuying] = useState(false);
 
   const [type, setType] = useState('');
   const [q, setQ] = useState('');
@@ -124,6 +130,23 @@ export default function VenueMarketplace() {
     }
   }
 
+  async function buyTokens() {
+    setBuying(true);
+    setNotice('');
+    try {
+      const res = await fetch('/api/venues/topup', { method: 'POST' });
+      const json = await res.json();
+      if (json.url) {
+        window.location.href = json.url;
+        return;
+      }
+      setNotice([json.error || 'Could not start checkout.', json.detail].filter(Boolean).join(' — '));
+    } catch {
+      setNotice('Could not reach the server. Try again.');
+    }
+    setBuying(false);
+  }
+
   function togglePick(c: Category) {
     setPicks(cur => (cur.includes(c) ? cur.filter(x => x !== c) : [...cur, c]));
   }
@@ -139,6 +162,8 @@ export default function VenueMarketplace() {
   const left = viewer ? Math.max(0, viewer.allowance - viewer.used) : 0;
   const myCats: Category[] = viewer?.categories || [];
   const needsPick = Boolean(viewer && myCats.length === 0);
+  const bonus = viewer?.bonus || 0;
+  const outOfTokens = left === 0 && bonus === 0;
   const maxPicks = viewer?.maxCategories || 5;
 
   return (
@@ -180,12 +205,18 @@ export default function VenueMarketplace() {
         ) : (
           <section className="grid gap-4 sm:grid-cols-2 mb-8">
             <div className="bg-surface border border-border rounded-[22px] p-5">
-              <p className="text-xs uppercase tracking-[0.12em] text-muted mb-1">Reveals left this month</p>
+              <p className="text-xs uppercase tracking-[0.12em] text-muted mb-1">Tokens left this month</p>
               <p className="font-display text-4xl">
                 {left}
                 <span className="text-lg text-dim"> / {viewer.allowance}</span>
               </p>
-              <p className="text-sm text-muted mt-1">Resets on {nextResetLabel()}</p>
+              <p className="text-sm text-muted mt-1">
+                {bonus > 0 && <>+ {bonus} bought {bonus === 1 ? 'token' : 'tokens'} · </>}
+                Resets on {nextResetLabel()}
+              </p>
+              <button onClick={buyTokens} disabled={buying} className={`${btnPrimary} mt-4`}>
+                {buying ? 'Opening checkout…' : `Buy more tokens · ${TOPUP_TOKENS} for ${gbp(TOPUP_PENCE)}`}
+              </button>
             </div>
             <div className="bg-surface border border-border rounded-[22px] p-5">
               <p className="text-xs uppercase tracking-[0.12em] text-muted mb-1">This month&apos;s categories</p>
@@ -340,10 +371,10 @@ export default function VenueMarketplace() {
                     {viewer ? (
                       <button
                         onClick={() => reveal(v.id)}
-                        disabled={busyId === v.id || needsPick || left === 0}
+                        disabled={busyId === v.id || needsPick || outOfTokens}
                         className={`${btnPrimary} w-full`}
                       >
-                        {busyId === v.id ? 'Revealing…' : needsPick ? 'Pick categories first' : left === 0 ? 'No reveals left' : 'Reveal venue'}
+                        {busyId === v.id ? 'Revealing…' : needsPick ? 'Pick categories first' : outOfTokens ? 'No tokens left' : 'Reveal venue'}
                       </button>
                     ) : (
                       <Link href="/venues/join" className={`${btnGhost} block text-center`}>Promote partners only</Link>
