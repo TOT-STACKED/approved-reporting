@@ -129,7 +129,7 @@ function useGps(enabled: boolean) {
       e => setError(e.code === e.PERMISSION_DENIED
         ? 'Location is off for this site. Turn it on in your browser settings, or drop a pin by hand.'
         : 'Still looking for GPS… you can drop a pin by hand.'),
-      { enableHighAccuracy: true, maximumAge: 10000, timeout: 20000 },
+      { enableHighAccuracy: true, maximumAge: 0, timeout: 20000 },
     );
     return () => navigator.geolocation.clearWatch(id);
   }, [enabled]);
@@ -346,6 +346,18 @@ function WhereStep({ d, set, pos, gpsError, editing }: {
   const searchedAt = useRef<{ lat: number; lng: number } | null>(null);
   const [online, setOnline] = useState(true);
   const [earlier, setEarlier] = useState<Fix | null>(null);
+  // A pin dropped from "Pin where I'm standing" keeps following the phone's
+  // fix while it sharpens (indoors the first fix can be hundreds of metres
+  // out), until the agent taps the map or it's within 20 m. Two minutes max.
+  const follow = useRef<{ accuracy: number; until: number } | null>(null);
+  // Laptops have no GPS (Wi-Fi guesses); phones do. Decides the advice shown.
+  const [device] = useState<'iphone' | 'android' | 'computer'>(() => {
+    if (typeof navigator === 'undefined') return 'iphone';
+    const ua = navigator.userAgent;
+    if (/iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1)) return 'iphone';
+    if (/Android/.test(ua)) return 'android';
+    return 'computer';
+  });
   const [q, setQ] = useState('');
   const [found, setFound] = useState<{ name: string; address: string; postcode: string; lat: number; lng: number; ref: string | null; known: boolean }[]>([]);
   const [finding, setFinding] = useState(false);
@@ -423,6 +435,17 @@ function WhereStep({ d, set, pos, gpsError, editing }: {
     setChanging(false);
   }
 
+  useEffect(() => {
+    const f = follow.current;
+    if (!f || !pos || !d.place || d.place.lat == null) return;
+    if (Date.now() > f.until) { follow.current = null; return; }
+    if (pos.accuracy < f.accuracy) {
+      set('place', { ...d.place, lat: pos.lat, lng: pos.lng, geo_precision: 'exact' });
+      follow.current = pos.accuracy <= 20 ? null : { ...f, accuracy: pos.accuracy };
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pos]);
+
   /** No signal and no GPS: save the name and address now, place the pin later. */
   function pinLater() {
     set('place', { venue_name: d.place?.venue_name || '', address: d.place?.address || '', postcode: d.place?.postcode || '', osm_ref: null, lat: null, lng: null, geo_precision: 'none' });
@@ -454,11 +477,37 @@ function WhereStep({ d, set, pos, gpsError, editing }: {
       {/* Manual pinning, always on offer: where you're standing, anywhere on
           the map (tap it), or any venue or address by search. */}
       <div className="mb-3 flex flex-col gap-2">
-        <button type="button" disabled={!pos} onClick={() => startManual(pos)}
+        <button type="button" disabled={!pos} onClick={() => {
+          startManual(pos);
+          if (pos && pos.accuracy > 20) follow.current = { accuracy: pos.accuracy, until: Date.now() + 120000 };
+        }}
           className="flex h-14 items-center justify-center gap-2 rounded-2xl bg-ink text-[16px] font-bold text-white active:bg-ink-deep disabled:opacity-40">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 21s-7-6.2-7-11.5a7 7 0 0114 0C19 14.8 12 21 12 21z" /><circle cx="12" cy="9.5" r="2.5" /></svg>
-          {pos ? 'Pin where I’m standing' : 'Waiting for GPS…'}
+          {pos ? `Pin where I’m standing · ±${pos.accuracy} m` : 'Waiting for GPS…'}
         </button>
+        {pos && (pos.accuracy > 100 || device === 'computer') && (
+          <div className="rounded-2xl bg-warning-tint px-4 py-3 text-[14px] text-warning-dark">
+            {device === 'computer' ? (
+              <>
+                <p className="font-bold">Laptops don’t have GPS (this one says ±{pos.accuracy} m).</p>
+                <p className="mt-1">Its location comes from Wi-Fi and can be hundreds of metres out. Search the venue below, or tap the map on the exact spot.</p>
+              </>
+            ) : (
+              <>
+                <p className="font-bold">Your phone’s location is rough (±{pos.accuracy} m).</p>
+                {pos.accuracy >= 800 && device === 'iphone' && (
+                  <p className="mt-1">Turn on Precise Location: Settings → Privacy &amp; Security → Location Services → Safari Websites → Precise Location. Then reopen the app.</p>
+                )}
+                {pos.accuracy >= 800 && device === 'android' && (
+                  <p className="mt-1">Turn on precise location: Settings → Location → Location services → Google Location Accuracy. Then reopen the app.</p>
+                )}
+                {pos.accuracy < 800 && (
+                  <p className="mt-1">It usually sharpens in a few seconds, faster near a window or door. A pin dropped now follows it; or tap the map on the exact spot.</p>
+                )}
+              </>
+            )}
+          </div>
+        )}
         {online && (
           <div className="relative">
             <input className={INPUT} value={q} onChange={e => find(e.target.value)} placeholder="Or search a venue, street or postcode" autoComplete="off" enterKeyHint="search" />
@@ -506,6 +555,7 @@ function WhereStep({ d, set, pos, gpsError, editing }: {
           }}
           onMapClick={(lat, lng) => {
             // A pin already placed moves here; otherwise a new pin drops here.
+            follow.current = null; // the agent has placed it themselves
             if (d.place && !changing) set('place', { ...d.place, lat, lng, geo_precision: 'exact' });
             else startManual({ lat, lng });
           }}

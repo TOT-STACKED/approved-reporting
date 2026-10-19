@@ -5,7 +5,7 @@ import VisitMapCard from '@/components/field/VisitMapCard';
 import DeleteVisit from '@/components/field/DeleteVisit';
 import { canAccess, currentAgent, getVisit, photoLinks } from '@/lib/field-db';
 import {
-  BUSYNESS, DEMO_INTEREST, FIELD_CATEGORIES, FIELD_VENUE_TYPES, OWNERSHIP, fmtWhen, labelFor, stackLabel,
+  BUSYNESS, DEMO_INTEREST, FIELD_CATEGORIES, FIELD_VENUE_TYPES, OWNERSHIP, distanceM, fmtWhen, labelFor, stackLabel,
   type FieldStackEntry,
 } from '@/lib/field-shared';
 
@@ -70,6 +70,10 @@ export default async function VisitPage({ params, searchParams }: {
               <Row label="Covers" value={visit.covers} />
               <Row label="Ownership" value={[labelFor(OWNERSHIP, visit.ownership), visit.group_name].filter(Boolean).join(' · ')} />
               <Row label="Busyness" value={labelFor(BUSYNESS, visit.busyness)} />
+              <Row label="Phone GPS" value={visit.gps_accuracy_m != null
+                ? `±${visit.gps_accuracy_m} m${visit.lat != null && visit.lng != null && visit.gps_lat != null && visit.gps_lng != null
+                  ? `, ${distanceM(visit.lat, visit.lng, visit.gps_lat, visit.gps_lng)} m from the pin` : ''}${visit.gps_accuracy_m >= 800 ? ' (Precise Location was off)' : ''}`
+                : null} />
             </dl>
           </section>
 
