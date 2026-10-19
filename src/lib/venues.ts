@@ -19,7 +19,6 @@ import {
   type Category,
 } from './venue-plans';
 import type { Entitlement } from './venue-subscribers';
-import { categoriesFor } from './venue-subscribers';
 
 const URL_ = process.env.VENUES_SUPABASE_URL;
 const KEY = process.env.VENUES_SUPABASE_KEY;
@@ -175,9 +174,7 @@ export interface VenueQuery {
 }
 
 function visibleCategories(ent: Entitlement | null): Category[] {
-  if (!ent) return [];
-  const c = categoriesFor(ent);
-  return c === 'all' ? [...CATEGORIES] : c;
+  return ent ? ent.categories : [];
 }
 
 function matchesTool(v: Venue, cats: Category[], tool: string, unhappy: boolean): boolean {
@@ -193,8 +190,8 @@ function matchesTool(v: Venue, cats: Category[], tool: string, unhappy: boolean)
 
 /**
  * The marketplace listing for one viewer. Filtering by tool runs here, against
- * the viewer's own categories only — so a Starter on POS can find "venues on
- * Lightspeed" but can't probe what anyone uses for Workforce.
+ * the viewer's own categories only — so someone who picked POS can find "venues
+ * on Lightspeed" but can't probe what anyone uses for Workforce.
  */
 export async function listVenues(
   ent: Entitlement | null,

@@ -1,14 +1,13 @@
 import { NextResponse, type NextRequest } from 'next/server';
-import { findSubscriber } from '@/lib/venue-subscribers';
 import { findUserByEmail } from '@/lib/partner-users';
 import { generateCode, makeChallenge, OTP_COOKIE } from '@/lib/otp';
 import { sendCodeByEmail } from '@/lib/send-code';
 
 export const dynamic = 'force-dynamic';
 
-// Sign-in step one for the venue marketplace. Anyone with a subscriber row or a
-// Partner Users login can ask for a code — whether that login actually comes
-// with marketplace access is decided after sign-in, by entitlementFor.
+// Sign-in step one for the venue marketplace. Anyone with a Partner Users login
+// can ask for a code — whether their package actually includes Venues
+// (Promote only) is decided after sign-in, by entitlementFor.
 //
 // Same answer whether or not the email exists, as with partner sign-in.
 export async function POST(request: NextRequest) {
@@ -19,11 +18,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Enter your work email' }, { status: 400 });
     }
 
-    const [sub, user] = await Promise.all([findSubscriber(target), findUserByEmail(target)]);
-    if (!sub && !user) return NextResponse.json({ ok: true });
+    const user = await findUserByEmail(target);
+    if (!user) return NextResponse.json({ ok: true });
 
     const code = generateCode();
-    const delivery = await sendCodeByEmail(target, code, sub?.name || user?.name || '');
+    const delivery = await sendCodeByEmail(target, code, user.name || '');
     if (!delivery.sent) {
       return NextResponse.json(
         { error: delivery.error || 'Could not send your code. Try again shortly.' },

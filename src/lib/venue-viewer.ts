@@ -1,29 +1,27 @@
 import type { NextRequest } from 'next/server';
 import { VENUE_SESSION_COOKIE, verifyVenueSession } from './venue-auth';
 import { entitlementFor, type Entitlement } from './venue-subscribers';
-import { CATEGORIES, PLANS, type Category, type PlanId } from './venue-plans';
+import { PROMOTE, type Category, type PlanId } from './venue-plans';
 
-/** The signed-in viewer's entitlement, or null for anonymous / lapsed. */
+/** The signed-in viewer's entitlement, or null for anonymous / no access. */
 export async function viewerEntitlement(request: NextRequest): Promise<Entitlement | null> {
   const session = verifyVenueSession(request.cookies.get(VENUE_SESSION_COOKIE)?.value);
   if (!session) return null;
   return entitlementFor(session.email);
 }
 
-/** What the browser is told about its own plan. */
+/** What the browser is told about its own access. */
 export interface ViewerSummary {
   email: string;
   name: string;
   plan: PlanId;
   planName: string;
-  status: string;
   categories: Category[];
+  maxCategories: number;
   insights: boolean;
   allowance: number;
   used: number;
-  bonus: number;
   periodStart: string;
-  canManageBilling: boolean;
 }
 
 export function summarise(ent: Entitlement): ViewerSummary {
@@ -31,14 +29,12 @@ export function summarise(ent: Entitlement): ViewerSummary {
     email: ent.email,
     name: ent.name,
     plan: ent.plan,
-    planName: PLANS[ent.plan].name,
-    status: ent.status,
-    categories: PLANS[ent.plan].allCategories ? [...CATEGORIES] : ent.categories,
+    planName: PROMOTE.name,
+    categories: ent.categories,
+    maxCategories: PROMOTE.maxCategories,
     insights: ent.insights,
     allowance: ent.allowance,
     used: ent.used,
-    bonus: ent.bonus,
     periodStart: ent.periodStart,
-    canManageBilling: ent.canManageBilling,
   };
 }

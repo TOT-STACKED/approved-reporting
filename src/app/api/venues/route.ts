@@ -6,7 +6,7 @@ import { VENUE_SESSION_COOKIE, verifyVenueSession } from '@/lib/venue-auth';
 export const dynamic = 'force-dynamic';
 
 // The marketplace listing. Anonymous visitors get anonymised cards; signed-in
-// subscribers get the same, plus name and stack on the venues they've revealed.
+// Promote partners get the same, plus name and stack on the venues they've revealed.
 // All shaping happens in listVenues — this route just passes the viewer in.
 export async function GET(request: NextRequest) {
   try {
@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
       unhappy: p.get('unhappy') === '1',
       revealedOnly: p.get('revealed') === '1',
     });
-    // Signed in but nothing to show (lapsed, or a Promote partner): say so,
+    // Signed in but no access (Lite, Approved, or not a partner): say so,
     // rather than showing the anonymous page with a "Sign in" button.
     const signedInAs = ent ? null : verifyVenueSession(request.cookies.get(VENUE_SESSION_COOKIE)?.value)?.email || null;
     return NextResponse.json({ viewer: ent ? summarise(ent) : null, signedInAs, venues, total });

@@ -2,15 +2,14 @@
 
 import { Suspense, useState } from 'react';
 import Link from 'next/link';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import VenuesHeader from '@/components/venues/VenuesHeader';
 
 // Venue marketplace sign-in. Same two-step code flow as partner sign-in, on
-// its own endpoints and session, since marketplace subscribers needn't be
-// Stacked partners.
+// its own endpoints and session. Promote partners sign in with the email on
+// their partner login.
 function SignIn() {
   const router = useRouter();
-  const params = useSearchParams();
   const [step, setStep] = useState<'email' | 'code'>('email');
   const [email, setEmail] = useState('');
   const [code, setCode] = useState('');
@@ -61,17 +60,14 @@ function SignIn() {
 
   return (
     <div className="min-h-screen bg-bg">
-      <VenuesHeader right={<Link href="/venues/join" className="text-sm underline">See plans</Link>} />
+      <VenuesHeader right={<Link href="/venues/join" className="text-sm underline">How it works</Link>} />
       <div className="flex justify-center py-10 sm:py-16 px-4">
         <div className="w-full max-w-md bg-brand-yellow rounded-[30px] p-7 sm:p-8">
           <h1 className="font-display text-3xl sm:text-4xl mb-3">Sign in to Venues</h1>
-          {params.get('paid') && (
-            <p className="text-sm mb-4">Payment received. Sign in with the email you paid with.</p>
-          )}
           {step === 'email' ? (
             <form onSubmit={requestCode} className="space-y-4">
               <p className="text-sm text-gray-600 leading-relaxed">
-                We&apos;ll email you a six-digit code. No password.
+                Use the email on your Stacked partner login. We&apos;ll email you a six-digit code. No password.
               </p>
               <input type="email" required autoComplete="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="you@yourcompany.com" className={input} />
               {error && <p className="text-sm text-red-700">{error}</p>}
@@ -80,7 +76,7 @@ function SignIn() {
           ) : (
             <form onSubmit={verify} className="space-y-4">
               <p className="text-sm text-gray-600 leading-relaxed">
-                If that email has a subscription, a code is on its way. It expires in 10 minutes.
+                If that email has a partner login, a code is on its way. It expires in 10 minutes.
               </p>
               <input inputMode="numeric" autoComplete="one-time-code" required value={code} onChange={e => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))} placeholder="000000" className={`${input} text-lg tracking-[0.4em] font-mono`} />
               {error && <p className="text-sm text-red-700">{error}</p>}

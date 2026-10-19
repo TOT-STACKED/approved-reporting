@@ -24,9 +24,12 @@ const CACHE_TTL_MS = 5 * 60 * 1000;
 // Last known good, kept indefinitely. A refresh only replaces it on success,
 // so an Airtable blip doesn't quietly downgrade every paying partner — it
 // just serves slightly stale tiers until the next read lands.
-let cached: Map<string, PartnerTier> | null = null;
+// Values are the raw Package, lowercased ('lite' | 'promote' | 'approved' | '').
+// Tiers are derived from it on read, so the venue marketplace can tell Lite
+// from Promote, which the tier deliberately doesn't.
+let cached: Map<string, string> | null = null;
 let cachedAt = 0;
-let inflight: Promise<Map<string, PartnerTier> | null> | null = null;
+let inflight: Promise<Map<string, string> | null> | null = null;
 
 function toTier(pkg: unknown): PartnerTier {
   // Only Approved unlocks lead detail. Promote and Lite don't, and neither
@@ -36,13 +39,13 @@ function toTier(pkg: unknown): PartnerTier {
     : 'promote';
 }
 
-async function fetchPackages(): Promise<Map<string, PartnerTier> | null> {
+async function fetchPackages(): Promise<Map<string, string> | null> {
   if (!MP_BASE || !MP_KEY) {
     console.warn('[partner-package] MARKETPLACE_AIRTABLE_* not configured — falling back');
     return null;
   }
 
-  const map = new Map<string, PartnerTier>();
+  const map = new Map<string, string>();
   let offset: string | undefined;
 
   try {
@@ -68,7 +71,7 @@ async function fetchPackages(): Promise<Map<string, PartnerTier> | null> {
       };
       for (const r of json.records || []) {
         const slug = (r.fields?.Slug || '').trim().toLowerCase();
-        if (slug) map.set(slug, toTier(r.fields?.Package));
+        if (slug) map.set(slug, (r.fields?.Package || '').trim().toLowerCase());
       }
       offset = json.offset;
     } while (offset);
@@ -80,7 +83,7 @@ async function fetchPackages(): Promise<Map<string, PartnerTier> | null> {
   return map;
 }
 
-async function packageMap(): Promise<Map<string, PartnerTier> | null> {
+async function packageMap(): Promise<Map<string, string> | null> {
   if (cached && Date.now() - cachedAt < CACHE_TTL_MS) return cached;
   // One read at a time: a burst of page loads shouldn't become a burst of
   // Airtable calls.
@@ -117,10 +120,25 @@ export async function tierForSlug(slug: string): Promise<PartnerTier> {
   // `sky-business`. Try every spelling we know them by; checking only the
   // asked-for slug silently dropped six Approved partners to Promote.
   for (const candidate of partnerSlugAliases(slug)) {
-    const tier = map.get(candidate);
-    if (tier) return tier;
+    if (map.has(candidate)) return toTier(map.get(candidate));
   }
 
   console.warn(`[partner-package] no Package for slug "${slug}" — gating lead detail`);
   return 'promote';
+}
+
+/**
+ * The partner's Package as written in Airtable, lowercased — 'lite',
+ * 'promote', 'approved' — or null when there's no row or Airtable is
+ * unreachable. Unlike tierForSlug this keeps Lite apart from Promote, and
+ * ignores PARTNER_TIERS (that override is about lead detail, not the package).
+ */
+export async function packageForSlug(slug: string): Promise<string | null> {
+  const map = await packageMap();
+  if (!map) return null;
+  for (const candidate of partnerSlugAliases(slug)) {
+    const pkg = map.get(candidate);
+    if (pkg) return pkg;
+  }
+  return null;
 }

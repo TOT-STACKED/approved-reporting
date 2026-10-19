@@ -1,16 +1,19 @@
-// Venue marketplace subscribers and their reveals, in the Stacked website
-// Airtable base alongside Partner Users — same credentials, no new token.
+// Venue marketplace access and reveals, in the Stacked website Airtable base
+// alongside Partner Users — same credentials, no new token.
 //
-//   Venue Subscribers — one row per paying email. Written by the Stripe
-//                       webhook; the team revokes access by deleting the row.
-//   Venue Reveals     — one row per venue a subscriber has unlocked. Counted
-//                       against their monthly allowance from Period Start.
+// Who gets in is decided by the partner's Package (Promote only), not by this
+// table. These tables only hold what a Promote user has done with it:
 //
-// Field IDs, not names, so renaming a column in Airtable can't break billing.
+//   Venue Subscribers — one row per signed-in email, holding the categories
+//                       they picked and the month they picked them for.
+//   Venue Reveals     — one row per venue a user has unlocked, counted
+//                       against the month's allowance.
+//
+// Field IDs, not names, so renaming a column in Airtable can't break access.
 
-import { isCategory, PLANS, type Category, type PlanId } from './venue-plans';
+import { isCategory, PROMOTE, type Category, type PlanId } from './venue-plans';
 import { findUserByEmail } from './partner-users';
-import { tierForSlug } from './partner-package';
+import { packageForSlug } from './partner-package';
 
 const BASE = process.env.MARKETPLACE_AIRTABLE_BASE_ID;
 const KEY = process.env.MARKETPLACE_AIRTABLE_KEY;
@@ -40,20 +43,11 @@ const R = {
   revealedAt: 'fldeO4pC6o3vhkzij',
 } as const;
 
-export type SubscriberStatus = 'active' | 'past_due' | 'cancelled';
-
 export interface Subscriber {
   id: string;
   email: string;
-  name: string;
-  company: string;
-  plan: 'starter' | 'bundle';
   categories: Category[];
-  status: SubscriberStatus;
   periodStart: string;
-  bonus: number;
-  customer: string;
-  subscription: string;
 }
 
 type AirtableRecord = { id: string; fields?: Record<string, unknown> };
@@ -115,84 +109,17 @@ async function write(
 
 function toSubscriber(r: AirtableRecord): Subscriber {
   const f = r.fields || {};
-  const plan = String(f[S.plan] || '').toLowerCase() === 'bundle' ? 'bundle' : 'starter';
-  const status = String(f[S.status] || 'active') as SubscriberStatus;
   return {
     id: r.id,
     email: norm(String(f[S.email] || '')),
-    name: String(f[S.name] || ''),
-    company: String(f[S.company] || ''),
-    plan,
     categories: ((f[S.categories] as unknown[]) || []).filter(isCategory),
-    status: ['active', 'past_due', 'cancelled'].includes(status) ? status : 'active',
     periodStart: String(f[S.periodStart] || ''),
-    bonus: Number(f[S.bonus] || 0),
-    customer: String(f[S.customer] || ''),
-    subscription: String(f[S.subscription] || ''),
   };
 }
 
 export async function findSubscriber(email: string): Promise<Subscriber | null> {
   const rows = await select(SUBS, `LOWER({${S.email}})=${lit(norm(email))}`);
   return rows[0] ? toSubscriber(rows[0]) : null;
-}
-
-export async function findSubscriberBySubscription(subId: string): Promise<Subscriber | null> {
-  const rows = await select(SUBS, `{${S.subscription}}=${lit(subId)}`);
-  return rows[0] ? toSubscriber(rows[0]) : null;
-}
-
-/**
- * Create or update the row for a completed checkout. Idempotent — the webhook
- * and the post-checkout redirect both call it, whichever lands first wins and
- * the second is a no-op rewrite of the same values.
- */
-export async function upsertSubscriber(input: {
-  email: string;
-  name?: string;
-  company?: string;
-  plan: 'starter' | 'bundle';
-  categories: Category[];
-  customer: string;
-  subscription: string;
-  periodStart: string;
-}): Promise<{ subscriber: Subscriber; replaced: string | null }> {
-  const existing = await findSubscriber(input.email);
-  const fields: Record<string, unknown> = {
-    [S.email]: norm(input.email),
-    [S.plan]: input.plan === 'bundle' ? 'Bundle' : 'Starter',
-    [S.categories]: input.categories,
-    [S.status]: 'active',
-    [S.customer]: input.customer,
-    [S.subscription]: input.subscription,
-  };
-  if (input.name) fields[S.name] = input.name;
-  if (input.company) fields[S.company] = input.company;
-  // A resubscribe on the same subscription keeps its period; a new one resets it.
-  if (!existing || existing.subscription !== input.subscription) {
-    fields[S.periodStart] = input.periodStart;
-  }
-  const rec = existing
-    ? await write(SUBS, 'PATCH', fields, existing.id)
-    : await write(SUBS, 'POST', { ...fields, [S.bonus]: 0 });
-  // An earlier, still-live subscription on this email is the plan they've just
-  // moved off — the caller cancels it so they aren't billed for both.
-  const replaced =
-    existing?.subscription && existing.subscription !== input.subscription && existing.status !== 'cancelled'
-      ? existing.subscription
-      : null;
-  return { subscriber: toSubscriber(rec), replaced };
-}
-
-export async function updateSubscriber(
-  id: string,
-  patch: Partial<{ status: SubscriberStatus; periodStart: string; bonus: number }>
-): Promise<void> {
-  const fields: Record<string, unknown> = {};
-  if (patch.status) fields[S.status] = patch.status;
-  if (patch.periodStart) fields[S.periodStart] = patch.periodStart;
-  if (typeof patch.bonus === 'number') fields[S.bonus] = patch.bonus;
-  await write(SUBS, 'PATCH', fields, id);
 }
 
 export async function touchSubscriberSignIn(id: string): Promise<void> {
@@ -208,20 +135,19 @@ export async function touchSubscriberSignIn(id: string): Promise<void> {
 export interface Entitlement {
   email: string;
   name: string;
+  company: string;
   plan: PlanId;
-  status: SubscriberStatus;
+  /** This month's picks. Empty means they haven't chosen yet this month. */
   categories: Category[];
   insights: boolean;
   allowance: number;
   used: number;
-  bonus: number;
   periodStart: string;
   revealed: Set<string>;
-  subscriberId: string | null;
-  canManageBilling: boolean;
 }
 
-function startOfMonth(): string {
+/** The 1st of this month, UTC — when the allowance and the category pick reset. */
+export function startOfMonth(): string {
   const d = new Date();
   return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1)).toISOString();
 }
@@ -231,95 +157,68 @@ async function revealsFor(email: string): Promise<AirtableRecord[]> {
 }
 
 /**
- * What a signed-in email may see. A paying subscriber first; failing that an
- * Approved partner's colleague, who gets the Bundle as part of their package.
- * Null means "signed in but nothing to show" — treat as anonymous.
+ * What a signed-in email may see: a Partner Users login whose partner's
+ * Package is Promote. Anyone else — Lite, Approved, no partner — gets null,
+ * which the pages treat as "signed in, no access".
  */
 export async function entitlementFor(email: string): Promise<Entitlement | null> {
-  const sub = await findSubscriber(email);
+  const user = await findUserByEmail(email);
+  if (!user?.slug || (await packageForSlug(user.slug)) !== 'promote') return null;
 
-  let base: Omit<Entitlement, 'used' | 'revealed'> | null = null;
+  const periodStart = startOfMonth();
+  const since = Date.parse(periodStart);
+  const [sub, rows] = await Promise.all([findSubscriber(email), revealsFor(email)]);
+  const pickedThisMonth = sub && (Date.parse(sub.periodStart) || 0) >= since;
 
-  if (sub && sub.status !== 'cancelled') {
-    const spec = PLANS[sub.plan];
-    base = {
-      email: sub.email,
-      name: sub.name,
-      plan: sub.plan,
-      status: sub.status,
-      categories: spec.allCategories ? [] : sub.categories,
-      insights: spec.insights,
-      allowance: spec.reveals,
-      bonus: sub.bonus,
-      periodStart: sub.periodStart || startOfMonth(),
-      subscriberId: sub.id,
-      canManageBilling: Boolean(sub.customer),
-    };
-  } else {
-    const user = await findUserByEmail(email);
-    if (user?.slug && (await tierForSlug(user.slug)) === 'approved') {
-      base = {
-        email: norm(email),
-        name: user.name,
-        plan: 'partner',
-        status: 'active',
-        categories: [],
-        insights: true,
-        allowance: PLANS.partner.reveals,
-        bonus: sub?.bonus || 0,
-        periodStart: startOfMonth(),
-        subscriberId: sub?.id || null,
-        canManageBilling: false,
-      };
-    }
-  }
-  if (!base) return null;
-
-  const rows = await revealsFor(base.email);
-  const since = Date.parse(base.periodStart) || 0;
   let used = 0;
   const revealed = new Set<string>();
   for (const r of rows) {
     const f = r.fields || {};
     revealed.add(String(f[R.venueId] || ''));
     const at = Date.parse(String(f[R.revealedAt] || '')) || 0;
-    if (at >= since && !f[R.usedBonus]) used++;
+    if (at >= since) used++;
   }
-  return { ...base, used, revealed };
+
+  return {
+    email: norm(email),
+    name: user.name,
+    company: user.slug,
+    plan: 'promote',
+    categories: pickedThisMonth ? sub.categories.slice(0, PROMOTE.maxCategories) : [],
+    insights: PROMOTE.insights,
+    allowance: PROMOTE.reveals,
+    used,
+    periodStart,
+    revealed,
+  };
 }
 
-/** Which categories this entitlement can read. Empty list on the plan = all. */
-export function categoriesFor(ent: Entitlement): Category[] | 'all' {
-  return PLANS[ent.plan].allCategories ? 'all' : ent.categories;
+/** Save this month's category pick, creating the row on first use. */
+export async function saveCategories(ent: Entitlement, categories: Category[]): Promise<void> {
+  const existing = await findSubscriber(ent.email);
+  const fields: Record<string, unknown> = {
+    [S.email]: ent.email,
+    [S.name]: ent.name,
+    [S.company]: ent.company,
+    [S.plan]: PROMOTE.name,
+    [S.status]: 'active',
+    [S.categories]: categories,
+    [S.periodStart]: ent.periodStart,
+  };
+  await write(SUBS, existing ? 'PATCH' : 'POST', fields, existing?.id);
 }
 
 export async function recordReveal(input: {
   email: string;
   venueId: string;
   venueName: string;
-  usedBonus: boolean;
 }): Promise<void> {
   await write(REVEALS, 'POST', {
     [R.key]: `${norm(input.email)}|${input.venueId}`,
     [R.email]: norm(input.email),
     [R.venueId]: input.venueId,
     [R.venueName]: input.venueName,
-    [R.usedBonus]: input.usedBonus,
+    [R.usedBonus]: false,
     [R.revealedAt]: new Date().toISOString(),
-  });
-}
-
-export async function addBonus(email: string, reveals: number): Promise<void> {
-  const sub = await findSubscriber(email);
-  if (sub) {
-    await updateSubscriber(sub.id, { bonus: sub.bonus + reveals });
-    return;
-  }
-  // An Approved partner topping up has no subscriber row yet — make one to
-  // hold the balance. Status cancelled keeps it from granting a plan.
-  await write(SUBS, 'POST', {
-    [S.email]: norm(email),
-    [S.status]: 'cancelled',
-    [S.bonus]: reveals,
   });
 }

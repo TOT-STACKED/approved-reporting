@@ -1,21 +1,18 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { venueById } from '@/lib/venues';
-import { recordReveal, updateSubscriber } from '@/lib/venue-subscribers';
+import { recordReveal } from '@/lib/venue-subscribers';
 import { viewerEntitlement } from '@/lib/venue-viewer';
 
 export const dynamic = 'force-dynamic';
 
-// Spend one reveal on a venue. Plan allowance first, then bonus reveals from
-// top-ups. Revealing something already revealed is free and just says ok.
+// Spend one of the month's reveals on a venue. Revealing something already
+// revealed is free and just says ok.
 export async function POST(request: NextRequest) {
   try {
     const ent = await viewerEntitlement(request);
-    if (!ent) return NextResponse.json({ error: 'Sign in to reveal venues.' }, { status: 401 });
-    if (ent.status === 'past_due') {
-      return NextResponse.json(
-        { error: 'Your last payment didn’t go through. Update your card to keep revealing.' },
-        { status: 402 }
-      );
+    if (!ent) return NextResponse.json({ error: 'Sign in with your Promote partner email to reveal venues.' }, { status: 401 });
+    if (!ent.categories.length) {
+      return NextResponse.json({ error: 'Pick this month’s categories first.', needsCategories: true }, { status: 409 });
     }
 
     const { id } = (await request.json().catch(() => ({}))) as { id?: string };
@@ -26,19 +23,14 @@ export async function POST(request: NextRequest) {
     const venue = await venueById(id);
     if (!venue) return NextResponse.json({ error: 'That venue is no longer listed.' }, { status: 404 });
 
-    let usedBonus = false;
     if (ent.used >= ent.allowance) {
-      if (ent.bonus <= 0 || !ent.subscriberId) {
-        return NextResponse.json(
-          { error: 'You’ve used this month’s reveals.', outOfReveals: true },
-          { status: 402 }
-        );
-      }
-      usedBonus = true;
-      await updateSubscriber(ent.subscriberId, { bonus: ent.bonus - 1 });
+      return NextResponse.json(
+        { error: 'You’ve used this month’s reveals. You get 5 more on the 1st.', outOfReveals: true },
+        { status: 402 }
+      );
     }
 
-    await recordReveal({ email: ent.email, venueId: venue.id, venueName: venue.name, usedBonus });
+    await recordReveal({ email: ent.email, venueId: venue.id, venueName: venue.name });
     return NextResponse.json({ ok: true });
   } catch (error: unknown) {
     console.warn('[venues] reveal failed', error);

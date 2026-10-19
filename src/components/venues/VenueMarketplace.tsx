@@ -7,13 +7,11 @@ import VenuesHeader from './VenuesHeader';
 import {
   CATEGORIES,
   CATEGORY_LABELS,
-  TOPUP_REVEALS,
   UNHAPPY_MAX,
   VENUE_TYPE_LABELS,
-  gbp,
-  TOPUP_PENCE,
   type Category,
 } from '@/lib/venue-plans';
+import { UPGRADE_URL } from '@/lib/partner-tier';
 import type { VenueCard } from '@/lib/venues';
 import type { ViewerSummary } from '@/lib/venue-viewer';
 
@@ -34,6 +32,11 @@ function fmtDate(iso: string): string {
   return Number.isNaN(d.getTime()) ? '' : d.toLocaleDateString('en-GB', { month: 'short', year: 'numeric' });
 }
 
+function nextResetLabel(): string {
+  const d = new Date();
+  return new Date(d.getFullYear(), d.getMonth() + 1, 1).toLocaleDateString('en-GB', { day: 'numeric', month: 'long' });
+}
+
 function sitesLabel(s: string): string {
   if (!s) return '';
   return s === '1' ? '1 site' : `${s} sites`;
@@ -45,10 +48,11 @@ export default function VenueMarketplace() {
   const [data, setData] = useState<Payload | null>(null);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState(
-    params.get('welcome') ? 'You’re in. Reveal a venue to see its name and stack.' :
-    params.get('topup') ? `Top-up received — ${TOPUP_REVEALS} more reveals are on their way to your account.` : ''
+    params.get('welcome') ? 'You’re in. Reveal a venue to see its name and stack.' : ''
   );
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [picks, setPicks] = useState<Category[]>([]);
+  const [saving, setSaving] = useState(false);
 
   const [type, setType] = useState('');
   const [q, setQ] = useState('');
@@ -90,7 +94,7 @@ export default function VenueMarketplace() {
       });
       const json = await res.json();
       if (!res.ok) {
-        setNotice(json.outOfReveals ? `You’ve used this month’s reveals. Top up ${TOPUP_REVEALS} for ${gbp(TOPUP_PENCE)}.` : json.error);
+        setNotice(json.error);
         return;
       }
       await load();
@@ -99,15 +103,29 @@ export default function VenueMarketplace() {
     }
   }
 
-  async function goTo(endpoint: string, body?: object) {
-    const res = await fetch(endpoint, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body || {}),
-    });
-    const json = await res.json();
-    if (json.url) window.location.href = json.url;
-    else setNotice(json.error || 'Something went wrong.');
+  async function saveCategories() {
+    setSaving(true);
+    setNotice('');
+    try {
+      const res = await fetch('/api/venues/categories', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ categories: picks }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        setNotice(json.error || 'Could not save your categories.');
+        return;
+      }
+      setPicks([]);
+      await load();
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function togglePick(c: Category) {
+    setPicks(cur => (cur.includes(c) ? cur.filter(x => x !== c) : [...cur, c]));
   }
 
   async function signOut() {
@@ -120,6 +138,8 @@ export default function VenueMarketplace() {
   const viewer = data?.viewer || null;
   const left = viewer ? Math.max(0, viewer.allowance - viewer.used) : 0;
   const myCats: Category[] = viewer?.categories || [];
+  const needsPick = Boolean(viewer && myCats.length === 0);
+  const maxPicks = viewer?.maxCategories || 5;
 
   return (
     <div className="min-h-screen bg-bg">
@@ -132,8 +152,8 @@ export default function VenueMarketplace() {
             </>
           ) : (
             <>
-              <Link href="/venues/signin" className={btnGhost}>Sign in</Link>
-              <Link href="/venues/join" className={btnPrimary}>See plans</Link>
+              <Link href="/venues/join" className={btnGhost}>How it works</Link>
+              <Link href="/venues/signin" className={btnPrimary}>Sign in</Link>
             </>
           )
         }
@@ -149,53 +169,76 @@ export default function VenueMarketplace() {
             <p className="text-base text-muted max-w-2xl mb-6 leading-relaxed">
               {data ? `${data.total} hospitality venues` : 'Hundreds of hospitality venues'} have told
               Stacked exactly what they use for POS, payments, workforce, inventory and more, and agreed
-              to be listed. Browse them free. Reveal the ones you want to know about from {gbp(1000)} a
-              month.
+              to be listed. Browse them free. Promote partners reveal 5 venues a month, in the categories
+              they pick.
             </p>
             <div className="flex flex-wrap gap-3">
-              <Link href="/venues/join" className={btnPrimary}>See plans</Link>
-              <Link href="/venues/signin" className={btnGhost}>I already subscribe</Link>
+              <Link href="/venues/signin" className={btnPrimary}>Sign in with your partner email</Link>
+              <Link href="/venues/join" className={btnGhost}>How it works</Link>
             </div>
           </section>
         ) : (
-          <section className="grid gap-4 sm:grid-cols-3 mb-8">
+          <section className="grid gap-4 sm:grid-cols-2 mb-8">
             <div className="bg-surface border border-border rounded-[22px] p-5">
               <p className="text-xs uppercase tracking-[0.12em] text-muted mb-1">Reveals left this month</p>
               <p className="font-display text-4xl">
                 {left}
                 <span className="text-lg text-dim"> / {viewer.allowance}</span>
               </p>
-              {viewer.bonus > 0 && <p className="text-sm text-muted mt-1">+ {viewer.bonus} top-up reveals</p>}
+              <p className="text-sm text-muted mt-1">Resets on {nextResetLabel()}</p>
             </div>
             <div className="bg-surface border border-border rounded-[22px] p-5">
-              <p className="text-xs uppercase tracking-[0.12em] text-muted mb-1">Your plan</p>
+              <p className="text-xs uppercase tracking-[0.12em] text-muted mb-1">This month&apos;s categories</p>
               <p className="font-display text-2xl mb-1">{viewer.planName}</p>
               <p className="text-sm text-muted">
-                {myCats.length === CATEGORIES.length ? 'Every category' : myCats.map(c => CATEGORY_LABELS[c]).join(', ')}
+                {myCats.length ? myCats.map(c => CATEGORY_LABELS[c]).join(', ') : 'Not picked yet'}
                 {viewer.insights && ' · scores & gaps'}
               </p>
-              {viewer.status === 'past_due' && (
-                <p className="text-sm text-negative-dark mt-2">Payment failed — update your card to keep revealing.</p>
-              )}
             </div>
-            <div className="bg-surface border border-border rounded-[22px] p-5 flex flex-col gap-2 justify-center">
-              <button onClick={() => goTo('/api/venues/checkout', { topup: true })} className={btnPrimary}>
-                Top up {TOPUP_REVEALS} reveals · {gbp(TOPUP_PENCE)}
+          </section>
+        )}
+
+        {needsPick && (
+          <section className="bg-brand-yellow rounded-[28px] p-6 sm:p-8 mb-8">
+            <h2 className="font-display text-2xl sm:text-3xl mb-2">Pick this month&apos;s categories</h2>
+            <p className="text-sm text-muted max-w-2xl mb-5 leading-relaxed">
+              Choose up to {maxPicks}. Your {viewer?.allowance} reveals this month show each venue&apos;s
+              tools in these categories. Your pick is locked until {nextResetLabel()}, when you can choose again.
+            </p>
+            <div className="flex flex-wrap gap-2 mb-5">
+              {CATEGORIES.map(c => {
+                const on = picks.includes(c);
+                const full = !on && picks.length >= maxPicks;
+                return (
+                  <button
+                    key={c}
+                    type="button"
+                    onClick={() => togglePick(c)}
+                    disabled={full}
+                    aria-pressed={on}
+                    className={`rounded-full px-3.5 py-1.5 text-sm border transition-colors disabled:opacity-40 ${
+                      on ? 'bg-brand-green text-white border-brand-green' : 'bg-surface border-border hover:bg-brand-cream'
+                    }`}
+                  >
+                    {CATEGORY_LABELS[c]}
+                  </button>
+                );
+              })}
+            </div>
+            <div className="flex flex-wrap items-center gap-4">
+              <button onClick={saveCategories} disabled={saving || picks.length === 0} className={btnPrimary}>
+                {saving ? 'Saving…' : 'Confirm categories'}
               </button>
-              {viewer.canManageBilling && (
-                <button onClick={() => goTo('/api/venues/billing')} className={btnGhost}>Manage billing</button>
-              )}
-              {viewer.plan === 'starter' && (
-                <Link href="/venues/join" className="text-sm text-center text-muted underline">Upgrade to Bundle</Link>
-              )}
+              <span className="text-sm text-muted">{picks.length} of {maxPicks} picked</span>
             </div>
           </section>
         )}
 
         {!viewer && data?.signedInAs && (
           <div className="mb-6 rounded-2xl bg-primary-wash border border-primary-tint px-4 py-3 text-sm">
-            You&apos;re signed in as {data.signedInAs}, but there&apos;s no active plan on this email.{' '}
-            <Link href="/venues/join" className="underline">Pick a plan</Link> to start revealing venues.
+            You&apos;re signed in as {data.signedInAs}. Venues is part of the Promote package, and this
+            email isn&apos;t on a Promote partner account.{' '}
+            <a href={UPGRADE_URL} className="underline">See partner packages</a> or talk to the Stacked team.
           </div>
         )}
 
@@ -295,11 +338,15 @@ export default function VenueMarketplace() {
                   </div>
                   <div className="mt-auto">
                     {viewer ? (
-                      <button onClick={() => reveal(v.id)} disabled={busyId === v.id} className={`${btnPrimary} w-full`}>
-                        {busyId === v.id ? 'Revealing…' : 'Reveal venue'}
+                      <button
+                        onClick={() => reveal(v.id)}
+                        disabled={busyId === v.id || needsPick || left === 0}
+                        className={`${btnPrimary} w-full`}
+                      >
+                        {busyId === v.id ? 'Revealing…' : needsPick ? 'Pick categories first' : left === 0 ? 'No reveals left' : 'Reveal venue'}
                       </button>
                     ) : (
-                      <Link href="/venues/join" className={`${btnGhost} block text-center`}>Subscribe to reveal</Link>
+                      <Link href="/venues/join" className={`${btnGhost} block text-center`}>Promote partners only</Link>
                     )}
                   </div>
                 </>
