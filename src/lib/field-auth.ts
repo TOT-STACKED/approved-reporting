@@ -74,3 +74,40 @@ export function bootstrapManagers(): string[] {
     .map(e => e.trim().toLowerCase())
     .filter(Boolean);
 }
+
+// ── Remember this phone ─────────────────────────────────────────────────────
+//
+// A year-long key the phone keeps in its own storage after a code sign-in.
+// iPhones can drop a home-screen app's cookie (and reload the app mid
+// sign-in), so when the session cookie is missing the sign-in page hands this
+// key to /api/field/resume, which sets a fresh session without a code. Signed
+// in its own "field-device:" domain, so it can't be used as a session cookie
+// (or vice versa). Switching an agent off on the Team page still locks them
+// out: resume checks the agent is active, every time. Signing out deletes it.
+
+export const DEVICE_KEY_TTL_MS = 365 * 24 * 60 * 60 * 1000;
+
+function signDevice(payload: string): string {
+  return b64url(crypto.createHmac('sha256', secret()).update(`field-device:${payload}`).digest());
+}
+
+export function makeDeviceKey(email: string): string {
+  const encoded = b64url(JSON.stringify({ email: email.trim().toLowerCase(), exp: Date.now() + DEVICE_KEY_TTL_MS }));
+  return `${encoded}.${signDevice(encoded)}`;
+}
+
+export function verifyDeviceKey(key: unknown): { email: string } | null {
+  if (typeof key !== 'string' || key.length > 2000) return null;
+  const [encoded, sig] = key.split('.');
+  if (!encoded || !sig) return null;
+  try {
+    const a = Buffer.from(sig);
+    const b = Buffer.from(signDevice(encoded));
+    if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return null;
+    const payload = JSON.parse(b64urlDecode(encoded).toString('utf8'));
+    if (typeof payload.email !== 'string' || typeof payload.exp !== 'number' || payload.exp < Date.now()) return null;
+    return { email: payload.email };
+  } catch {
+    return null;
+  }
+}

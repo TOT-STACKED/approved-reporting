@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { OTP_COOKIE, verifyChallenge } from '@/lib/otp';
-import { FIELD_COOKIE_OPTIONS, FIELD_SESSION_COOKIE, makeFieldSession } from '@/lib/field-auth';
+import { FIELD_COOKIE_OPTIONS, FIELD_SESSION_COOKIE, makeDeviceKey, makeFieldSession } from '@/lib/field-auth';
 import { agentForSignIn, touchSignIn } from '@/lib/field-db';
 
 export const dynamic = 'force-dynamic';
@@ -33,7 +33,8 @@ export async function POST(request: NextRequest) {
     const agent = await agentForSignIn(result.email);
     if (!agent) return NextResponse.json({ error: "That email isn't on the field team." }, { status: 403 });
 
-    const res = NextResponse.json({ ok: true, next: '/field' });
+    // deviceKey: the phone keeps it so it never needs another code (see field-auth).
+    const res = NextResponse.json({ ok: true, next: '/field', deviceKey: makeDeviceKey(result.email) });
     res.cookies.set(FIELD_SESSION_COOKIE, makeFieldSession(result.email), FIELD_COOKIE_OPTIONS);
     res.cookies.delete(OTP_COOKIE);
     void touchSignIn(agent.id).catch(() => {});
