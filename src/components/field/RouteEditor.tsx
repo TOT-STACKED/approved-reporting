@@ -23,7 +23,9 @@ import {
 //   run   — next stop up top, "Start visit here", directions in Google Maps
 //   look back — planned line vs where the agent actually went that day/week
 
-interface SearchResult { name: string; address: string; postcode: string; lat: number; lng: number; ref: string | null; known: boolean }
+interface SearchResult { name: string; address: string; postcode: string; lat: number; lng: number; ref: string | null; known: boolean; source?: 'known' | 'target' | 'map' | 'postcode' | 'area' }
+
+const SOURCE_TAG: Record<string, string> = { known: 'Known', target: 'Target', postcode: 'Postcode', area: 'Area' };
 
 const INPUT = 'h-12 w-full rounded-xl border border-border bg-surface px-4 text-[16px] text-ink placeholder:text-dim focus:border-ink focus:outline-none';
 const LABEL = 'mb-2 block text-xs font-bold uppercase tracking-[0.1em] text-muted';
@@ -55,6 +57,10 @@ export default function RouteEditor({ route, me, agents, known, actual, targets 
   const [q, setQ] = useState('');
   const [results, setResults] = useState<SearchResult[]>([]);
   const [searching, setSearching] = useState(false);
+  // A stop nobody's lookup could find: the next map tap places it.
+  const [pinFor, setPinFor] = useState<string | null>(null);
+  const [notesMsg, setNotesMsg] = useState('');
+  const [resolving, setResolving] = useState(false);
   const [pos, setPos] = useState<{ lat: number; lng: number } | null>(null);
   const [showKnown, setShowKnown] = useState(true);
   const [showTargets, setShowTargets] = useState(targets.length > 0);
@@ -93,6 +99,70 @@ export default function RouteEditor({ route, me, agents, known, actual, targets 
       setResults(json.results || []);
       setSearching(false);
     }, 350);
+  }
+
+  async function resolve(lines: string[]): Promise<{ line: string; place: SearchResult | null }[]> {
+    const near = pos || stops[stops.length - 1] || null;
+    const out: { line: string; place: SearchResult | null }[] = [];
+    for (let i = 0; i < lines.length; i += 4) {
+      const res = await fetch('/api/field/resolve', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ lines: lines.slice(i, i + 4), ...(near ? { lat: near.lat, lng: near.lng } : {}) }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.error || 'Couldn’t look those up');
+      out.push(...(json.results || []));
+    }
+    return out;
+  }
+
+  /** The name to give a stop placed from a line: what was typed, unless a real venue matched. */
+  const stopName = (line: string, p: SearchResult) =>
+    p.source === 'postcode' || p.source === 'area'
+      ? line.replace(/\b[A-Z]{1,2}\d[A-Z\d]?\s*\d[A-Z]{2}\b/i, '').split(/\s*[,|–—]\s*|\s+-\s+/)[0].replace(/^[\s\-•*·\d.)]+/, '').trim() || p.name
+      : p.name;
+
+  /** Search found nothing right: place it from what was typed, or by a tap on the map. */
+  async function addAnyway(text: string) {
+    try {
+      const [{ place }] = await resolve([text]);
+      if (place) {
+        addStop({ venue_name: stopName(text, place), address: place.address, postcode: place.postcode, lat: place.lat, lng: place.lng, ref: place.ref });
+        setQ(''); setResults([]);
+        return;
+      }
+    } catch { /* fall through to a map tap */ }
+    setPinFor(text.split(/\s*,\s*/)[0] || text);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  /** Each line of the notes → a stop where it can be found; the rest stay in the notes. */
+  async function notesToStops() {
+    const lines = notes.split(/\n|;/).map(l => l.trim()).filter(l => l.replace(/[^a-z0-9]/gi, '').length >= 3);
+    if (!lines.length) return;
+    setResolving(true);
+    setNotesMsg(`Looking up ${lines.length} venue${lines.length === 1 ? '' : 's'}…`);
+    try {
+      const results = await resolve(lines);
+      const found = results.filter(r => r.place);
+      const missed = results.filter(r => !r.place).map(r => r.line);
+      for (const r of found) {
+        const p = r.place!;
+        addStop({ venue_name: stopName(r.line, p), address: p.address, postcode: p.postcode, lat: p.lat, lng: p.lng, ref: p.ref });
+      }
+      change(() => setNotes(missed.join('\n')));
+      const approx = found.filter(r => r.place!.source === 'postcode' || r.place!.source === 'area').length;
+      setNotesMsg(
+        `Added ${found.length} of ${lines.length} as stops${approx ? ` (${approx} placed by postcode or area: check the pin)` : ''}.` +
+        (missed.length ? ` ${missed.length} couldn’t be found and are left in the notes: add each with “Add it anyway” and a tap on the map.` : '') +
+        ' Remember to save.',
+      );
+    } catch (e) {
+      setNotesMsg(e instanceof Error ? e.message : 'Couldn’t look those up. Try again.');
+    } finally {
+      setResolving(false);
+    }
   }
 
   function move(i: number, by: number) {
@@ -236,6 +306,13 @@ export default function RouteEditor({ route, me, agents, known, actual, targets 
           fitIds={stops.map(s => `s:${s.id}`)}
           zoom={14}
           center={stops[0] || pos}
+          onMapClick={(lat, lng) => {
+            if (!pinFor) return;
+            addStop({ venue_name: pinFor, address: '', postcode: '', lat, lng, ref: null });
+            setPinFor(null);
+            setQ('');
+            setResults([]);
+          }}
           onPinClick={id => {
             if (id.startsWith('g:')) {
               const t = targets.find(x => x.id === id.slice(2));
@@ -304,12 +381,24 @@ export default function RouteEditor({ route, me, agents, known, actual, targets 
                     <span className="block truncate text-[15px] font-bold">{r.name}</span>
                     <span className="block truncate text-[13px] text-muted">{[r.address, r.postcode].filter(Boolean).join(' · ')}</span>
                   </span>
-                  {r.known && <span className="shrink-0 rounded-full bg-tag-advisory px-2 py-0.5 text-[11px] font-bold">Known</span>}
+                  {r.source && SOURCE_TAG[r.source] && <span className="shrink-0 rounded-full bg-tag-advisory px-2 py-0.5 text-[11px] font-bold">{SOURCE_TAG[r.source]}</span>}
                   <span className="shrink-0 text-[22px] font-bold text-ink">+</span>
                 </button>
               </li>
             ))}
           </ul>
+        )}
+        {q.trim().length >= 3 && !searching && (
+          <button type="button" onClick={() => addAnyway(q.trim())}
+            className="mt-2 flex min-h-12 w-full items-center gap-2 rounded-2xl border-2 border-dashed border-ink/40 px-4 text-left text-[14px] font-bold active:bg-surface">
+            <span className="text-[20px]">+</span> Not listed? Add “{q.trim()}” anyway
+          </button>
+        )}
+        {pinFor && (
+          <div className="mt-2 flex items-center gap-2 rounded-2xl bg-ink px-4 py-3 text-[14px] text-white">
+            <span className="flex-1">Tap the map where <b>{pinFor}</b> is.</span>
+            <button type="button" onClick={() => setPinFor(null)} className="h-9 rounded-full bg-white/15 px-3 text-[13px] font-bold">Cancel</button>
+          </div>
         )}
       </section>
 
@@ -368,8 +457,15 @@ export default function RouteEditor({ route, me, agents, known, actual, targets 
       <section className="mb-4">
         <label className={LABEL} htmlFor="route-notes">Notes</label>
         <textarea id="route-notes" rows={3} value={notes} onChange={e => change(() => setNotes(e.target.value))}
-          placeholder="Anything for the day: who to ask for, what to push…"
+          placeholder="Anything for the day, or a list of venues (one per line) to turn into stops"
           className="w-full rounded-xl border border-border bg-surface px-4 py-3 text-[16px] placeholder:text-dim focus:border-ink focus:outline-none" />
+        {notes.trim() && (
+          <button type="button" disabled={resolving} onClick={notesToStops}
+            className="mt-2 flex h-12 w-full items-center justify-center rounded-2xl border border-ink text-[15px] font-bold active:bg-surface disabled:opacity-50">
+            {resolving ? 'Finding venues…' : 'Turn notes into stops'}
+          </button>
+        )}
+        {notesMsg && <p className="mt-2 text-[14px]" role="status">{notesMsg}</p>}
       </section>
 
       {error && <p role="alert" className="mb-3 rounded-xl bg-negative-tint px-4 py-3 text-[15px] text-negative-dark">{error}</p>}
