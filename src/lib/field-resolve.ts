@@ -273,6 +273,22 @@ async function areaPoint(text: string): Promise<{ lat: number; lng: number } | n
  * target or map result only when its name matches what was typed; otherwise
  * falls back to the postcode, then the street or town.
  */
+/**
+ * A line resolved: the confident match, or null with the closest candidates
+ * (venues first, near where the line says) for the agent to pick from.
+ */
+export async function resolveWithSuggestions(line: string, near: { lat: number; lng: number }): Promise<{ place: PlaceResult | null; suggestions: PlaceResult[] }> {
+  const place = await resolveLine(line, near);
+  if (place && place.source !== 'postcode' && place.source !== 'area') return { place, suggestions: [] };
+  const { name } = splitLine(line);
+  const results = await searchPlaces(line, near).catch(() => []);
+  const suggestions = results
+    .filter(r => r.source !== 'postcode' && (r.known || r.venue))
+    .sort((a, b) => Number(looselySame(b.name, name)) - Number(looselySame(a.name, name)))
+    .slice(0, 4);
+  return { place, suggestions };
+}
+
 export async function resolveLine(line: string, near: { lat: number; lng: number }): Promise<PlaceResult | null> {
   const { name, rest, postcode } = splitLine(line);
   if (!name && !postcode) return null;

@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { requireAgent } from '@/lib/field-api';
-import { resolveLine } from '@/lib/field-resolve';
+import { resolveWithSuggestions } from '@/lib/field-resolve';
 import { venuesFromNotes } from '@/lib/field-notes-ai';
 
 export const dynamic = 'force-dynamic';
@@ -26,6 +26,6 @@ export async function POST(request: NextRequest) {
 
   const list = (Array.isArray(body.lines) ? body.lines : []).map(l => String(l).trim().slice(0, 200)).filter(Boolean).slice(0, 4);
   const near = { lat: Number(body.lat) || 51.5074, lng: Number(body.lng) || -0.1278 };
-  const places = await Promise.all(list.map(line => resolveLine(line, near).catch(() => null)));
-  return NextResponse.json({ results: list.map((line, i) => ({ line, place: places[i] })) });
+  const out = await Promise.all(list.map(line => resolveWithSuggestions(line, near).catch(() => ({ place: null, suggestions: [] }))));
+  return NextResponse.json({ results: list.map((line, i) => ({ line, ...out[i] })) });
 }

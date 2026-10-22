@@ -61,6 +61,8 @@ export default function RouteEditor({ route, me, agents, known, actual, targets 
   const [pinFor, setPinFor] = useState<string | null>(null);
   const [notesMsg, setNotesMsg] = useState('');
   const [resolving, setResolving] = useState(false);
+  // Venues from the notes that weren't matched for sure: the agent picks.
+  const [toPick, setToPick] = useState<{ name: string; suggestions: SearchResult[] }[]>([]);
   const [pos, setPos] = useState<{ lat: number; lng: number } | null>(null);
   const [showKnown, setShowKnown] = useState(true);
   const [showTargets, setShowTargets] = useState(targets.length > 0);
@@ -101,9 +103,9 @@ export default function RouteEditor({ route, me, agents, known, actual, targets 
     }, 350);
   }
 
-  async function resolve(lines: string[]): Promise<{ line: string; place: SearchResult | null }[]> {
+  async function resolve(lines: string[]): Promise<{ line: string; place: SearchResult | null; suggestions?: SearchResult[] }[]> {
     const near = pos || stops[stops.length - 1] || null;
-    const out: { line: string; place: SearchResult | null }[] = [];
+    const out: { line: string; place: SearchResult | null; suggestions?: SearchResult[] }[] = [];
     for (let i = 0; i < lines.length; i += 2) {
       const res = await fetch('/api/field/resolve', {
         method: 'POST',
@@ -149,8 +151,12 @@ export default function RouteEditor({ route, me, agents, known, actual, targets 
       if (!lines.length) { setNotesMsg('No venues found in the notes.'); return; }
       setNotesMsg(`Found ${lines.length} venue${lines.length === 1 ? '' : 's'}: ${lines.map(l => l.split(',')[0]).join(', ')}. Finding them on the map…`);
       const results = await resolve(lines);
-      const found = results.filter(r => r.place);
-      const missed = results.filter(r => !r.place).map(r => r.line.split(',')[0]);
+      // Sure matches become stops; anything else goes to "pick one" below.
+      const sure = (r: (typeof results)[number]) => r.place && r.place.source !== 'postcode' && r.place.source !== 'area';
+      const found = results.filter(sure);
+      const unsure = results.filter(r => !sure(r));
+      setToPick(unsure.map(r => ({ name: r.line.split(',')[0].trim(), suggestions: r.suggestions || [] })));
+      const missed = unsure.map(r => r.line.split(',')[0].trim());
       // New stops, skipping any already on the route, in a sensible walking order.
       const added: RouteStop[] = [];
       for (const r of found) {
@@ -161,19 +167,29 @@ export default function RouteEditor({ route, me, agents, known, actual, targets 
       }
       const next = bestOrder([...stops, ...added], pos);
       setStops(next);
-      const approx = found.filter(r => r.place!.source === 'postcode' || r.place!.source === 'area').length;
+      const approx = 0;
       // Saved straight away, so nothing is lost if the phone is put away.
       const saved = await save(next);
       setNotesMsg(
         `Added ${added.length} stop${added.length === 1 ? '' : 's'}${approx ? ` (${approx} placed by postcode or area: check the pin)` : ''}` +
         `${saved ? ' and saved the route' : ''}.` +
-        (missed.length ? ` Couldn’t find ${missed.join(', ')}: search each under “Add a stop”, or “Add it anyway” and tap the map.` : ''),
+        (missed.length ? ` ${missed.length} need${missed.length === 1 ? 's' : ''} you to pick the right place, below.` : ''),
       );
     } catch (e) {
       setNotesMsg(e instanceof Error ? e.message : 'Couldn’t look those up. Try again.');
     } finally {
       setResolving(false);
     }
+  }
+
+  /** The agent picked the right place for a venue from the notes: add it and save. */
+  async function pick(name: string, p: SearchResult | null) {
+    setToPick(prev => prev.filter(x => x.name !== name));
+    if (!p) { setPinFor(name); window.scrollTo({ top: 0, behavior: 'smooth' }); return; }
+    if (stops.some(x => (x.ref && x.ref === p.ref) || (Math.abs(x.lat - p.lat) < 0.0001 && Math.abs(x.lng - p.lng) < 0.0001))) return;
+    const next = [...stops, { id: crypto.randomUUID(), venue_name: p.name, address: p.address, postcode: p.postcode, lat: p.lat, lng: p.lng, ref: p.ref, status: 'planned' as const, visit_id: null, visited_at: null }];
+    setStops(next);
+    if (route) await save(next);
   }
 
   function move(i: number, by: number) {
@@ -319,7 +335,9 @@ export default function RouteEditor({ route, me, agents, known, actual, targets 
           center={stops[0] || pos}
           onMapClick={(lat, lng) => {
             if (!pinFor) return;
-            addStop({ venue_name: pinFor, address: '', postcode: '', lat, lng, ref: null });
+            const next = [...stops, { id: crypto.randomUUID(), venue_name: pinFor, address: '', postcode: '', lat, lng, ref: null, status: 'planned' as const, visit_id: null, visited_at: null }];
+            setStops(next);
+            if (route) void save(next); else setDirty(true);
             setPinFor(null);
             setQ('');
             setResults([]);
@@ -430,12 +448,12 @@ export default function RouteEditor({ route, me, agents, known, actual, targets 
         ) : (
           <ol className="divide-y divide-border overflow-hidden rounded-2xl bg-surface">
             {stops.map((s, i) => (
-              <li key={s.id} className={`flex items-center gap-2 px-3 py-2.5 ${s.status === 'skipped' ? 'opacity-50' : ''}`}>
+              <li key={s.id} className={`flex flex-wrap items-center gap-x-2 gap-y-1 px-3 py-2.5 ${s.status === 'skipped' ? 'opacity-50' : ''}`}>
                 <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-full text-[13px] font-bold ${
                   s.status === 'visited' ? 'bg-positive text-white' : s.id === nextStop?.id ? 'bg-primary text-white' : 'border-2 border-ink'}`}>
                   {s.status === 'visited' ? '✓' : i + 1}
                 </span>
-                <div className="min-w-0 flex-1">
+                <div className="min-w-[60%] flex-1">
                   <p className={`truncate text-[15px] font-bold ${s.status === 'skipped' ? 'line-through' : ''}`}>{s.venue_name}</p>
                   <p className="truncate text-[12px] text-muted">
                     {s.status === 'visited' && s.visited_at ? `Visited ${fmtWhen(s.visited_at)}` : [s.address, s.postcode].filter(Boolean).join(' · ') || 'Pinned on the map'}
@@ -444,7 +462,7 @@ export default function RouteEditor({ route, me, agents, known, actual, targets 
                 {s.status === 'visited' && s.visit_id ? (
                   <Link href={`/field/visits/${s.visit_id}`} className="h-10 shrink-0 rounded-full border border-border px-3 text-[13px] font-bold leading-10">Open</Link>
                 ) : (
-                  <div className="flex shrink-0 items-center">
+                  <div className="ml-auto flex shrink-0 items-center">
                     {route && s.status === 'planned' && (
                       <Link href={`/field/visit?route=${route.id}&stop=${s.id}`} aria-label={`Log a visit at ${s.venue_name}`}
                         className="mr-1 flex h-9 items-center rounded-full bg-primary px-3 text-[12px] font-bold text-white active:bg-primary-press">
@@ -477,6 +495,32 @@ export default function RouteEditor({ route, me, agents, known, actual, targets 
           </button>
         )}
         {notesMsg && <p className="mt-2 text-[14px]" role="status">{notesMsg}</p>}
+        {toPick.length > 0 && (
+          <div className="mt-3 flex flex-col gap-3">
+            {toPick.map(v => (
+              <div key={v.name} className="rounded-2xl border-2 border-warning bg-surface p-3">
+                <p className="mb-2 text-[15px] font-bold">Which is <span className="underline">{v.name}</span>?</p>
+                <div className="flex flex-col gap-1.5">
+                  {v.suggestions.map((r, i) => (
+                    <button key={`${r.ref}-${i}`} type="button" onClick={() => pick(v.name, r)}
+                      className="flex min-h-12 w-full items-center gap-2 rounded-xl bg-surface-2 px-3 py-2 text-left active:bg-border">
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-[14px] font-bold">{r.name}</span>
+                        <span className="block truncate text-[12px] text-muted">{[r.address, r.postcode].filter(Boolean).join(' · ')}</span>
+                      </span>
+                      <span className="text-[18px] font-bold">+</span>
+                    </button>
+                  ))}
+                  {!v.suggestions.length && <p className="text-[13px] text-muted">No suggestions found.</p>}
+                  <div className="flex gap-2">
+                    <button type="button" onClick={() => pick(v.name, null)} className="h-10 flex-1 rounded-xl border border-ink text-[13px] font-bold">Pin it on the map</button>
+                    <button type="button" onClick={() => setToPick(prev => prev.filter(x => x.name !== v.name))} className="h-10 rounded-xl border border-border px-3 text-[13px] font-bold text-muted">Skip</button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </section>
 
       {error && <p role="alert" className="mb-3 rounded-xl bg-negative-tint px-4 py-3 text-[15px] text-negative-dark">{error}</p>}
