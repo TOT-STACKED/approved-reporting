@@ -95,6 +95,58 @@ function fromNominatim(n: Nom): PlaceResult | null {
   };
 }
 
+// Google Places (New) Text Search: best UK venue coverage, used first when a
+// server key is set (GOOGLE_PLACES_SERVER_KEY, Places API (New) only). Paid
+// per search, so only the fields we use are requested.
+const GOOGLE_KEY = process.env.GOOGLE_PLACES_SERVER_KEY;
+const GOOGLE_VENUE = /restaurant|bar|pub|cafe|coffee|food|meal|bakery|night_club|lodging|hotel|brewery|wine|cocktail|store|deli|diner|steak|pizza/;
+
+interface GPlace {
+  id: string;
+  displayName?: { text: string };
+  formattedAddress?: string;
+  location?: { latitude: number; longitude: number };
+  types?: string[];
+  postalAddress?: { postalCode?: string; addressLines?: string[]; locality?: string };
+}
+
+async function googleText(q: string, near: { lat: number; lng: number }): Promise<PlaceResult[] | null> {
+  if (!GOOGLE_KEY) return null;
+  const res = await fetch('https://places.googleapis.com/v1/places:searchText', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Goog-Api-Key': GOOGLE_KEY,
+      'X-Goog-FieldMask': 'places.id,places.displayName,places.formattedAddress,places.location,places.types,places.postalAddress',
+    },
+    body: JSON.stringify({
+      textQuery: q,
+      regionCode: 'GB',
+      maxResultCount: 8,
+      locationBias: { circle: { center: { latitude: near.lat, longitude: near.lng }, radius: 30000 } },
+    }),
+    signal: AbortSignal.timeout(6000),
+  }).catch(() => null);
+  if (!res?.ok) return null;
+  const { places = [] } = (await res.json().catch(() => ({}))) as { places?: GPlace[] };
+  return places.flatMap(p => {
+    if (!p.displayName?.text || !p.location) return [];
+    const postcode = p.postalAddress?.postalCode || '';
+    const address = (p.formattedAddress || '').replace(/,\s*(UK|United Kingdom)$/i, '').replace(postcode, '').replace(/\s+,|,\s*$/g, '').trim();
+    return [{
+      name: p.displayName.text,
+      address,
+      postcode,
+      lat: p.location.latitude,
+      lng: p.location.longitude,
+      ref: `google/${p.id}`,
+      known: false,
+      source: 'map' as const,
+      venue: (p.types || []).some(t => GOOGLE_VENUE.test(t)),
+    }];
+  });
+}
+
 const norm = (s: string) => s.toLowerCase().replace(/^the\s+/, '').replace(/[^a-z0-9]/g, '');
 const pcNorm = (s: string | null | undefined) => (s || '').toUpperCase().replace(/\s+/g, '');
 
@@ -140,7 +192,8 @@ export async function searchPlaces(q: string, near: { lat: number; lng: number }
   const { name, rest, postcode } = splitLine(q);
   const nameQ = name.length >= 2 ? name : '';
 
-  const [known, targets, photon, pcPoint] = await Promise.all([
+  const [google, known, targets, photon, pcPoint] = await Promise.all([
+    googleText([name, rest, postcode].filter(Boolean).join(', ') || q, near).catch(() => null),
     nameQ ? allRows<{ id: string; venue_name: string; address: string | null; postcode: string | null; lat: number | null; lng: number | null; osm_ref: string | null }>(
       `field_visits?venue_name=ilike.${ilike(nameQ)}&lat=not.is.null&select=id,venue_name,address,postcode,lat,lng,osm_ref&order=visited_at.desc`, 200,
     ).catch(() => []) : Promise.resolve([]),
@@ -173,6 +226,7 @@ export async function searchPlaces(q: string, near: { lat: number; lng: number }
   for (const t of rank(targets).slice(0, 6)) {
     push({ name: t.name, address: t.address || '', postcode: t.postcode || '', lat: t.lat, lng: t.lng, ref: null, known: true, source: 'target' });
   }
+  for (const g of google || []) push(g);
   type F = { geometry: { coordinates: [number, number] }; properties: { osm_type?: string; osm_id?: number; osm_key?: string; name?: string; housenumber?: string; street?: string; city?: string; district?: string; postcode?: string } };
   const types: Record<string, string> = { N: 'node', W: 'way', R: 'relation' };
   for (const f of ((photon as { features?: F[] } | null)?.features || [])) {
@@ -191,7 +245,8 @@ export async function searchPlaces(q: string, near: { lat: number; lng: number }
     });
   }
   const photonMatched = out.some(r => r.source === 'map' && r.venue && looselySame(r.name, name));
-  if (photon === null || (deep && !photonMatched && !out.some(r => r.known && looselySame(r.name, name)))) {
+  // Nominatim is only the backup: skip it when Google answered.
+  if (google === null && (photon === null || (deep && !photonMatched && !out.some(r => r.known && looselySame(r.name, name))))) {
     for (const n of await nominatim([name, rest, postcode].filter(Boolean).join(', ') || q)) {
       const r = fromNominatim(n);
       if (r) push(r);
