@@ -294,8 +294,9 @@ export async function resolveLine(line: string, near: { lat: number; lng: number
       return Number(b.known) - Number(a.known) || distanceM(from.lat, from.lng, a.lat, a.lng) - distanceM(from.lat, from.lng, b.lat, b.lng);
     })[0];
   if (named) return named;
-  // Known area, no match yet: look for the name only around that area.
-  if (anchor) {
+  // Known area, no match yet: look for the name only around that area
+  // (Nominatim, one a second, so only when Google isn't doing the work).
+  if (anchor && !GOOGLE_KEY) {
     const local = (await nominatim(outcode ? `${name}, ${outcode}` : name, anchor)).map(fromNominatim)
       .filter((r): r is PlaceResult => Boolean(r && r.venue && looselySame(r.name, name) && inOutcode(r)));
     if (local[0]) return local[0];
@@ -306,7 +307,7 @@ export async function resolveLine(line: string, near: { lat: number; lng: number
   // "Dishoom Shoreditch", "Flat Iron Covent Garden": the area tacked on the
   // end. Try the last word or two as the area, and the rest as the venue near it.
   const words = name.split(/\s+/);
-  if (!rest && words.length >= 2) {
+  if (!rest && words.length >= 2 && !GOOGLE_KEY) {
     for (const cut of [1, 2]) {
       if (words.length - cut < 1) break;
       const venue = words.slice(0, -cut).join(' ');

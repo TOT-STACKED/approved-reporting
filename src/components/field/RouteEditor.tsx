@@ -104,11 +104,11 @@ export default function RouteEditor({ route, me, agents, known, actual, targets 
   async function resolve(lines: string[]): Promise<{ line: string; place: SearchResult | null }[]> {
     const near = pos || stops[stops.length - 1] || null;
     const out: { line: string; place: SearchResult | null }[] = [];
-    for (let i = 0; i < lines.length; i += 4) {
+    for (let i = 0; i < lines.length; i += 2) {
       const res = await fetch('/api/field/resolve', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ lines: lines.slice(i, i + 4), ...(near ? { lat: near.lat, lng: near.lng } : {}) }),
+        body: JSON.stringify({ lines: lines.slice(i, i + 2), ...(near ? { lat: near.lat, lng: near.lng } : {}) }),
       });
       const json = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(json.error || 'Couldn’t look those up');
@@ -139,24 +139,35 @@ export default function RouteEditor({ route, me, agents, known, actual, targets 
 
   /** Each line of the notes → a stop where it can be found; the rest stay in the notes. */
   async function notesToStops() {
-    const lines = notes.split(/\n|;/).map(l => l.trim()).filter(l => l.replace(/[^a-z0-9]/gi, '').length >= 3);
-    if (!lines.length) return;
+    if (!notes.trim()) return;
     setResolving(true);
-    setNotesMsg(`Looking up ${lines.length} venue${lines.length === 1 ? '' : 's'}…`);
+    setNotesMsg('Reading the notes for venues…');
     try {
+      // The notes can be written any way: the server picks out the venues.
+      const res = await fetch('/api/field/resolve', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ notes }) });
+      const { lines = [] } = (await res.json().catch(() => ({}))) as { lines?: string[] };
+      if (!lines.length) { setNotesMsg('No venues found in the notes.'); return; }
+      setNotesMsg(`Found ${lines.length} venue${lines.length === 1 ? '' : 's'}: ${lines.map(l => l.split(',')[0]).join(', ')}. Finding them on the map…`);
       const results = await resolve(lines);
       const found = results.filter(r => r.place);
-      const missed = results.filter(r => !r.place).map(r => r.line);
+      const missed = results.filter(r => !r.place).map(r => r.line.split(',')[0]);
+      // New stops, skipping any already on the route, in a sensible walking order.
+      const added: RouteStop[] = [];
       for (const r of found) {
         const p = r.place!;
-        addStop({ venue_name: stopName(r.line, p), address: p.address, postcode: p.postcode, lat: p.lat, lng: p.lng, ref: p.ref });
+        const all = [...stops, ...added];
+        if (all.some(x => (x.ref && x.ref === p.ref) || (Math.abs(x.lat - p.lat) < 0.0001 && Math.abs(x.lng - p.lng) < 0.0001))) continue;
+        added.push({ id: crypto.randomUUID(), venue_name: stopName(r.line, p), address: p.address, postcode: p.postcode, lat: p.lat, lng: p.lng, ref: p.ref, status: 'planned', visit_id: null, visited_at: null });
       }
-      change(() => setNotes(missed.join('\n')));
+      const next = bestOrder([...stops, ...added], pos);
+      setStops(next);
       const approx = found.filter(r => r.place!.source === 'postcode' || r.place!.source === 'area').length;
+      // Saved straight away, so nothing is lost if the phone is put away.
+      const saved = await save(next);
       setNotesMsg(
-        `Added ${found.length} of ${lines.length} as stops${approx ? ` (${approx} placed by postcode or area: check the pin)` : ''}.` +
-        (missed.length ? ` ${missed.length} couldn’t be found and are left in the notes: add each with “Add it anyway” and a tap on the map.` : '') +
-        ' Remember to save.',
+        `Added ${added.length} stop${added.length === 1 ? '' : 's'}${approx ? ` (${approx} placed by postcode or area: check the pin)` : ''}` +
+        `${saved ? ' and saved the route' : ''}.` +
+        (missed.length ? ` Couldn’t find ${missed.join(', ')}: search each under “Add a stop”, or “Add it anyway” and tap the map.` : ''),
       );
     } catch (e) {
       setNotesMsg(e instanceof Error ? e.message : 'Couldn’t look those up. Try again.');
@@ -179,14 +190,14 @@ export default function RouteEditor({ route, me, agents, known, actual, targets 
     change(() => setStops(prev => prev.map(s => (s.id === id ? { ...s, status } : s))));
   }
 
-  async function save(): Promise<boolean> {
+  async function save(withStops: RouteStop[] = stops): Promise<boolean> {
     setSaving(true);
     setError('');
     const body = {
       name: shownName,
       period,
       starts_on: period === 'week' ? mondayOf(startsOn) : startsOn,
-      stops,
+      stops: withStops,
       notes,
       agent_id: agentId,
     };
@@ -435,9 +446,9 @@ export default function RouteEditor({ route, me, agents, known, actual, targets 
                 ) : (
                   <div className="flex shrink-0 items-center">
                     {route && s.status === 'planned' && (
-                      <Link href={`/field/visit?route=${route.id}&stop=${s.id}`} aria-label={`Start visit at ${s.venue_name}`}
-                        className="grid h-10 w-10 place-items-center rounded-full text-primary active:bg-surface-2">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M12 5v14M5 12h14" /></svg>
+                      <Link href={`/field/visit?route=${route.id}&stop=${s.id}`} aria-label={`Log a visit at ${s.venue_name}`}
+                        className="mr-1 flex h-9 items-center rounded-full bg-primary px-3 text-[12px] font-bold text-white active:bg-primary-press">
+                        Log visit
                       </Link>
                     )}
                     <button type="button" aria-label="Move up" onClick={() => move(i, -1)} disabled={i === 0} className="grid h-10 w-9 place-items-center disabled:opacity-25">↑</button>
@@ -476,7 +487,7 @@ export default function RouteEditor({ route, me, agents, known, actual, targets 
             Directions
           </a>
         )}
-        <button type="button" onClick={save} disabled={saving || (!dirty && Boolean(route))}
+        <button type="button" onClick={() => save()} disabled={saving || (!dirty && Boolean(route))}
           className="h-14 flex-1 rounded-2xl bg-primary text-[16px] font-bold uppercase text-white active:bg-primary-press disabled:opacity-40">
           {saving ? 'Saving…' : route ? (dirty ? 'Save changes' : 'Saved') : 'Save route'}
         </button>
