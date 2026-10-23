@@ -234,15 +234,17 @@ export default function VisitForm({ visit, photoUrls = [], fromStop }: { visit?:
         });
         const json = await res.json().catch(() => ({}));
         if (!res.ok) { setError(json.error || 'Couldn’t save. Try again.'); return; }
-        router.replace(`/field/visits/${visit!.id}?saved=1`);
+        router.replace(`/field/visits/${visit!.id}?saved=1${json.reviewError ? `&review=${encodeURIComponent(json.reviewError)}` : ''}`);
         router.refresh();
         return;
       }
       // New visits go through the phone's queue: sent now if there's signal,
       // otherwise kept (photos too) and sent automatically when it's back.
-      const { id, queued } = await saveOrQueue(d.place.venue_name, body);
+      const { id, queued, reviewError } = await saveOrQueue(d.place.venue_name, body);
       try { localStorage.removeItem(DRAFT_KEY); } catch { /* ignore */ }
       if (queued) { router.replace('/field?queued=1'); return; }
+      // Saved, but the report couldn't go: show the visit and what's missing.
+      if (reviewError) { router.replace(`/field/visits/${id}?saved=1&review=${encodeURIComponent(reviewError)}`); return; }
       router.replace(fromStop ? `/field/routes/${fromStop.route_id}` : `/field/visits/${id}?saved=1`);
       router.refresh();
     } catch (e) {

@@ -27,12 +27,12 @@ function Row({ label, value }: { label: string; value: React.ReactNode }) {
 }
 
 export default async function VisitPage({ params, searchParams }: {
-  params: Promise<{ id: string }>; searchParams: Promise<{ saved?: string }>;
+  params: Promise<{ id: string }>; searchParams: Promise<{ saved?: string; review?: string }>;
 }) {
   const agent = await currentAgent();
   if (!agent) redirect('/field/signin');
   const { id } = await params;
-  const { saved } = await searchParams;
+  const { saved, review: reviewProblem } = await searchParams;
   const visit = await getVisit(id);
   if (!visit || !canAccess(agent, visit)) notFound();
   const photos = await photoLinks(visit.photos);
@@ -49,7 +49,12 @@ export default async function VisitPage({ params, searchParams }: {
     <>
       <FieldHeader title={visit.venue_name} back={back} />
       <main className="mx-auto w-full max-w-md md:max-w-2xl pb-4">
-        {saved && <p className="mx-4 mt-3 rounded-xl bg-positive-tint px-4 py-3 text-[15px] font-bold text-positive">Saved.</p>}
+        {saved && <p className="mx-4 mt-3 rounded-xl bg-positive-tint px-4 py-3 text-[15px] font-bold text-positive">Saved{reviewProblem ? ', with the tech you logged.' : '.'}</p>}
+        {saved && reviewProblem && !visit.submission_id && (
+          <p className="mx-4 mt-2 rounded-xl bg-warning-tint px-4 py-3 text-[15px] text-ink">
+            <b>The report wasn’t sent.</b> {reviewProblem.replace(/^Review: /, 'To send it, ')}. Tap Edit, then Full tech review, to finish it.
+          </p>
+        )}
 
         <VisitMapCard visit={visit} />
 

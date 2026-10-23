@@ -1,6 +1,6 @@
 import { after, NextResponse, type NextRequest } from 'next/server';
 import { requireAgent } from '@/lib/field-api';
-import { ReviewInputError, buildReviewSubmission, requestIntelligenceReport, reviewFrom, saveReview } from '@/lib/field-review';
+import { ReviewInputError, buildReviewSubmission, keepReviewAnswers, requestIntelligenceReport, reviewFrom, saveReview } from '@/lib/field-review';
 import { VisitInputError, canAccess, cleanVisitInput, deleteVisit, getVisit, updateVisit } from '@/lib/field-db';
 
 export const dynamic = 'force-dynamic';
@@ -19,9 +19,16 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
     // Keep the original visit time unless the edit sets one.
     const fields = cleanVisitInput({ visited_at: visit.visited_at, ...body }, visit.agent_id);
-    // A review can be added on a later edit, but only once per visit.
+    // A review can be added on a later edit, but only once per visit. One that
+    // can't be sent yet still saves the edit, with its tech kept (as for new visits).
     const rawReview = visit.submission_id ? null : reviewFrom(body);
-    const review = rawReview ? buildReviewSubmission(rawReview, String(fields.venue_name)) : null;
+    let review: Record<string, unknown> | null = null;
+    let reviewError: string | null = null;
+    if (rawReview) {
+      keepReviewAnswers(fields, rawReview);
+      try { review = buildReviewSubmission(rawReview, String(fields.venue_name)); }
+      catch (e) { if (e instanceof ReviewInputError) reviewError = e.message; else throw e; }
+    }
 
     await updateVisit(id, fields);
     if (review) {
@@ -29,9 +36,9 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       await updateVisit(id, { submission_id: submissionId });
       after(() => requestIntelligenceReport(submissionId).catch(err => console.warn('[field] report request failed', err)));
     }
-    return NextResponse.json({ ok: true, review: Boolean(review) });
+    return NextResponse.json({ ok: true, review: Boolean(review), reviewError });
   } catch (error: unknown) {
-    if (error instanceof VisitInputError || error instanceof ReviewInputError) {
+    if (error instanceof VisitInputError) {
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
     console.warn('[field] update visit failed', error);

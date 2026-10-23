@@ -4,7 +4,7 @@ import { VisitInputError, cleanVisitInput, createVisit, findResend, listVisits, 
 import { placeFromClues } from '@/lib/field-import';
 import { postVisitToSlack, type SlackVisit } from '@/lib/field-slack';
 import { markStopVisited } from '@/lib/field-routes';
-import { ReviewInputError, buildReviewSubmission, requestIntelligenceReport, reviewFrom, saveReview } from '@/lib/field-review';
+import { ReviewInputError, buildReviewSubmission, keepReviewAnswers, requestIntelligenceReport, reviewFrom, saveReview } from '@/lib/field-review';
 
 export const dynamic = 'force-dynamic';
 
@@ -30,9 +30,17 @@ export async function POST(request: NextRequest) {
   try {
     const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
     const fields = cleanVisitInput(body, agent.id);
-    // Check the review before saving anything, so a half-filled one doesn't leave a visit behind.
+    // A review that can't be sent yet (missing email, no consent…) doesn't
+    // stop the visit saving: its tech and contact are kept on the visit, and
+    // the agent is told what's missing so they can finish it from the visit.
     const rawReview = reviewFrom(body);
-    const review = rawReview ? buildReviewSubmission(rawReview, String(fields.venue_name)) : null;
+    let review: Record<string, unknown> | null = null;
+    let reviewError: string | null = null;
+    if (rawReview) {
+      keepReviewAnswers(fields, rawReview);
+      try { review = buildReviewSubmission(rawReview, String(fields.venue_name)); }
+      catch (e) { if (e instanceof ReviewInputError) reviewError = e.message; else throw e; }
+    }
 
     // A resend from the phone's offline queue: hand back the one already saved.
     const already = await findResend(agent.id, String(fields.visited_at), String(fields.venue_name)).catch(() => null);
@@ -66,9 +74,9 @@ export async function POST(request: NextRequest) {
       agent.name || agent.email,
       Boolean(review),
     ));
-    return NextResponse.json({ id, review: Boolean(review) });
+    return NextResponse.json({ id, review: Boolean(review), reviewError });
   } catch (error: unknown) {
-    if (error instanceof VisitInputError || error instanceof ReviewInputError) {
+    if (error instanceof VisitInputError) {
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
     console.warn('[field] create visit failed', error);

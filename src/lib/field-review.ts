@@ -66,6 +66,26 @@ export function buildReviewSubmission(input: Record<string, unknown>, venueName:
   };
 }
 
+/**
+ * Copy what the agent typed into a review onto the visit itself: its tech
+ * answers become the visit's seen tech, and the operator's details fill any
+ * empty contact fields. Done whether or not the review can be sent, so a
+ * half-finished review (no consent yet, no email) never loses what was seen.
+ * Seen tech the agent logged separately wins over the review's answer.
+ */
+export function keepReviewAnswers(fields: Record<string, unknown>, review: Record<string, unknown>) {
+  const stack = { ...((fields.stack as Record<string, unknown>) || {}) };
+  for (const [key, e] of Object.entries(cleanReviewStack(review.stack))) {
+    if (stack[key] || !(e.tools.length || e.other || e.none)) continue;
+    stack[key] = { tools: e.tools, other: e.other, none: e.none };
+  }
+  fields.stack = stack;
+  const name = [text(review.firstName, 60), text(review.lastName, 60)].filter(Boolean).join(' ');
+  if (!fields.contact_name && name) fields.contact_name = name;
+  if (!fields.contact_email && text(review.email, 200)) fields.contact_email = text(review.email, 200).toLowerCase();
+  if (!fields.contact_phone && text(review.phone, 30)) fields.contact_phone = text(review.phone, 30);
+}
+
 /** Is there a review in this request body that the agent switched on? */
 export function reviewFrom(body: Record<string, unknown>): Record<string, unknown> | null {
   const r = body.review;

@@ -96,8 +96,10 @@ export async function queuedVisits(): Promise<QueuedVisit[]> {
 
 export class NotSignedInError extends Error {}
 
+interface Sent { id: string; reviewError: string | null }
+
 /** Send one queued visit: its offline photos first, then the visit. Returns the server's visit id. */
-async function sendOne(item: QueuedVisit): Promise<string> {
+async function sendOne(item: QueuedVisit): Promise<Sent> {
   const photos = Array.isArray(item.body.photos) ? (item.body.photos as string[]) : [];
   const sent: string[] = [];
   for (const ref of photos) {
@@ -126,7 +128,7 @@ async function sendOne(item: QueuedVisit): Promise<string> {
     // The server read it and said no (e.g. a half-filled review): say why, keep it.
     throw new Error(json.error || 'The server didn’t accept it');
   }
-  return json.id as string;
+  return { id: json.id as string, reviewError: (json.reviewError as string) || null };
 }
 
 let flushing: Promise<{ sent: number; left: number }> | null = null;
@@ -162,14 +164,14 @@ export function flushOutbox(): Promise<{ sent: number; left: number }> {
 }
 
 /** Send one visit now if possible; otherwise it waits in the queue. */
-export async function saveOrQueue(venueName: string, body: Record<string, unknown>): Promise<{ id: string | null; queued: boolean }> {
+export async function saveOrQueue(venueName: string, body: Record<string, unknown>): Promise<{ id: string | null; queued: boolean; reviewError?: string | null }> {
   const item = await queueVisit(venueName, body);
   try {
-    const id = await sendOne(item);
+    const { id, reviewError } = await sendOne(item);
     for (const ref of (item.body.photos as string[] | undefined) || []) if (isLocalPhoto(ref)) await dropPhoto(ref).catch(() => {});
     await tx(VISITS, 'readwrite', s => s.delete(item.id));
     changed();
-    return { id, queued: false };
+    return { id, queued: false, reviewError };
   } catch (e) {
     if (e instanceof TypeError) return { id: null, queued: true }; // no signal: it waits
     // A real refusal: take it back out of the queue and show the reason.
