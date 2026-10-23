@@ -2,6 +2,7 @@ import { after, NextResponse, type NextRequest } from 'next/server';
 import { requireAgent } from '@/lib/field-api';
 import { VisitInputError, cleanVisitInput, createVisit, findResend, listVisits, updateVisit } from '@/lib/field-db';
 import { placeFromClues } from '@/lib/field-import';
+import { postVisitToSlack, type SlackVisit } from '@/lib/field-slack';
 import { markStopVisited } from '@/lib/field-routes';
 import { ReviewInputError, buildReviewSubmission, requestIntelligenceReport, reviewFrom, saveReview } from '@/lib/field-review';
 
@@ -59,6 +60,12 @@ export async function POST(request: NextRequest) {
     ).catch(err => console.warn('[field] route tick failed', err));
     if (body.route_id) await tick();
     else after(tick);
+    // The team's Slack channel hears about every visit (not resends, returned above).
+    after(() => postVisitToSlack(
+      { ...(fields as unknown as SlackVisit), id },
+      agent.name || agent.email,
+      Boolean(review),
+    ));
     return NextResponse.json({ id, review: Boolean(review) });
   } catch (error: unknown) {
     if (error instanceof VisitInputError || error instanceof ReviewInputError) {
