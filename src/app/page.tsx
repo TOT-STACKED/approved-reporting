@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react';
 import AskBox from '@/components/AskBox';
 import StacksDashboard from '@/components/StacksDashboard';
-import SosLeagueTable from '@/components/SosLeagueTable';
 import PartnerHeatMap from '@/components/PartnerHeatMap';
 import LeadStatusGlossary from '@/components/LeadStatusGlossary';
 import { LEAD_STATUS_EXPLAINER } from '@/lib/lead-status';
@@ -284,11 +283,6 @@ export default function Dashboard() {
       {/* NPS Section */}
       <div className="mb-8">
         <NpsDashboard />
-      </div>
-
-      {/* SOS League Table — operator-facing 0–5 score off the back of NPS */}
-      <div className="mb-8">
-        <SosLeagueTable />
       </div>
 
       {/* Partner health heat map — replaces the old white partner tiles */}

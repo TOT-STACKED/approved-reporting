@@ -8,6 +8,7 @@ import {
 import {
   LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
 } from 'recharts';
+import SectionIcon from '@/components/SectionIcon';
 
 // Vendor Score Intelligence — the partner-facing view of their own SOS.
 //
@@ -691,7 +692,7 @@ export function ScoreDetail({
   if (state === 'error' || !score) {
     return (
       <Card className="mb-6 sm:mb-8">
-        <h2 className="font-semibold text-gray-900 mb-1">Score Intelligence</h2>
+        <h2 className="font-display text-lg text-brand-green mb-1 flex items-center gap-3"><SectionIcon name="score" />Score Intelligence</h2>
         <p className="text-sm text-gray-500">
           We couldn&apos;t load your score right now. It&apos;ll be back on the next refresh —
           nothing is lost.
@@ -713,7 +714,7 @@ export function ScoreDetail({
   if (overall.sos === null || overall.count === 0) {
     return (
       <Card className="mb-6 sm:mb-8">
-        <h2 className="font-semibold text-gray-900 mb-1">Score Intelligence</h2>
+        <h2 className="font-display text-lg text-brand-green mb-1 flex items-center gap-3"><SectionIcon name="score" />Score Intelligence</h2>
         <p className="text-sm text-gray-500 max-w-2xl">
           No operator has rated {partnerName}{' '}
           yet. Ratings arrive when an operator picks you
@@ -727,8 +728,9 @@ export function ScoreDetail({
   return (
     <section id="score-intelligence" className="mb-6 sm:mb-8 scroll-mt-6">
       <div className="mb-3">
-        <div className="flex items-baseline gap-2 flex-wrap">
-          <h2 className="text-lg font-bold text-brand-green">Score Intelligence</h2>
+        <div className="flex items-center gap-2 flex-wrap">
+          <SectionIcon name="score" />
+          <h2 className="font-display text-lg text-brand-green">Score Intelligence</h2>
           <span className="text-xs text-gray-400">Stacked Operator Score · 0–5</span>
         </div>
         <p className="text-xs text-gray-500 mt-0.5 max-w-3xl">

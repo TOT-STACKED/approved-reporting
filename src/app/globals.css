@@ -73,6 +73,25 @@
   --color-brand-berry: #38278F;
   --color-brand-pink: #FF90C0;
   --color-brand-lime: #B0F070;
+
+  /* ---- Icon-tile palette, from the Stacked Design System ----
+     Six pastel/deep-ink pairs. A tile is a flat squircle of the pastel with
+     the glyph in its own ink — never gradient, never orange (that is CTA
+     only). Hues carry loose meaning: lavender = partners & people, lime =
+     intelligence and "go", pink = guests & operators, sky = comms, peach =
+     marketplace & payments, butter = rewards. */
+  --color-tile-lime: #B0F070;
+  --color-tile-lime-ink: #204000;
+  --color-tile-pink: #FF90C0;
+  --color-tile-pink-ink: #800040;
+  --color-tile-sky: #90D8F0;
+  --color-tile-sky-ink: #2C70D0;
+  --color-tile-lavender: #D8C0F0;
+  --color-tile-lavender-ink: #301878;
+  --color-tile-peach: #FFC090;
+  --color-tile-peach-ink: #F1652A;
+  --color-tile-butter: #FFF0C0;
+  --color-tile-butter-ink: #F2A800;
   --color-brand-yellow: #FFF0C0;
   --color-brand-lavender: #D8C0F0;
   --color-brand-sky: #90D8F0;
@@ -194,6 +213,30 @@ body {
 /* Chunko Bold: headings and big numbers only, never body or table text.
    Always uppercase — every Chunko setting on the dashboard is a title or a
    figure, and the brand sets both in caps. */
+/* ---- One hue per surface ------------------------------------------------
+   The design system's dominant pattern: a surface commits to ONE hue family
+   and works tone-on-tone within it — pastel ground, deep-ink cards, the
+   pastel tint again for text inside those cards.
+
+   The partner dashboard takes lavender, the system's hue for partners. This
+   is scoped to the wrapper rather than applied to each component because
+   Score Intelligence, Market Intelligence and the marketplace section are
+   shared with the internal team pages, which stay on cream. The descendant
+   selectors below out-specify the Tailwind utilities they soften, so the
+   shared components need no variant prop and no edits. */
+.surface-lavender {
+  background: var(--color-tile-lavender);
+}
+/* White cards become a lavender tint, so data stays readable without
+   punching a white hole in the hue. */
+.surface-lavender .bg-white { background: #F7F1FD; }
+.surface-lavender .bg-brand-cream { background: #EADCF7; }
+.surface-lavender .bg-brand-cream-soft { background: #F2E9FB; }
+.surface-lavender .bg-gray-50 { background: #F2E9FB; }
+/* Hairlines pick up the hue rather than staying neutral grey. */
+.surface-lavender .border-gray-200 { border-color: #E0CFF4; }
+.surface-lavender .border-gray-100 { border-color: #EADCF7; }
+
 .font-display {
   font-family: var(--font-chunko), ui-sans-serif, system-ui, sans-serif;
   font-weight: 700;

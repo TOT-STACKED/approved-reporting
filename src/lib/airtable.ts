@@ -169,6 +169,50 @@ export function toClientPartner(detail: PartnerDetail): ClientPartnerDetail {
   };
 }
 
+/** Stages where the introduction has already been made, so the operator
+ *  knows the partner has their details. Everything else is Stacked-side. */
+const SHARED_WITH_OPERATOR = new Set(['sql', 'closed won', 'closed lost']);
+
+/**
+ * What a partner may see of their own pipeline.
+ *
+ *   MAL  — dropped entirely. This is Stacked's own prospecting; the partner
+ *          gets the headline count from statusBreakdown and nothing else.
+ *   MQL  — the brand only. We have told them there is interest, but no
+ *          introduction has been made, so no person is attached.
+ *   SQL+ — full detail, because by then we have shared it with the operator.
+ *
+ * Anything with an unrecognised or missing stage is treated as MQL, so a new
+ * or mistyped stage fails closed rather than leaking contacts.
+ *
+ * This runs on the server on purpose. The UI already varied by stage, but the
+ * API sent every field regardless — so the whole book, 1,100-odd operators
+ * with emails, phone numbers and internal notes, was one fetch away from
+ * anyone holding a partner link.
+ */
+export function redactLeadsForPartner(leads: ClientLead[]): ClientLead[] {
+  const visible: ClientLead[] = [];
+  for (const lead of leads) {
+    const stage = (lead.stage || lead.status || '').trim().toLowerCase();
+    if (stage === 'mal') continue;
+    if (SHARED_WITH_OPERATOR.has(stage)) {
+      visible.push(lead);
+      continue;
+    }
+    const {
+      firstName: _firstName,
+      lastName: _lastName,
+      position: _position,
+      contactEmail: _contactEmail,
+      contactNumber: _contactNumber,
+      totNotes: _totNotes,
+      ...brandOnly
+    } = lead;
+    visible.push(brandOnly);
+  }
+  return visible;
+}
+
 export interface Lead {
   id: string;
   businessName: string;
@@ -314,7 +358,11 @@ interface PartnerAliasGroup {
 const PARTNER_ALIAS_GROUPS: Record<string, PartnerAliasGroup> = {
   clearcourse: {
     displayName: 'Clearcourse',
-    slugs: ['clearcourse', 'tissl', 'giftpro', 'rezcontrol'],
+    // The lead sheet also carries a combined "Clearcourse / Giftpro / Tissl"
+    // option, which slugifies to clearcourse-giftpro-tissl. Without it listed
+    // here that tag became its own partner row, so Clearcourse appeared twice
+    // on the internal list with their leads split between the two.
+    slugs: ['clearcourse', 'clearcourse-giftpro-tissl', 'tissl', 'giftpro', 'rezcontrol'],
   },
   // Airtable's select option is "Revvue ai" (slug `revvue-ai`), but the
   // partner link uses the tidy `revvue`. Accept both so the page resolves
@@ -373,6 +421,14 @@ const PARTNER_ALIAS_GROUPS: Record<string, PartnerAliasGroup> = {
   'planday-from-xero': {
     displayName: 'Planday From Xero',
     slugs: ['planday-from-xero', 'planday', 'planday-by-xero'],
+  },
+  // Lead sheet tags them "Wolverton Solutions", the marketplace row is just
+  // "wolverton". Without this the Package lookup found no row and failed
+  // closed to Promote, so an Approved partner was being served the gated
+  // view — the same way Planday, Sky and five others were.
+  wolverton: {
+    displayName: 'Wolverton Solutions',
+    slugs: ['wolverton', 'wolverton-solutions'],
   },
 };
 

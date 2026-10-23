@@ -4,6 +4,7 @@
 // is pure presentation.
 
 import { scoreTone } from './VendorScoreDashboard';
+import SectionIcon from '@/components/SectionIcon';
 
 // Type inlined here (not imported) so the component builds even if the
 // stackcollect.ts on GitHub is briefly out of sync. Fields beyond `mentions`
@@ -193,9 +194,10 @@ export default function StackCollectSection({ partnerName, data: raw, categorySc
 
   return (
     <div className="bg-white rounded-xl border border-gray-200 p-5 sm:p-6 mb-6 sm:mb-8">
-      <h2 className="font-semibold text-gray-900 mb-1">
+      <h2 className="font-display text-lg text-brand-green mb-1 flex items-center gap-3">
+        <SectionIcon name="glossary" />
         Intelligence — Your Marketplace Presence
-        <span className="text-gray-400 font-normal ml-2 text-sm">from wearestacked.io</span>
+        <span className="font-sans normal-case text-gray-400 font-normal ml-2 text-sm">from wearestacked.io</span>
       </h2>
       <p className="text-sm text-gray-600 mb-4 leading-relaxed">{headline}</p>
 

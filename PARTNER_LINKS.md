@@ -67,3 +67,12 @@ in `src/lib/airtable.ts` accepts both, so leave it. Revvue's slug is `revvue` bu
 Airtable's select option reads "Revvue ai" — same alias mechanism. Flock X has no leads
 tagged yet and isn't a select option in the Master Lead Sheet stage fields, so their page
 renders the zero state until one is added.)_
+| MarketMan | `marketman` | https://partners.wearestacked.io/p/f1e38984c141c6b1 |
+| Creventa | `creventa` | https://partners.wearestacked.io/p/275e1632cf7ee1ec |
+| Wolverton Solutions | `wolverton` | https://partners.wearestacked.io/p/58d073b62ee4eed9 |
+| Fydelia | `fydelia` | https://partners.wearestacked.io/p/6557239fc3202841 |
+| me&u | `me-u` | https://partners.wearestacked.io/p/5aef89826bdecdb2 |
+| Peckish | `peckish` | https://partners.wearestacked.io/p/eff5cb16e65a7e65 |
+| HSG | `hsg` | https://partners.wearestacked.io/p/baf01830cc833606 |
+| Opsyte | `opsyte` | https://partners.wearestacked.io/p/a159795402d37bdc |
+| Dojo | `dojo` | https://partners.wearestacked.io/p/f873eedc5838a0ec |

@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import SectionIcon from '@/components/SectionIcon';
 
 type Period = 'week' | 'month' | 'quarter' | 'year' | 'all';
 
@@ -132,9 +133,12 @@ export default function StacksDashboard({ hideRecentReviews = false }: StacksDas
     <div>
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
-        <div>
-          <h2 className="text-lg font-bold text-gray-900">Market Intelligence</h2>
-          <p className="text-xs text-gray-500">Operator intelligence review data</p>
+        <div className="flex items-start gap-3">
+          <SectionIcon name="market" className="mt-0.5" />
+          <div>
+            <h2 className="font-display text-lg text-brand-green">Market Intelligence</h2>
+            <p className="text-xs text-gray-500">Operator intelligence review data</p>
+          </div>
         </div>
         <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
           {(Object.keys(PERIOD_LABELS) as Period[]).map(p => (

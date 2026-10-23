@@ -9,6 +9,7 @@ import StacksDashboard from '@/components/StacksDashboard';
 import StackCollectSection from '@/components/StackCollectSection';
 import AskBox from '@/components/AskBox';
 import LeadStatusGlossary from '@/components/LeadStatusGlossary';
+import SectionIcon from '@/components/SectionIcon';
 import LockedLeadDetail from '@/components/LockedLeadDetail';
 import AccountSetupCard from '@/components/AccountSetupCard';
 import type { PartnerTier } from '@/lib/partner-tier';
@@ -123,9 +124,10 @@ export default function SecurePartnerPage({ tokenOverride }: { tokenOverride?: s
   const [loading, setLoading] = useState(true);
   const [unauthorized, setUnauthorized] = useState(false);
 
-  // Which stage the Lead Progress table is showing. MAL not selectable —
-  // 998 MAL rows would drown the table. MQL is the natural default.
-  type StageFilter = 'MQL' | 'SQL' | 'Closed Won';
+  // Which stage the Lead Progress table is showing. MAL isn't here at all —
+  // those rows are Stacked's own prospecting and never leave the server.
+  // MQL is the natural default.
+  type StageFilter = 'MQL' | 'SQL' | 'Closed Won' | 'Closed Lost';
   const [stageFilter, setStageFilter] = useState<StageFilter>('MQL');
   // Lead Progress search + sort + "stuck only" toggle
   const [leadSearch, setLeadSearch] = useState('');
@@ -263,7 +265,6 @@ export default function SecurePartnerPage({ tokenOverride }: { tokenOverride?: s
     ? (metrics.reduce((s, m) => s + m.bounceRate, 0) / metrics.length * 100).toFixed(1)
     : 'N/A';
 
-  const malCount = partner.statusBreakdown['MAL'] || 0;
   const mqlCount = partner.statusBreakdown['MQL'] || 0;
   const sqlCount = partner.statusBreakdown['SQL'] || 0;
   // statusBreakdown only — the same lead also appears in stageBreakdown,
@@ -271,14 +272,18 @@ export default function SecurePartnerPage({ tokenOverride }: { tokenOverride?: s
   // kept defensively for Airtable values like 'Closed Won '.
   const closedWon = (partner.statusBreakdown['Closed Won'] || 0) +
     (partner.statusBreakdown['Closed Won '] || 0);
+  const closedLost = (partner.statusBreakdown['Closed Lost'] || 0) +
+    (partner.statusBreakdown['Closed Lost '] || 0);
 
   const totalImpressions = activities.reduce((s, a) => s + a.impressions, 0);
   const totalEngagements = activities.reduce((s, a) => s + a.engagements, 0);
 
   return (
-    <div className="min-h-screen bg-brand-cream-soft">
-      {/* Standalone header */}
-      <nav className="bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/80 border-b border-gray-200/80 px-4 sm:px-6 py-3 sticky top-0 z-30">
+    <div className="min-h-screen surface-lavender">
+      {/* Standalone header. Deep-ink bar on the pastel ground — the design
+          system inverts chrome against the surface hue rather than sitting a
+          white bar on top of it. */}
+      <nav className="bg-tile-lavender-ink px-4 sm:px-6 py-3 sticky top-0 z-30">
         <div className="max-w-5xl mx-auto flex items-center">
           <div className="flex items-center gap-3">
             <img
@@ -286,9 +291,9 @@ export default function SecurePartnerPage({ tokenOverride }: { tokenOverride?: s
               alt="Stacked"
               className="h-6 sm:h-7 w-auto"
             />
-            <span className="flex flex-col leading-tight border-l border-brand-green/15 pl-3">
-              <span className="font-display text-sm sm:text-base text-brand-green leading-none">{partner.name}</span>
-              <span className="font-mono text-[9px] sm:text-[10px] uppercase tracking-[0.18em] text-brand-green/60 mt-1">Partner Portal</span>
+            <span className="flex flex-col leading-tight border-l border-tile-lavender/30 pl-3">
+              <span className="font-display text-sm sm:text-base text-tile-lavender leading-none">{partner.name}</span>
+              <span className="font-mono text-[9px] sm:text-[10px] uppercase tracking-[0.18em] text-tile-lavender/60 mt-1">Partner Portal</span>
             </span>
           </div>
         </div>
@@ -314,13 +319,7 @@ export default function SecurePartnerPage({ tokenOverride }: { tokenOverride?: s
             <p className="text-xs text-gray-500 mb-2">
               What Stacked is working right now, across the whole community.
             </p>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 mb-4">
-              <div className="bg-brand-lavender rounded-2xl p-4 sm:p-5 text-brand-green shadow-sm" title={LEAD_STATUS_EXPLAINER.MAL}>
-                <p className="text-2xl sm:text-3xl font-bold">{community.mal.toLocaleString()}</p>
-                <p className="text-xs sm:text-sm font-medium opacity-75 mt-1">MAL</p>
-                <p className="text-[10px] opacity-60 mt-0.5">Marketing Awareness Leads</p>
-                <p className="text-[10px] sm:text-xs opacity-60 mt-2">Across every Stacked partner</p>
-              </div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mb-4">
               <div className="bg-brand-sky rounded-2xl p-4 sm:p-5 text-brand-green shadow-sm" title={LEAD_STATUS_EXPLAINER.MQL}>
                 <p className="text-2xl sm:text-3xl font-bold">{community.mql.toLocaleString()}</p>
                 <p className="text-xs sm:text-sm font-medium opacity-75 mt-1">MQL</p>
@@ -342,30 +341,26 @@ export default function SecurePartnerPage({ tokenOverride }: { tokenOverride?: s
 
         {tier === 'approved' && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 mb-4">
-          <div className="bg-brand-lavender rounded-2xl p-4 sm:p-5 text-brand-green shadow-sm" title={LEAD_STATUS_EXPLAINER.MAL}>
-            <p className="text-2xl sm:text-3xl font-bold">{malCount}</p>
-            <p className="text-xs sm:text-sm font-medium opacity-75 mt-1">MAL</p>
-            <p className="text-[10px] opacity-60 mt-0.5">Marketing Awareness Leads</p>
-            <p className="text-[10px] sm:text-xs opacity-60 mt-2">{partner.leadCount} total referred · {partner.recentLeadCount} active last 90d</p>
-          </div>
           <button
             type="button"
             onClick={() => setStageFilter('MQL')}
             aria-pressed={stageFilter === 'MQL'}
             title={`${LEAD_STATUS_EXPLAINER.MQL} — click to see MQL leads below`}
-            className={`bg-brand-sky rounded-2xl p-4 sm:p-5 text-brand-green shadow-sm text-left transition-all hover:shadow-md ${stageFilter === 'MQL' ? 'ring-4 ring-brand-green/40' : ''}`}
+            className={`bg-tile-lavender-ink rounded-2xl p-4 sm:p-5 text-tile-lavender text-left transition-all hover:brightness-110 ${stageFilter === 'MQL' ? 'ring-4 ring-tile-lavender/60' : ''}`}
           >
+            <span className="block w-11 h-[7px] rounded-full bg-brand-sky mb-3"></span>
             <p className="text-2xl sm:text-3xl font-bold">{mqlCount}</p>
             <p className="text-xs sm:text-sm font-medium opacity-75 mt-1">MQL</p>
-            <p className="text-[10px] opacity-60 mt-0.5">{stageFilter === 'MQL' ? 'Showing below' : 'Click to show'}</p>
+            <p className="text-[10px] opacity-70 mt-0.5">{stageFilter === 'MQL' ? 'Showing below' : 'Click to show'}</p>
           </button>
           <button
             type="button"
             onClick={() => setStageFilter('SQL')}
             aria-pressed={stageFilter === 'SQL'}
             title={`${LEAD_STATUS_EXPLAINER.SQL} — click to see SQL leads below`}
-            className={`bg-brand-lime rounded-2xl p-4 sm:p-5 text-brand-green shadow-sm text-left transition-all hover:shadow-md ${stageFilter === 'SQL' ? 'ring-4 ring-brand-green/40' : ''}`}
+            className={`bg-tile-lavender-ink rounded-2xl p-4 sm:p-5 text-tile-lavender text-left transition-all hover:brightness-110 ${stageFilter === 'SQL' ? 'ring-4 ring-tile-lavender/60' : ''}`}
           >
+            <span className="block w-11 h-[7px] rounded-full bg-brand-lime mb-3"></span>
             <p className="text-2xl sm:text-3xl font-bold">{sqlCount}</p>
             <p className="text-xs sm:text-sm font-medium opacity-90 mt-1">SQL</p>
             <p className="text-[10px] opacity-75 mt-0.5">{stageFilter === 'SQL' ? 'Showing below' : 'Click to show'}</p>
@@ -375,11 +370,24 @@ export default function SecurePartnerPage({ tokenOverride }: { tokenOverride?: s
             onClick={() => setStageFilter('Closed Won')}
             aria-pressed={stageFilter === 'Closed Won'}
             title="Click to see Closed Won leads below"
-            className={`bg-brand-green rounded-2xl p-4 sm:p-5 text-white shadow-sm text-left transition-all hover:shadow-md ${stageFilter === 'Closed Won' ? 'ring-4 ring-brand-lime/60' : ''}`}
+            className={`bg-tile-lavender-ink rounded-2xl p-4 sm:p-5 text-tile-lavender text-left transition-all hover:brightness-110 ${stageFilter === 'Closed Won' ? 'ring-4 ring-tile-lavender/60' : ''}`}
           >
+            <span className="block w-11 h-[7px] rounded-full bg-brand-yellow mb-3"></span>
             <p className="text-2xl sm:text-3xl font-bold">{closedWon}</p>
             <p className="text-xs sm:text-sm font-medium opacity-90 mt-1">Closed Won</p>
             <p className="text-[10px] opacity-75 mt-0.5">{stageFilter === 'Closed Won' ? 'Showing below' : 'Click to show'}</p>
+          </button>
+          <button
+            type="button"
+            onClick={() => setStageFilter('Closed Lost')}
+            aria-pressed={stageFilter === 'Closed Lost'}
+            title="Click to see Closed Lost leads below"
+            className={`bg-tile-lavender-ink rounded-2xl p-4 sm:p-5 text-tile-lavender text-left transition-all hover:brightness-110 ${stageFilter === 'Closed Lost' ? 'ring-4 ring-tile-lavender/60' : ''}`}
+          >
+            <span className="block w-11 h-[7px] rounded-full bg-brand-pink mb-3"></span>
+            <p className="text-2xl sm:text-3xl font-bold">{closedLost}</p>
+            <p className="text-xs sm:text-sm font-medium opacity-90 mt-1">Closed Lost</p>
+            <p className="text-[10px] opacity-75 mt-0.5">{stageFilter === 'Closed Lost' ? 'Showing below' : 'Click to show'}</p>
           </button>
         </div>
         )}
@@ -432,21 +440,27 @@ export default function SecurePartnerPage({ tokenOverride }: { tokenOverride?: s
             const stageRows = partner.leads.filter(
               l => (l.status || '').trim().toLowerCase() === stageFilter.toLowerCase()
             );
-            // Stale = currently at MQL/SQL with no modification in 30+ days.
-            // Closed Won leads are terminal so a "stale" flag isn't useful.
+            // Stale only applies at SQL, the one stage the partner owns.
+            // At MQL Stacked is still running the outreach, so flagging a
+            // lead as stale there reads as the partner being slow at
+            // something that isn't theirs yet. Closed Won and Closed Lost
+            // are terminal — the deal is finished either way.
             const now = Date.now();
             const isStale = (l: { lastModified?: string }) => {
-              if (stageFilter === 'Closed Won') return false;
+              if (stageFilter !== 'SQL') return false;
               if (!l.lastModified) return false;
               const days = (now - new Date(l.lastModified).getTime()) / 86_400_000;
               return days > STALE_DAYS;
             };
             const staleCount = stageRows.filter(isStale).length;
 
-            // Apply search + stale filter
+            // Apply search + stale filter. The stale toggle only bites at
+            // SQL — leaving it on and switching to MQL would otherwise filter
+            // every row away, since nothing is ever stale outside SQL.
             const q = leadSearch.trim().toLowerCase();
+            const staleFilterActive = staleOnly && stageFilter === 'SQL';
             const filtered = stageRows.filter(l => {
-              if (staleOnly && !isStale(l)) return false;
+              if (staleFilterActive && !isStale(l)) return false;
               if (q && !(l.businessName || '').toLowerCase().includes(q) && !(l.source || '').toLowerCase().includes(q)) return false;
               return true;
             });
@@ -462,14 +476,17 @@ export default function SecurePartnerPage({ tokenOverride }: { tokenOverride?: s
             return (
               <>
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
-                  <div>
-                    <h2 className="font-semibold text-gray-900">
+                  <div className="flex items-start gap-3">
+                    <SectionIcon name="pipeline" className="mt-0.5" />
+                    <div>
+                    <h2 className="font-display text-lg text-brand-green">
                       Lead Progress
-                      <span className="text-gray-400 font-normal ml-2 text-sm">All {stageFilter} leads</span>
+                      <span className="font-sans normal-case text-gray-400 font-normal ml-2 text-sm">All {stageFilter} leads</span>
                     </h2>
                     <p className="text-xs text-gray-400 mt-0.5">
                       Showing {sorted.length} of {stageRows.length} {stageFilter} lead{stageRows.length === 1 ? '' : 's'}
                     </p>
+                    </div>
                   </div>
                   <div className="flex items-center gap-2">
                     <input
@@ -522,11 +539,16 @@ export default function SecurePartnerPage({ tokenOverride }: { tokenOverride?: s
                           return (
                             <Fragment key={lead.id}>
                               <tr
-                                onClick={() => setExpandedLeadId(isExpanded ? null : lead.id)}
-                                className={`border-b border-gray-100 cursor-pointer hover:bg-brand-cream/40 ${stale ? 'bg-amber-50/40' : ''} ${isExpanded ? 'bg-brand-cream/60' : ''}`}
+                                // MQL carries no contact details, so there is
+                                // nothing to open — expanding one would show an
+                                // empty panel. Brand name only, as intended.
+                                onClick={isMql ? undefined : () => setExpandedLeadId(isExpanded ? null : lead.id)}
+                                className={`border-b border-gray-100 ${isMql ? '' : 'cursor-pointer hover:bg-brand-cream/40'} ${stale ? 'bg-amber-50/40' : ''} ${isExpanded ? 'bg-brand-cream/60' : ''}`}
                               >
                                 <td className="py-3 px-3 text-gray-900">
-                                  <span className="inline-block mr-1.5 text-gray-400 text-[10px]">{isExpanded ? '▾' : '▸'}</span>
+                                  {!isMql && (
+                                    <span className="inline-block mr-1.5 text-gray-400 text-[10px]">{isExpanded ? '▾' : '▸'}</span>
+                                  )}
                                   {lead.businessName}
                                   {stale && <span className="ml-2 text-[10px] text-amber-700">⚠ stale</span>}
                                 </td>
@@ -618,7 +640,7 @@ export default function SecurePartnerPage({ tokenOverride }: { tokenOverride?: s
         </div>
         )}
 
-        <LeadStatusGlossary className="mb-6 sm:mb-8" />
+        <LeadStatusGlossary className="mb-6 sm:mb-8" showMal={false} />
 
         {/* Partner-scoped AI query box */}
         {SHOW_ASK_AI && <AskBox token={token} partnerName={partner.name} />}
@@ -706,9 +728,10 @@ export default function SecurePartnerPage({ tokenOverride }: { tokenOverride?: s
         {/* Marketing Activities */}
         {activities.length > 0 && (
           <div className="bg-white rounded-xl border border-gray-200 p-5 sm:p-6 mb-6 sm:mb-8">
-            <h2 className="font-semibold text-gray-900 mb-4">
+            <h2 className="font-display text-lg text-brand-green mb-4 flex items-center gap-3">
+              <SectionIcon name="activity" />
               Marketing Activity
-              <span className="text-gray-400 font-normal ml-2 text-sm">{totalImpressions.toLocaleString()} reach · {totalEngagements.toLocaleString()} engagements</span>
+              <span className="font-sans normal-case text-gray-400 font-normal ml-2 text-sm">{totalImpressions.toLocaleString()} reach · {totalEngagements.toLocaleString()} engagements</span>
             </h2>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
@@ -757,7 +780,10 @@ export default function SecurePartnerPage({ tokenOverride }: { tokenOverride?: s
         {/* Metrics Table */}
         {metrics.length > 0 && (
           <div className="bg-white rounded-xl border border-gray-200 p-5 sm:p-6 mb-6 sm:mb-8">
-            <h2 className="font-semibold text-gray-900 mb-4">Site Traffic - Weekly</h2>
+            <h2 className="font-display text-lg text-brand-green mb-4 flex items-center gap-3">
+              <SectionIcon name="traffic" />
+              Site Traffic - Weekly
+            </h2>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>

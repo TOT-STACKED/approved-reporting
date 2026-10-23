@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getPartnerDetail, toClientPartner } from '@/lib/airtable';
+import { getPartnerDetail, partnerSlugAliases, toClientPartner } from '@/lib/airtable';
 import { getPartnerStackCollectData } from '@/lib/stackcollect';
 import { tierForSlug } from '@/lib/partner-package';
 import { getTokenMap } from '@/lib/partner-auth';
@@ -29,7 +29,19 @@ export async function GET(
     // trip to the repo when someone wants to check what a partner sees.
     // Whenever partner logins land, this becomes /login-as or similar and
     // nothing else on the page has to change.
-    const token = Object.entries(getTokenMap()).find(([, s]) => s === slug)?.[0] || null;
+    //
+    // Match on every spelling the partner is known by, not just this page's.
+    // A link is issued once and the slug it was issued on rarely matches the
+    // one this page is served under — Planday's page is `planday-from-xero`
+    // and their token says `planday`, SevenRooms is `sevenrooms` against
+    // `seven-rooms`, RYE is `rye` against `rye-energy`. An exact comparison
+    // here hid the button for all three while their dashboards worked fine,
+    // which reads as "this partner has no link" and is how Wolverton and
+    // Fydelia went unnoticed. Same walk as tierForSlug.
+    const aliases = new Set(partnerSlugAliases(slug));
+    const tokenMap = getTokenMap();
+    const token =
+      Object.entries(tokenMap).find(([, s]) => aliases.has(s.trim().toLowerCase()))?.[0] || null;
 
     return NextResponse.json({
       partner: toClientPartner(partner),
