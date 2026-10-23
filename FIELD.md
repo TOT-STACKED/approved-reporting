@@ -59,6 +59,15 @@ plan is to feed visits into the venue marketplace as "Field-verified".
   counts. A visit is skipped if it has a review or if a review exists for a business
   with the same name. They're not in the Airtable tech-usage sync or the marketplace.
 
+- **Slack**: every saved visit posts to #stacked-intelligence-reports via the
+  "Stacked Field" Slack app's incoming webhook (`FIELD_SLACK_WEBHOOK_URL`, secret).
+  It includes the contact's details (Chris, 23 Oct 2026), and 🔥 marks a yes to a demo.
+  A full review also gets its usual ping from the main system.
+- **Google**: project "Stacked Field" in Google Cloud. `NEXT_PUBLIC_GOOGLE_MAPS_KEY`
+  (browser key, locked to partners.wearestacked.io and approvedreporting.netlify.app)
+  and `GOOGLE_PLACES_SERVER_KEY` (Places API (New) only, secret). Budget alert is
+  £50/month.
+
 ## Where things live
 
 - Supabase `kohnakdevwfudzgfjmab`: tables `field_agents` and `field_visits`, plus the
