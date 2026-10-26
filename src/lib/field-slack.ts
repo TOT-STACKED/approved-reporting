@@ -15,6 +15,18 @@ const BASE = (process.env.FIELD_PUBLIC_URL || 'https://partners.wearestacked.io'
 /** Slack treats &, < and > as markup. */
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
+/**
+ * Did an edit add something the channel hasn't seen: new or changed tech, or
+ * contact details? Fixing a typo in the notes or nudging the pin doesn't post.
+ */
+export function addsNews(before: Partial<SlackVisit>, after: Partial<SlackVisit>): boolean {
+  const was = before.stack || {};
+  const tech = Object.entries(after.stack || {}).some(([k, e]) => JSON.stringify(was[k]) !== JSON.stringify(e));
+  const contact = (['contact_name', 'contact_email', 'contact_phone', 'demo_interest'] as const)
+    .some(k => after[k] && after[k] !== before[k]);
+  return tech || contact;
+}
+
 function techLines(stack: FieldStack): string[] {
   const keys = [
     ...FIELD_CATEGORIES.map(c => c.id).filter(k => stack[k]),
@@ -50,7 +62,11 @@ export interface SlackVisit {
   photos: string[];
 }
 
-export async function postVisitToSlack(v: SlackVisit, agentName: string, reviewDone: boolean): Promise<void> {
+/**
+ * Same message for an edit that adds something (`updated`): agents often save
+ * the visit first and add the tech a moment later.
+ */
+export async function postVisitToSlack(v: SlackVisit, agentName: string, reviewDone: boolean, updated = false): Promise<void> {
   const url = process.env.FIELD_SLACK_WEBHOOK_URL;
   if (!url) return;
 
@@ -75,7 +91,7 @@ export async function postVisitToSlack(v: SlackVisit, agentName: string, reviewD
   ].filter(Boolean);
 
   const blocks: unknown[] = [
-    { type: 'header', text: { type: 'plain_text', text: `${hot ? '🔥 ' : '📍 '}Field visit: ${v.venue_name}`.slice(0, 150), emoji: true } },
+    { type: 'header', text: { type: 'plain_text', text: `${hot ? '🔥 ' : '📍 '}Field visit${updated ? ' updated' : ''}: ${v.venue_name}`.slice(0, 150), emoji: true } },
     {
       type: 'section',
       fields: [
@@ -106,7 +122,7 @@ export async function postVisitToSlack(v: SlackVisit, agentName: string, reviewD
     const res = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text: `${hot ? '🔥 ' : ''}Field visit: ${v.venue_name} (${agentName})`, blocks }),
+      body: JSON.stringify({ text: `${hot ? '🔥 ' : ''}Field visit${updated ? ' updated' : ''}: ${v.venue_name} (${agentName})`, blocks }),
       signal: AbortSignal.timeout(8000),
     });
     if (!res.ok) console.warn('[field] slack post failed', res.status, (await res.text()).slice(0, 200));

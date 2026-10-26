@@ -1,6 +1,7 @@
 import { after, NextResponse, type NextRequest } from 'next/server';
 import { requireAgent } from '@/lib/field-api';
 import { ReviewInputError, buildReviewSubmission, keepReviewAnswers, requestIntelligenceReport, reviewFrom, saveReview } from '@/lib/field-review';
+import { addsNews, postVisitToSlack, type SlackVisit } from '@/lib/field-slack';
 import { VisitInputError, canAccess, cleanVisitInput, deleteVisit, getVisit, updateVisit } from '@/lib/field-db';
 
 export const dynamic = 'force-dynamic';
@@ -31,6 +32,15 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     }
 
     await updateVisit(id, fields);
+    // Tech or a contact added after the first save: tell the channel too.
+    if (addsNews(visit as unknown as SlackVisit, fields as unknown as SlackVisit)) {
+      after(() => postVisitToSlack(
+        { ...(fields as unknown as SlackVisit), id },
+        visit.agent_name || agent.name || agent.email,
+        Boolean(review || visit.submission_id),
+        true,
+      ));
+    }
     if (review) {
       const submissionId = await saveReview(review);
       await updateVisit(id, { submission_id: submissionId });
