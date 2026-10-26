@@ -898,6 +898,7 @@ function TechStep({ stack, onChange }: { stack: FieldStack; onChange: (s: FieldS
 
 function PhotoStep({ d, set, existingUrls, originalPhotos }: { d: Draft; set: Setter; existingUrls: string[]; originalPhotos: string[] }) {
   const input = useRef<HTMLInputElement>(null);
+  const gallery = useRef<HTMLInputElement>(null);
   const [previews, setPreviews] = useState<Record<string, string>>(() => {
     const m: Record<string, string> = {};
     originalPhotos.forEach((p, i) => { if (existingUrls[i]) m[p] = existingUrls[i]; });
@@ -952,6 +953,7 @@ function PhotoStep({ d, set, existingUrls, originalPhotos }: { d: Draft; set: Se
       }
     }
     if (input.current) input.current.value = '';
+    if (gallery.current) gallery.current.value = '';
   }
 
   return (
@@ -959,7 +961,9 @@ function PhotoStep({ d, set, existingUrls, originalPhotos }: { d: Draft; set: Se
       <section>
         <h2 className="mb-1 font-display text-[28px] uppercase leading-none tracking-tight">Photos</h2>
         <p className="mb-3 text-[14px] text-muted">The till, card machines, QR codes, kiosks, the shopfront.</p>
+        {/* Two pickers: the camera, or photos already on the phone (taken earlier, or sent by the venue). */}
         <input ref={input} type="file" accept="image/*" capture="environment" multiple className="hidden" onChange={e => add(e.target.files)} />
+        <input ref={gallery} type="file" accept="image/*" multiple className="hidden" onChange={e => add(e.target.files)} />
         <div className="grid grid-cols-3 gap-2 md:grid-cols-4">
           {d.photos.map(p => (
             <div key={p} className="relative aspect-square overflow-hidden rounded-xl bg-surface-2">
@@ -976,13 +980,22 @@ function PhotoStep({ d, set, existingUrls, originalPhotos }: { d: Draft; set: Se
             <div key={`u${i}`} className="grid aspect-square animate-pulse place-items-center rounded-xl bg-surface-2 text-xs text-muted">Uploading…</div>
           ))}
           {d.photos.length + uploading < 12 && (
-            <button type="button" onClick={() => input.current?.click()}
-              className="grid aspect-square place-items-center rounded-xl border-2 border-dashed border-ink/40 bg-surface text-ink active:bg-surface-2">
-              <span className="flex flex-col items-center gap-1 text-[13px] font-bold">
-                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z" /><circle cx="12" cy="13" r="4" /></svg>
-                Add photo
-              </span>
-            </button>
+            <>
+              <button type="button" onClick={() => input.current?.click()}
+                className="grid aspect-square place-items-center rounded-xl border-2 border-dashed border-ink/40 bg-surface text-ink active:bg-surface-2">
+                <span className="flex flex-col items-center gap-1 text-[13px] font-bold">
+                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z" /><circle cx="12" cy="13" r="4" /></svg>
+                  Take photo
+                </span>
+              </button>
+              <button type="button" onClick={() => gallery.current?.click()}
+                className="grid aspect-square place-items-center rounded-xl border-2 border-dashed border-ink/40 bg-surface text-ink active:bg-surface-2">
+                <span className="flex flex-col items-center gap-1 text-[13px] font-bold">
+                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" /><path d="M21 15l-5-5L5 21" /></svg>
+                  From gallery
+                </span>
+              </button>
+            </>
           )}
         </div>
         {err && <p className="mt-2 text-[14px] text-negative">{err}</p>}
