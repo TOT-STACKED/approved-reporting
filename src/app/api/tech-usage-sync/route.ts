@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import {
   getBusinessSubmissions,
+  getFieldObservedVenues,
   getTechStackEntries,
   matchTermsForPartner,
   type BusinessSubmission,
@@ -9,6 +10,14 @@ import {
 
 // Syncs venue x tool "who uses what" rows into the marketplace Tech Usage
 // table in Airtable, so Framer partner pages can show operator names + counts.
+//
+// Two sources, each owning its own rows:
+//   - "Self-reported (Health Check)": Intelligence Reviews
+//   - "Field-verified (Stacked Field)": tech an agent saw on a visit
+//     (getFieldObservedVenues: venues with no review, latest visit's tech).
+//     Every run checks all of them rather than a delta window; there are few
+//     and an unchanged venue costs no Airtable calls. Chris's call, 31 Oct 2026,
+//     to show these on partner pages.
 //
 // Wipe-and-replace per venue: for every venue with a submission in the delta
 // window, all their existing Source="Self-reported (Health Check)" rows are
@@ -35,6 +44,8 @@ export const maxDuration = 60;
 
 const SINCE_DEFAULT_DAYS = 14;
 const SOURCE_LABEL = 'Self-reported (Health Check)';
+const FIELD_SOURCE_LABEL = 'Field-verified (Stacked Field)';
+const SOURCES = new Set([SOURCE_LABEL, FIELD_SOURCE_LABEL]);
 
 const MP_BASE = process.env.MARKETPLACE_AIRTABLE_BASE_ID!;
 const MP_KEY = process.env.MARKETPLACE_AIRTABLE_KEY!;
@@ -234,7 +245,8 @@ async function airtableDelete(table: string, recordIds: string[]): Promise<void>
 function buildTechUsageRows(
   venueId: string,
   venueName: string,
-  submission: BusinessSubmission,
+  submissionDate: string,
+  source: string,
   entries: TechStackEntry[],
   partnerIndex: Array<{ id: string; patterns: RegExp[] }>,
 ): Array<{ fields: Record<string, unknown> }> {
@@ -251,7 +263,6 @@ function buildTechUsageRows(
   // observed Jul 31 2026 before this change; "Square 42 → 102" the same day).
   const seen = new Set<string>();
   const rows: Array<{ fields: Record<string, unknown> }> = [];
-  const submissionDate = submission.created_at.slice(0, 10);
   for (const e of entries) {
     const tool = (e.tool_name ?? '').trim();
     if (!tool) continue;
@@ -266,7 +277,7 @@ function buildTechUsageRows(
       Entry: `${venueName} — ${tool}`,
       Tool: tool,
       Category: category,
-      Source: SOURCE_LABEL,
+      Source: source,
       'Submission date': submissionDate,
       Venue: [venueId],
     };
@@ -298,9 +309,10 @@ export async function GET(req: Request) {
 
   try {
     // 1. Fetch Supabase (source of truth)
-    const [submissions, entries] = await Promise.all([
+    const [submissions, entries, observed] = await Promise.all([
       getBusinessSubmissions(),
       getTechStackEntries(),
+      getFieldObservedVenues(),
     ]);
 
     // 2. Group entries by submission_id
@@ -324,15 +336,45 @@ export async function GET(req: Request) {
     }
 
     // 4. Filter: delta window + optional venue substring + must have entries
-    type Work = { key: string; submission: BusinessSubmission; entries: TechStackEntry[] };
+    type Work = {
+      key: string;
+      venueName: string;
+      source: string;
+      date: string;
+      industry?: string;
+      region?: string;
+      siteCount?: number;
+      brandOverride?: string;
+      entries: TechStackEntry[];
+    };
     const venuesToProcess: Work[] = [];
+    const fromSubmission = (key: string, s: BusinessSubmission, subEntries: TechStackEntry[]): Work => ({
+      key,
+      venueName: s.business_name!.trim(),
+      source: SOURCE_LABEL,
+      date: s.created_at.slice(0, 10),
+      industry: s.industry?.trim() || s.vertical?.trim() || undefined,
+      region: s.location?.trim() || undefined,
+      // From submission — the exact site count and brand trading name captured
+      // by the form (techstackreview migration 010). Both may be null on older
+      // submissions.
+      siteCount: typeof s.site_count === 'number' && s.site_count >= 1 ? s.site_count : undefined,
+      brandOverride: s.brand_trading_name?.trim() || undefined,
+      entries: subEntries,
+    });
     for (const [key, submission] of latestByVenue) {
       if (onlyVenueQuery && !key.includes(onlyVenueQuery)) continue;
       const submittedMs = new Date(submission.created_at).getTime();
       if (!Number.isFinite(submittedMs) || submittedMs < sinceMs) continue;
       const subEntries = entriesBySubmission.get(submission.id) || [];
       if (subEntries.length === 0) continue;
-      venuesToProcess.push({ key, submission, entries: subEntries });
+      venuesToProcess.push(fromSubmission(key, submission, subEntries));
+    }
+    for (const v of observed) {
+      const key = normalizeName(v.venue_name);
+      if (!key || latestByVenue.has(key)) continue; // a review owns this venue
+      if (onlyVenueQuery && !key.includes(onlyVenueQuery)) continue;
+      venuesToProcess.push({ key, venueName: v.venue_name.trim(), source: FIELD_SOURCE_LABEL, date: v.visited_at.slice(0, 10), entries: v.entries });
     }
 
     // Nothing to do — return early without touching Airtable
@@ -394,14 +436,14 @@ export async function GET(req: Request) {
         patterns: termPatterns(matchTermsForPartner(p.name)),
       }));
 
-    // venue record id → old Tech Usage rows (Source=Self-reported only) with dedupe keys.
+    // source|venue record id → old Tech Usage rows (our two sources only) with dedupe keys.
     // Key includes Partner ID so a changed partner match (e.g. new alias) triggers re-processing.
     type OldTuRow = { id: string; dedupeKey: string };
     const oldTuByVenueId = new Map<string, OldTuRow[]>();
     for (const tu of airtableTechUsage) {
       const src = tu.fields.Source;
       const sourceName = typeof src === 'string' ? src : (src as { name?: string } | undefined)?.name;
-      if (sourceName !== SOURCE_LABEL) continue;
+      if (!sourceName || !SOURCES.has(sourceName)) continue;
       const venueIds = tu.fields.Venue as string[] | undefined;
       const venueId = venueIds?.[0];
       if (!venueId) continue;
@@ -410,9 +452,9 @@ export async function GET(req: Request) {
       const catName = typeof catRaw === 'string' ? catRaw : (catRaw as { name?: string } | undefined)?.name || 'Other';
       const partnerIds = tu.fields.Partner as string[] | undefined;
       const partnerId = partnerIds?.[0] || '';
-      const arr = oldTuByVenueId.get(venueId) || [];
+      const arr = oldTuByVenueId.get(`${sourceName}|${venueId}`) || [];
       arr.push({ id: tu.id, dedupeKey: `${catName}|${tool}|${partnerId}` });
-      oldTuByVenueId.set(venueId, arr);
+      oldTuByVenueId.set(`${sourceName}|${venueId}`, arr);
     }
 
     // 6. Per-venue plan + execute (idempotent: skip venues whose current rows match target)
@@ -428,25 +470,13 @@ export async function GET(req: Request) {
     let techUsageCreated = 0;
     const unmatchedTools = new Map<string, number>();
 
-    for (const { key, submission, entries: subEntries } of venuesToProcess) {
+    for (const { key, venueName, source, date, industry, region, siteCount, brandOverride, entries: subEntries } of venuesToProcess) {
       // Budget check — leave time for the HTTP response
       if (Date.now() - START > BUDGET_MS) {
         venuesDeferred++;
         continue;
       }
 
-      const venueName = submission.business_name!.trim();
-      const industry =
-        submission.industry?.trim() || submission.vertical?.trim() || undefined;
-      const region = submission.location?.trim() || undefined;
-      // From submission — the exact site count and brand trading name captured
-      // by the form (techstackreview migration 010). Both may be null on older
-      // submissions.
-      const siteCount =
-        typeof submission.site_count === 'number' && submission.site_count >= 1
-          ? submission.site_count
-          : undefined;
-      const brandOverride = submission.brand_trading_name?.trim() || undefined;
       let venueId = venueIdByKey.get(key);
 
       // Step 1: ensure venue exists
@@ -488,7 +518,8 @@ export async function GET(req: Request) {
       const targetRows = buildTechUsageRows(
         venueId,
         venueName,
-        submission,
+        date,
+        source,
         subEntries,
         partnerIndex,
       );
@@ -504,7 +535,7 @@ export async function GET(req: Request) {
       //   prior partial runs)
       // - DELETE rows whose key isn't in target, PLUS duplicates within a key (keep one)
       // If both sides are empty → skip.
-      const currentRows = oldTuByVenueId.get(venueId) || [];
+      const currentRows = oldTuByVenueId.get(`${source}|${venueId}`) || [];
       const currentByKey = new Map<string, string[]>();
       for (const r of currentRows) {
         const arr = currentByKey.get(r.dedupeKey) || [];
