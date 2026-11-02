@@ -356,6 +356,15 @@ const FIELD_TO_PORTAL: Record<string, string> = {
   guest_feedback: 'Guest Feedback',
 };
 
+// Agents type what they see, and sometimes a note instead of a product
+// ("Western office Equipment, no idea what POS!", "Zendesk ?"). Only names
+// that read like a product count: no ? or !, short, no hedging words.
+const HEDGE = /\b(no idea|not sure|unsure|unknown|don'?t know|dunno|maybe|possibly|probably|think|looks like|what pos)\b/i;
+function looksLikeProduct(tool: string): boolean {
+  const t = tool.trim();
+  return t.length >= 2 && t.length <= 40 && !/[?!]/.test(t) && t.split(/\s+/).length <= 5 && !HEDGE.test(t);
+}
+
 const normName = (n: string | null | undefined) => (n || '').toLowerCase().replace(/^the\s+/, '').replace(/[^a-z0-9]/g, '');
 
 export interface FieldObservedVenue {
@@ -371,7 +380,7 @@ export const getFieldObservedVenues = cache(async (): Promise<FieldObservedVenue
   const [visits, businesses] = await Promise.all([
     allRows<{ id: string; venue_name: string; postcode: string | null; lat: number | null; lng: number | null; stack: FieldStack; visited_at: string }>(
       'field_visits?source=eq.field&submission_id=is.null&select=id,venue_name,postcode,lat,lng,stack,visited_at&order=visited_at.desc',
-    ).catch(() => []),
+    ), // no catch: callers decide; the Airtable sync must not read a failed fetch as "no visits"
     getBusinessSubmissions(),
   ]);
   const reviewed = new Set(businesses.map(b => normName(b.business_name)).concat(businesses.map(b => normName(b.brand_trading_name))));
@@ -386,7 +395,7 @@ export const getFieldObservedVenues = cache(async (): Promise<FieldObservedVenue
       const category = FIELD_TO_PORTAL[cat];
       if (!category || !e || e.none) continue;
       for (const tool of [...(e.tools || []), ...(e.other?.trim() ? [e.other.trim()] : [])]) {
-        if (!isMeaningfulTool(tool)) continue;
+        if (!isMeaningfulTool(tool) || !looksLikeProduct(tool)) continue;
         entries.push({ id: `field:${v.id}:${cat}:${tool}`, submission_id: `field:${v.id}`, category, tool_name: tool, created_at: v.visited_at });
       }
     }

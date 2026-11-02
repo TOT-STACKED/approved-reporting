@@ -17,7 +17,9 @@ import {
 //     (getFieldObservedVenues: venues with no review, latest visit's tech).
 //     Every run checks all of them rather than a delta window; there are few
 //     and an unchanged venue costs no Airtable calls. Chris's call, 31 Oct 2026,
-//     to show these on partner pages.
+//     to show these on partner pages. Field rows for a venue that no longer
+//     qualifies (it has since had a review, or its tech was removed) are
+//     deleted, so a review replaces them rather than sitting alongside.
 //
 // Wipe-and-replace per venue: for every venue with a submission in the delta
 // window, all their existing Source="Self-reported (Health Check)" rows are
@@ -457,6 +459,23 @@ export async function GET(req: Request) {
       oldTuByVenueId.set(`${sourceName}|${venueId}`, arr);
     }
 
+    // 5b. Field rows whose venue no longer has field-observed tech (a review
+    // now owns it, or the tech was removed): delete. Only on a whole run, not
+    // a single-venue one, since only then is the field list complete.
+    let fieldOrphansDeleted = 0;
+    if (!onlyVenueQuery) {
+      const fieldVenueIds = new Set(
+        venuesToProcess.filter(w => w.source === FIELD_SOURCE_LABEL).map(w => venueIdByKey.get(w.key)).filter(Boolean),
+      );
+      const orphanIds: string[] = [];
+      for (const [k, rows] of oldTuByVenueId) {
+        const cut = k.lastIndexOf('|');
+        if (k.slice(0, cut) === FIELD_SOURCE_LABEL && !fieldVenueIds.has(k.slice(cut + 1))) orphanIds.push(...rows.map(r => r.id));
+      }
+      if (orphanIds.length && !dry) await airtableDelete(TECH_USAGE_TABLE, orphanIds);
+      fieldOrphansDeleted = orphanIds.length;
+    }
+
     // 6. Per-venue plan + execute (idempotent: skip venues whose current rows match target)
     const START = Date.now();
     const BUDGET_MS = 20_000; // Netlify's Next.js API route hard-timeout is ~26s; keep buffer
@@ -609,6 +628,7 @@ export async function GET(req: Request) {
       venuesDeferred,
       techUsageDeleted,
       techUsageCreated,
+      fieldOrphansDeleted,
       topUnmatchedTools: topUnmatched,
     });
   } catch (e: unknown) {
