@@ -76,3 +76,4 @@ renders the zero state until one is added.)_
 | HSG | `hsg` | https://partners.wearestacked.io/p/baf01830cc833606 |
 | Opsyte | `opsyte` | https://partners.wearestacked.io/p/a159795402d37bdc |
 | Dojo | `dojo` | https://partners.wearestacked.io/p/f873eedc5838a0ec |
+| Rotageek | `rotageek` | https://partners.wearestacked.io/p/39daf7f05a704829 |
