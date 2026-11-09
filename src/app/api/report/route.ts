@@ -8,6 +8,7 @@ import { getPartnerStackCollectData } from '@/lib/stackcollect';
 import {
   INK, MUTED, DIM, BORDER, BG, SURFACE_2, PRIMARY, POSITIVE, SERIES, LEAD_STATUS_COLORS,
 } from '@/lib/brand';
+import { reachedMqlCount } from '@/lib/lead-status';
 
 // Median days between lead creation and the lead's last status change.
 // Used as a proxy for stage-transition time on the report.
@@ -64,7 +65,9 @@ export async function POST(request: NextRequest) {
 
     // --- Pipeline KPIs (matches dashboard) ---
     const malCount = partner.statusBreakdown['MAL'] || 0;
-    const mqlCount = partner.statusBreakdown['MQL'] || 0;
+    // Every lead that has reached MQL, including those now at SQL, Won or
+    // Lost — matches the MQL card on the dashboard.
+    const mqlCount = reachedMqlCount(partner.statusBreakdown);
     const sqlCount = partner.statusBreakdown['SQL'] || 0;
     const closedWon =
       (partner.statusBreakdown['Closed Won'] || 0) +

@@ -15,7 +15,7 @@ import StackCollectSection from '@/components/StackCollectSection';
 import AskBox from '@/components/AskBox';
 import LeadStatusGlossary from '@/components/LeadStatusGlossary';
 import type { PartnerTier } from '@/lib/partner-tier';
-import { LEAD_STATUS_EXPLAINER } from '@/lib/lead-status';
+import { LEAD_STATUS_EXPLAINER, hasReachedMql, reachedMqlCount } from '@/lib/lead-status';
 
 const STATUS_COLORS = LEAD_STATUS_COLORS;
 // Anything outside the fixed pipeline mapping falls through to the series
@@ -264,6 +264,8 @@ export default function PartnerPage() {
   // Pipeline KPIs aligned with main dashboard
   const malCount = partner.statusBreakdown['MAL'] || 0;
   const mqlCount = partner.statusBreakdown['MQL'] || 0;
+  // Every lead that has reached MQL, including those now at SQL, Won or Lost.
+  const allMqlCount = reachedMqlCount(partner.statusBreakdown);
   const sqlCount = partner.statusBreakdown['SQL'] || 0;
   // statusBreakdown only — the same lead also appears in stageBreakdown,
   // so summing both double-counted every Closed Won. Trailing-space variant
@@ -372,9 +374,9 @@ export default function PartnerPage() {
           title={`${LEAD_STATUS_EXPLAINER.MQL} — click to see MQL leads below`}
           className={`bg-brand-sky rounded-2xl p-5 text-brand-green shadow-sm text-left transition-all hover:shadow-md ${stageFilter === 'MQL' ? 'ring-4 ring-brand-green/40' : ''}`}
         >
-          <p className="text-3xl font-bold">{mqlCount}</p>
+          <p className="text-3xl font-bold">{allMqlCount}</p>
           <p className="text-sm font-medium opacity-75 mt-1">MQL</p>
-          <p className="text-[10px] opacity-60 mt-0.5">{stageFilter === 'MQL' ? 'Showing below' : 'Click to show'}</p>
+          <p className="text-[10px] opacity-60 mt-0.5">{mqlCount} at MQL now · {stageFilter === 'MQL' ? 'Showing below' : 'Click to show'}</p>
         </button>
         <button
           type="button"
@@ -439,8 +441,11 @@ export default function PartnerPage() {
           clicked above. Sits directly under the KPI cards. */}
       <div className="bg-white rounded-xl border border-gray-200 p-6 mb-6">
         {(() => {
-          const stageRows = partner.leads.filter(
-            l => (l.status || '').trim().toLowerCase() === stageFilter.toLowerCase()
+          // MQL shows every lead that has reached MQL, matching its card.
+          const stageRows = partner.leads.filter(l =>
+            stageFilter === 'MQL'
+              ? hasReachedMql(l.status)
+              : (l.status || '').trim().toLowerCase() === stageFilter.toLowerCase()
           );
           const now = Date.now();
           const isStale = (l: { lastModified?: string }) => {

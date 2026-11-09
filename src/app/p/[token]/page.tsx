@@ -13,7 +13,7 @@ import SectionIcon from '@/components/SectionIcon';
 import LockedLeadDetail from '@/components/LockedLeadDetail';
 import AccountSetupCard from '@/components/AccountSetupCard';
 import type { PartnerTier } from '@/lib/partner-tier';
-import { LEAD_STATUS_EXPLAINER } from '@/lib/lead-status';
+import { LEAD_STATUS_EXPLAINER, hasReachedMql, reachedMqlCount } from '@/lib/lead-status';
 import {
   PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis,
   Tooltip, ResponsiveContainer, CartesianGrid,
@@ -266,6 +266,9 @@ export default function SecurePartnerPage({ tokenOverride }: { tokenOverride?: s
     : 'N/A';
 
   const mqlCount = partner.statusBreakdown['MQL'] || 0;
+  // The MQL card counts every lead that has reached MQL, including those
+  // that have since moved on to SQL, Won or Lost.
+  const allMqlCount = reachedMqlCount(partner.statusBreakdown);
   const sqlCount = partner.statusBreakdown['SQL'] || 0;
   // statusBreakdown only — the same lead also appears in stageBreakdown,
   // so summing both double-counted every Closed Won. Trailing-space variant
@@ -349,9 +352,9 @@ export default function SecurePartnerPage({ tokenOverride }: { tokenOverride?: s
             className={`bg-tile-lavender-ink rounded-2xl p-4 sm:p-5 text-tile-lavender text-left transition-all hover:brightness-110 ${stageFilter === 'MQL' ? 'ring-4 ring-tile-lavender/60' : ''}`}
           >
             <span className="block w-11 h-[7px] rounded-full bg-brand-sky mb-3"></span>
-            <p className="text-2xl sm:text-3xl font-bold">{mqlCount}</p>
+            <p className="text-2xl sm:text-3xl font-bold">{allMqlCount}</p>
             <p className="text-xs sm:text-sm font-medium opacity-75 mt-1">MQL</p>
-            <p className="text-[10px] opacity-70 mt-0.5">{stageFilter === 'MQL' ? 'Showing below' : 'Click to show'}</p>
+            <p className="text-[10px] opacity-70 mt-0.5">{mqlCount} at MQL now · {stageFilter === 'MQL' ? 'Showing below' : 'Click to show'}</p>
           </button>
           <button
             type="button"
@@ -437,8 +440,11 @@ export default function SecurePartnerPage({ tokenOverride }: { tokenOverride?: s
             // Use the full partner.leads (all-time), not just the last 90 days
             // (last-90-day window) — partners want to see every lead at the
             // selected stage, not just recent ones.
-            const stageRows = partner.leads.filter(
-              l => (l.status || '').trim().toLowerCase() === stageFilter.toLowerCase()
+            // MQL shows every lead that has reached MQL, matching its card.
+            const stageRows = partner.leads.filter(l =>
+              stageFilter === 'MQL'
+                ? hasReachedMql(l.status)
+                : (l.status || '').trim().toLowerCase() === stageFilter.toLowerCase()
             );
             // Stale only applies at SQL, the one stage the partner owns.
             // At MQL Stacked is still running the outreach, so flagging a
