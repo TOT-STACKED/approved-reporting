@@ -101,6 +101,9 @@ export default function PartnerHeatMap({ hidden = [], shared = true, onHide }: P
     const out: Record<Band, PerfRow[]> = { green: [], amber: [], red: [] };
     for (const r of rows || []) {
       if (hiddenSet.has(r.slug)) continue;
+      // Approved only: the team doesn't source leads for Promote partners,
+      // so a red box full of them would be noise.
+      if (r.tier !== 'approved') continue;
       out[r.band]?.push(r);
     }
     // Busiest first; red sorts by who went quiet most recently, so the
@@ -129,7 +132,7 @@ export default function PartnerHeatMap({ hidden = [], shared = true, onHide }: P
       <div className="mb-3">
         <h2 className="text-lg font-bold text-brand-green">Partner Health</h2>
         <p className="text-xs text-gray-500 mt-0.5">
-          Based on new leads that reached MQL or beyond. Counts match each partner&apos;s own page.
+          Approved partners only. Based on new leads that reached MQL or beyond; counts match each partner&apos;s own page.
         </p>
       </div>
 
