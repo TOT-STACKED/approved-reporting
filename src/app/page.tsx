@@ -8,13 +8,7 @@ import LeadStatusGlossary from '@/components/LeadStatusGlossary';
 import { LEAD_STATUS_EXPLAINER } from '@/lib/lead-status';
 import ConversionTimeline from '@/components/ConversionTimeline';
 import NpsDashboard from '@/components/NpsDashboard';
-
-interface Partner {
-  name: string;
-  slug: string;
-  leadCount: number;
-  statusBreakdown: Record<string, number>;
-}
+import { useHiddenPartners } from '@/lib/use-hidden-partners';
 
 interface LeadStages {
   MAL: string[];
@@ -37,23 +31,15 @@ interface Lead {
 
 
 export default function Dashboard() {
-  const [partners, setPartners] = useState<Partner[]>([]);
   const [allLeads, setAllLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [hiddenPartners, setHiddenPartners] = useState<string[]>([]);
-  const [showHidden, setShowHidden] = useState(false);
+  const { hidden, shared, setPartnerHidden } = useHiddenPartners();
 
   useEffect(() => {
-    const saved = localStorage.getItem('hiddenPartners');
-    if (saved) setHiddenPartners(JSON.parse(saved));
-
-    Promise.all([
-      fetch('/api/partners', { cache: 'no-store' }).then(r => r.json()),
-      fetch('/api/leads', { cache: 'no-store' }).then(r => r.json()),
-    ])
-      .then(([partnerData, leadsData]) => {
-        setPartners(partnerData.partners || []);
+    fetch('/api/leads', { cache: 'no-store' })
+      .then(r => r.json())
+      .then(leadsData => {
         setAllLeads(leadsData.leads || []);
         setLoading(false);
       })
@@ -62,16 +48,6 @@ export default function Dashboard() {
         setLoading(false);
       });
   }, []);
-
-  const toggleHide = (slug: string) => {
-    setHiddenPartners(prev => {
-      const next = prev.includes(slug) ? prev.filter(s => s !== slug) : [...prev, slug];
-      localStorage.setItem('hiddenPartners', JSON.stringify(next));
-      return next;
-    });
-  };
-
-  const hiddenList = partners.filter(p => hiddenPartners.includes(p.slug));
 
   const totalLeads = allLeads.length;
 
@@ -285,40 +261,8 @@ export default function Dashboard() {
         <NpsDashboard />
       </div>
 
-      {/* Partner health heat map — replaces the old white partner tiles */}
-      <PartnerHeatMap hiddenSlugs={hiddenPartners} onHide={toggleHide} />
-
-      {/* Hidden Partners */}
-      {hiddenList.length > 0 && (
-        <div className="mt-6">
-          <button
-            onClick={() => setShowHidden(!showHidden)}
-            className="text-sm text-gray-400 hover:text-gray-600 flex items-center gap-1"
-          >
-            <svg className={`w-4 h-4 transition-transform ${showHidden ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-            </svg>
-            {hiddenList.length} hidden {hiddenList.length === 1 ? 'partner' : 'partners'}
-          </button>
-          {showHidden && (
-            <div className="mt-3 flex flex-wrap gap-2">
-              {hiddenList.map(p => (
-                <button
-                  key={p.slug}
-                  onClick={() => toggleHide(p.slug)}
-                  className="text-xs bg-gray-100 text-gray-500 hover:bg-orange-50 hover:text-brand-green px-3 py-1.5 rounded-full border border-gray-200 hover:border-orange-200 transition-colors flex items-center gap-1.5"
-                >
-                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                  </svg>
-                  {p.name}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
+      {/* Partner health — green / amber / red boxes, plus the saved hidden list */}
+      <PartnerHeatMap hidden={hidden} shared={shared} onHide={setPartnerHidden} />
     </div>
   );
 }

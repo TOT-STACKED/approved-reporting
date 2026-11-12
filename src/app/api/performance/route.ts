@@ -1,33 +1,33 @@
 import { NextResponse } from 'next/server';
-import { getPartnerList, getMarketingActivities, getActivitiesForPartner } from '@/lib/airtable';
+import {
+  getPartnerList,
+  getMarketingActivities,
+  getActivitiesForPartner,
+  fetchPartnerLeadRecords,
+  buildPartnerDetail,
+} from '@/lib/airtable';
+import { getAllLeads } from '@/lib/leads';
 import { tierForSlug } from '@/lib/partner-package';
+import { partnerActivity, type HealthBand } from '@/lib/partner-activity';
 
 export const dynamic = 'force-dynamic';
 
-const BASE_ID = process.env.AIRTABLE_BASE_ID!;
-const API_KEY = process.env.AIRTABLE_API_KEY!;
-const LEADS_TABLE = 'tblUkL8xKL4ZNUFKV';
-const LEAD_FIELDS = {
-  businessName:    'fldaIprcZqrPGRxen',
-  partnerReferral: 'fldwsJvK2OXEMnqZv',
-  leadStatus:      'fldf4TNAglyB9s2gP',
-  stage:           'fldbNGUCnii13HcIm',
-  lastModified:    'fldAqG8dAXFX3bdFd',
-};
-
-interface LeadRow {
-  partners: string[];
-  status: string;
-  stage: string;
-  lastModified: string;
-}
+// Per-partner numbers for the Performance table and the dashboard's Partner
+// Health boxes. Lead counts come from buildPartnerDetail — the same code
+// behind the internal partner page and the partner's own /p page — so every
+// figure here matches what the partner sees. (This route used to read the
+// MQL column and the legacy Lead Status field on its own, which is why the
+// boxes and the partner pages disagreed.)
 
 export interface PartnerPerformance {
   name: string;
   slug: string;
+  tier: string;
   leadCount: number;
-  sqlCount: number;
+  malCount: number;
   mqlCount: number;
+  mqlNowCount: number;
+  sqlCount: number;
   demoCount: number;
   wonCount: number;
   lostCount: number;
@@ -38,56 +38,13 @@ export interface PartnerPerformance {
   impressions: number;
   engagements: number;
   activityCount: number;
+  leads14d: number;
+  leads30d: number;
+  band: HealthBand;
   lastLeadAt: string | null;
   lastActivityAt: string | null;
   daysSinceLastLead: number | null;
   daysSinceLastActivity: number | null;
-}
-
-function extractVal(field: unknown): string {
-  if (!field) return '';
-  if (typeof field === 'string') return field;
-  if (typeof field === 'object' && field !== null && 'name' in field) {
-    return String((field as { name: unknown }).name);
-  }
-  return String(field);
-}
-
-function extractMulti(field: unknown): string[] {
-  if (!field) return [];
-  if (!Array.isArray(field)) return [extractVal(field)];
-  return (field as unknown[])
-    .map(f => typeof f === 'string' ? f : (f && typeof f === 'object' && 'name' in f ? String((f as { name: unknown }).name) : ''))
-    .filter(Boolean);
-}
-
-async function fetchAllLeads(): Promise<LeadRow[]> {
-  const all: LeadRow[] = [];
-  let offset: string | undefined;
-  do {
-    const url = new URL(`https://api.airtable.com/v0/${BASE_ID}/${LEADS_TABLE}`);
-    url.searchParams.set('returnFieldsByFieldId', 'true');
-    url.searchParams.set('pageSize', '100');
-    Object.values(LEAD_FIELDS).forEach((f, i) => url.searchParams.set(`fields[${i}]`, f));
-    if (offset) url.searchParams.set('offset', offset);
-
-    const res = await fetch(url.toString(), {
-      headers: { Authorization: `Bearer ${API_KEY}` },
-      next: { revalidate: 60 },
-    });
-    const data = await res.json();
-    for (const r of (data.records || [])) {
-      const fields = r.fields || {};
-      all.push({
-        partners: extractMulti(fields[LEAD_FIELDS.partnerReferral]),
-        status:   extractVal(fields[LEAD_FIELDS.leadStatus]),
-        stage:    extractVal(fields[LEAD_FIELDS.stage]),
-        lastModified: fields[LEAD_FIELDS.lastModified] || '',
-      });
-    }
-    offset = data.offset;
-  } while (offset);
-  return all;
 }
 
 function pct(n: number, d: number): number {
@@ -103,43 +60,23 @@ function daysSince(iso: string | null): number | null {
 
 export async function GET() {
   try {
-    const [partners, leads, activities] = await Promise.all([
-      getPartnerList(),
-      fetchAllLeads(),
+    const [records, activities, allLeads] = await Promise.all([
+      fetchPartnerLeadRecords(),
       getMarketingActivities(),
+      getAllLeads(),
     ]);
+    const partners = await getPartnerList(records);
+    const now = Date.now();
 
     const rows: PartnerPerformance[] = await Promise.all(partners.map(async p => {
-      const nameLower = p.name.trim().toLowerCase();
-      const partnerLeads = leads.filter(l =>
-        l.partners.some(pr => pr.trim().toLowerCase() === nameLower)
-      );
-
-      const statusCountLower = (s: string) =>
-        partnerLeads.filter(l => l.status.trim().toLowerCase() === s.toLowerCase()).length;
-      const stageCountLower = (s: string) =>
-        partnerLeads.filter(l => l.stage.trim().toLowerCase() === s.toLowerCase()).length;
-
-      const leadCount = partnerLeads.length;
-      const sqlCount  = statusCountLower('SQL');
-      const mqlCount  = statusCountLower('MQL');
-      const demoCount = statusCountLower('Demo');
-      const wonCount  = statusCountLower('Closed Won') + stageCountLower('Closed Won');
-      const lostCount = statusCountLower('Lost') + statusCountLower('Closed Lost') + stageCountLower('Closed Lost');
-      const activeCount = Math.max(0, leadCount - wonCount - lostCount);
+      const a = partnerActivity(buildPartnerDetail(records, p.slug), now);
 
       const partnerActivities = getActivitiesForPartner(activities, p.name);
-      const pipelineGbp = partnerActivities.reduce((s, a) => s + (a.pipelineValue || 0), 0);
-      const impressions = partnerActivities.reduce((s, a) => s + (a.impressions  || 0), 0);
-      const engagements = partnerActivities.reduce((s, a) => s + (a.engagements  || 0), 0);
-
-      const lastLeadAt = partnerLeads
-        .map(l => l.lastModified)
-        .filter(Boolean)
-        .sort()
-        .pop() || null;
+      const pipelineGbp = partnerActivities.reduce((s, x) => s + (x.pipelineValue || 0), 0);
+      const impressions = partnerActivities.reduce((s, x) => s + (x.impressions || 0), 0);
+      const engagements = partnerActivities.reduce((s, x) => s + (x.engagements || 0), 0);
       const lastActivityAt = partnerActivities
-        .map(a => a.date || '')
+        .map(x => x.date || '')
         .filter(Boolean)
         .sort()
         .pop() || null;
@@ -147,41 +84,41 @@ export async function GET() {
       return {
         name: p.name,
         slug: p.slug,
-        // One cached Airtable read serves the whole table, so this is a map
-        // lookup per row rather than 180 requests.
         tier: await tierForSlug(p.slug),
-        leadCount,
-        sqlCount,
-        mqlCount,
-        demoCount,
-        wonCount,
-        lostCount,
-        activeCount,
-        leadToSqlPct: pct(sqlCount, leadCount),
-        sqlToWonPct:  pct(wonCount, sqlCount),
+        leadCount: a.leadCount,
+        malCount: a.malCount,
+        mqlCount: a.mqlCount,
+        mqlNowCount: a.mqlNowCount,
+        sqlCount: a.sqlCount,
+        demoCount: 0,
+        wonCount: a.wonCount,
+        lostCount: a.lostCount,
+        activeCount: Math.max(0, a.leadCount - a.wonCount - a.lostCount),
+        leadToSqlPct: pct(a.sqlCount, a.leadCount),
+        sqlToWonPct: pct(a.wonCount, a.sqlCount),
         pipelineGbp,
         impressions,
         engagements,
         activityCount: partnerActivities.length,
-        lastLeadAt,
+        leads14d: a.leads14d,
+        leads30d: a.leads30d,
+        band: a.band,
+        lastLeadAt: a.lastLeadAt,
         lastActivityAt,
-        daysSinceLastLead: daysSince(lastLeadAt),
+        daysSinceLastLead: a.daysSinceLastLead,
         daysSinceLastActivity: daysSince(lastActivityAt),
       };
     }));
 
-    // Raw totals across all leads (includes unassigned, no double counting)
-    // so the page header matches the main dashboard.
-    const statusCount = (status: string) =>
-      leads.filter(l => l.status.trim().toLowerCase() === status.toLowerCase()).length;
-    const stageCount = (stage: string) =>
-      leads.filter(l => l.stage.trim().toLowerCase() === stage.toLowerCase()).length;
-
+    // Header totals, counted the way the main dashboard counts them: a lead
+    // is at a stage if any partner is attached to it there.
+    const atStage = (s: 'MQL' | 'SQL' | 'Closed Won') =>
+      allLeads.filter(l => (l.stages?.[s]?.length ?? 0) > 0).length;
     const totals = {
-      totalLeads: leads.length,
-      sqlCount: statusCount('SQL'),
-      mqlCount: statusCount('MQL'),
-      wonCount: statusCount('Closed Won') + stageCount('Closed Won'),
+      totalLeads: allLeads.length,
+      sqlCount: atStage('SQL'),
+      mqlCount: atStage('MQL'),
+      wonCount: atStage('Closed Won'),
     };
 
     return NextResponse.json({ rows, totals });

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { toCsv, downloadCsv } from '@/lib/csv';
 import LeadStatusGlossary from '@/components/LeadStatusGlossary';
 import { LEAD_STATUS_EXPLAINER } from '@/lib/lead-status';
+import { useHiddenPartners } from '@/lib/use-hidden-partners';
 
 interface PartnerPerformance {
   name: string;
@@ -100,7 +101,8 @@ export default function PerformancePage() {
   const [rows, setRows] = useState<PartnerPerformance[]>([]);
   const [totals, setTotals] = useState<RawTotals | null>(null);
   const [loading, setLoading] = useState(true);
-  const [hidden, setHidden] = useState<Set<string>>(new Set());
+  const { hiddenSlugs } = useHiddenPartners();
+  const hidden = useMemo(() => new Set(hiddenSlugs), [hiddenSlugs]);
   const [sortKey, setSortKey] = useState<SortKey>('sqlCount');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
 
@@ -113,16 +115,10 @@ export default function PerformancePage() {
         setLoading(false);
       })
       .catch(() => setLoading(false));
-
-    // Reuse the hide list the dashboard already maintains.
-    try {
-      const saved = localStorage.getItem('hiddenPartners');
-      if (saved) setHidden(new Set(JSON.parse(saved)));
-    } catch {}
   }, []);
 
   const visible = useMemo(
-    () => rows.filter(r => !hidden.has(r.name)),
+    () => rows.filter(r => !hidden.has(r.slug)),
     [rows, hidden]
   );
 

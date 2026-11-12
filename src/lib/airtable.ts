@@ -294,8 +294,9 @@ function getRecordPartnerStages(fields: any): Map<string, { name: string; stage:
   return result;
 }
 
-export async function getPartnerList(): Promise<Partner[]> {
-  const records = await fetchAllRecords(
+// Pass `prefetched` (from fetchPartnerLeadRecords) to reuse one Airtable read.
+export async function getPartnerList(prefetched?: any[]): Promise<Partner[]> {
+  const records = prefetched ?? await fetchAllRecords(
     TABLES.masterView,
     [
       FIELDS.masterView.businessName,
@@ -495,14 +496,29 @@ export function emptyPartnerDetail(slug: string): PartnerDetail {
   };
 }
 
-export async function getPartnerDetail(slug: string): Promise<PartnerDetail | null> {
-  const records = await fetchAllRecords(
+// Every lead-sheet record with the fields a partner page needs. Read once and
+// pass to buildPartnerDetail to build many partners from one Airtable pass.
+export async function fetchPartnerLeadRecords(): Promise<any[]> {
+  return fetchAllRecords(
     TABLES.masterView,
     [
       ...Object.values(FIELDS.masterView),
       ...Object.values(STAGE_FIELDS),
     ]
   );
+}
+
+export async function getPartnerDetail(slug: string): Promise<PartnerDetail | null> {
+  return buildPartnerDetail(await fetchPartnerLeadRecords(), slug);
+}
+
+/**
+ * One partner's leads and counts from already-fetched records. This is the
+ * single definition of "a partner's numbers": the internal partner page, the
+ * partner's own /p page, the PDF report and the dashboard's Partner Health
+ * boxes all go through it, so they can't disagree.
+ */
+export function buildPartnerDetail(records: any[], slug: string): PartnerDetail | null {
 
   // Resolve the requested slug to its accepted partner-name slugs. For a
   // standalone partner (no alias group), this is just the slug itself.
