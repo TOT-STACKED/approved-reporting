@@ -530,7 +530,7 @@ export default function SecurePartnerPage({ tokenOverride }: { tokenOverride?: s
                           <SortableTh col="businessName" cur={leadSort} onClick={toggleSort}>Business</SortableTh>
                           <th className="text-left py-3 px-3 text-gray-500 font-medium">Status</th>
                           <SortableTh col="source" cur={leadSort} onClick={toggleSort}>Source</SortableTh>
-                          <SortableTh col="date" cur={leadSort} onClick={toggleSort}><span title="When this lead was passed to you as an MQL, or when it was added if earlier">Date</span></SortableTh>
+                          <SortableTh col="date" cur={leadSort} onClick={toggleSort}><span title="When this lead was first passed to you, or when it was added if earlier">Date</span></SortableTh>
                           <th className="text-right py-3 px-3 text-gray-500 font-medium">Update</th>
                         </tr>
                       </thead>

@@ -239,8 +239,9 @@ export interface Lead {
   size: string;
   location: string;
   date: string;
-  /** When this partner got the lead as an MQL (from Stage Log), if known.
-   *  More accurate than `date`, which is when the lead was first added. */
+  /** When this partner was first told about the lead (Stage Log: their first
+   *  MQL or SQL Slack alert), if known. More accurate than `date`, which is
+   *  when the lead was first added. */
   mqlDate?: string;
   // Contact info — populated on every lead but exposed by the UI per stage.
   // The partner-facing page shows position only at MQL, full details at SQL+.
@@ -514,7 +515,7 @@ export async function fetchPartnerLeadRecords(): Promise<any[]> {
 }
 
 /** "<lead record id>|<partner tag, lowercased>" -> earliest date that partner
- *  was notified at MQL. Empty if the Stage Log can't be read, so callers fall
+ *  was notified about the lead, at MQL or any later stage. Empty if the Stage Log can't be read, so callers fall
  *  back to the lead's own Date rather than failing. */
 export type MqlDateMap = Map<string, string>;
 
@@ -524,7 +525,8 @@ export async function fetchMqlDates(): Promise<MqlDateMap> {
     const rows = await fetchAllRecords(TABLES.stageLog, Object.values(STAGE_LOG_FIELDS));
     for (const r of rows) {
       const f = r.fields || {};
-      if (extractValue(f[STAGE_LOG_FIELDS.stage]) !== 'MQL') continue;
+      // Any stage counts: a lead tagged straight to SQL (no MQL alert) is
+      // dated from its SQL alert. Earliest row wins.
       const date = f[STAGE_LOG_FIELDS.date] as string | undefined;
       const partner = (f[STAGE_LOG_FIELDS.partner] as string | undefined) || '';
       const leads = (f[STAGE_LOG_FIELDS.lead] as string[] | undefined) || [];

@@ -518,7 +518,7 @@ export default function PartnerPage() {
                         <SortableTh col="businessName" cur={leadSort} onClick={toggleSort}>Business</SortableTh>
                         <th className="text-left py-3 px-3 text-gray-500 font-medium">Status</th>
                         <SortableTh col="source" cur={leadSort} onClick={toggleSort}>Source</SortableTh>
-                        <SortableTh col="date" cur={leadSort} onClick={toggleSort}><span title="When this partner got the lead as an MQL (from the Slack alert), or when the lead was added if there was no alert">Date</span></SortableTh>
+                        <SortableTh col="date" cur={leadSort} onClick={toggleSort}><span title="When this partner was first sent the lead (their MQL or SQL Slack alert), or when the lead was added if there was no alert">Date</span></SortableTh>
                         <th className="text-right py-3 px-3 text-gray-500 font-medium">Update</th>
                       </tr>
                     </thead>

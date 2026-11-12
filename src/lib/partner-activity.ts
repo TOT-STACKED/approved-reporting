@@ -53,8 +53,8 @@ export function partnerActivity(detail: PartnerDetail | null, now = Date.now()):
   // actually sees as a lead on their own page.
   for (const lead of detail?.leads ?? []) {
     if (!hasReachedMql(lead.status)) continue;
-    // When the partner got it as an MQL (Stage Log, from their Slack ping),
-    // else when the lead was first added. A lead added in May that became an
+    // When the partner was first told about it (Stage Log: their first MQL or
+    // SQL Slack alert), else when the lead was first added. A lead added in May that became an
     // MQL in September counts from September.
     const ts = Date.parse(lead.mqlDate || lead.date);
     if (Number.isNaN(ts)) continue;
