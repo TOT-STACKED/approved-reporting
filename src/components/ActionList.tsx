@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { RED_AFTER_DAYS } from '@/lib/partner-activity';
+import type { PartnerNote } from '@/lib/use-partner-notes';
 
 // "This week's to-dos" — the top of the internal dashboard. Everything here is
 // worked out live from the lead sheet, Partner Health and NPS, so the list is
@@ -55,7 +56,7 @@ interface Item {
   detail: string;
   who: Who;
   count: number;
-  rows: { key: string; main: string; sub: string; href?: string; right: string }[];
+  rows: { key: string; main: string; sub: string; href?: string; right: string; doneId?: string }[];
 }
 
 function daysAgo(iso: string | null | undefined, now: number): number | null {
@@ -95,7 +96,15 @@ const WHO: Record<Who, { label: string; cls: string }> = {
   team: { label: 'Our team', cls: 'bg-panel text-brand-green' },
 };
 
-export default function ActionList({ leads, partners }: { leads: ActionLead[]; partners: ActionPartner[] | null }) {
+interface Props {
+  leads: ActionLead[];
+  partners: ActionPartner[] | null;
+  /** Team notes; open flagged ones become the first to-do. */
+  notes?: PartnerNote[] | null;
+  onNoteDone?: (id: string) => void;
+}
+
+export default function ActionList({ leads, partners, notes, onNoteDone }: Props) {
   const [nps, setNps] = useState<NpsRow[] | null>(null);
   const [open, setOpen] = useState<string | null>(null);
   // Fixed when the page loads, so ages don't shift between re-renders.
@@ -110,6 +119,29 @@ export default function ActionList({ leads, partners }: { leads: ActionLead[]; p
 
   const items = useMemo<Item[]>(() => {
     const out: Item[] = [];
+
+    // 0. Actions the team has flagged on partners. Oldest first.
+    const nameOf = new Map((partners || []).map(p => [p.slug, p.name]));
+    const flagged = (notes || [])
+      .filter(n => n.is_action && !n.done_at)
+      .sort((a, b) => Date.parse(a.created_at) - Date.parse(b.created_at));
+    if (flagged.length) {
+      out.push({
+        key: 'flagged',
+        title: `${flagged.length} partner ${flagged.length === 1 ? 'action' : 'actions'} flagged by the team`,
+        detail: flagged.slice(0, 2).map(n => `${nameOf.get(n.slug) || n.slug}: ${n.body.slice(0, 50)}${n.body.length > 50 ? '…' : ''}`).join(' · '),
+        who: 'team',
+        count: flagged.length,
+        rows: flagged.map(n => ({
+          key: n.id,
+          main: nameOf.get(n.slug) || n.slug,
+          sub: n.body,
+          href: `/partners/${n.slug}`,
+          right: `${n.author || 'Someone'} · ${ago(daysAgo(n.created_at, now))} ago`,
+          doneId: n.id,
+        })),
+      });
+    }
 
     // 1. Approved partners with no new MQL for 14+ days. Most recently quiet
     //    first: those are the easiest to get going again.
@@ -204,7 +236,7 @@ export default function ActionList({ leads, partners }: { leads: ActionLead[]; p
     }
 
     return out;
-  }, [leads, partners, nps, now]);
+  }, [leads, partners, nps, notes, now]);
 
   const stillLoading = partners == null || nps == null;
 
@@ -253,10 +285,20 @@ export default function ActionList({ leads, partners }: { leads: ActionLead[]; p
                       </>
                     );
                     return (
-                      <li key={r.key}>
+                      <li key={r.key} className="flex items-center">
                         {r.href
-                          ? <a href={r.href} className="flex items-center gap-3 px-3 py-2 hover:bg-gray-50">{body}</a>
-                          : <div className="flex items-center gap-3 px-3 py-2">{body}</div>}
+                          ? <a href={r.href} className="min-w-0 flex-1 flex items-center gap-3 px-3 py-2 hover:bg-gray-50">{body}</a>
+                          : <div className="min-w-0 flex-1 flex items-center gap-3 px-3 py-2">{body}</div>}
+                        {r.doneId && onNoteDone && (
+                          <button
+                            type="button"
+                            onClick={() => onNoteDone(r.doneId!)}
+                            className="shrink-0 mr-2 text-[11px] font-medium text-positive border border-positive/40 hover:bg-positive-tint rounded-full px-2.5 py-1.5 min-h-[32px]"
+                            aria-label={`Mark done: ${r.sub.slice(0, 60)}`}
+                          >
+                            Done
+                          </button>
+                        )}
                       </li>
                     );
                   })}

@@ -2,6 +2,8 @@
 
 import { useMemo, useState } from 'react';
 import type { HiddenPartner } from '@/lib/use-hidden-partners';
+import { useNoteAuthor, type PartnerNote } from '@/lib/use-partner-notes';
+import PartnerNotesPanel, { FlagIcon } from '@/components/PartnerNotesPanel';
 import { GREEN_MIN_LEADS_30D, RED_AFTER_DAYS } from '@/lib/partner-activity';
 
 // Partner Health — every partner sorted into a green, amber or red box by how
@@ -82,11 +84,20 @@ interface PartnerHeatMapProps {
   hidden?: HiddenPartner[];
   shared?: boolean;
   onHide?: (slug: string, name: string | null, hide: boolean) => void;
+  /** Team notes, grouped by partner slug. Omit to hide the Notes button. */
+  notes?: {
+    bySlug: Map<string, PartnerNote[]>;
+    saved: boolean;
+    addNote: (slug: string, body: string, isAction: boolean, author: string) => Promise<boolean>;
+    setDone: (id: string, done: boolean, by: string) => Promise<boolean>;
+  };
 }
 
-export default function PartnerHeatMap({ rows, hidden = [], shared = true, onHide }: PartnerHeatMapProps) {
+export default function PartnerHeatMap({ rows, hidden = [], shared = true, onHide, notes }: PartnerHeatMapProps) {
   const loading = rows == null;
   const [showHidden, setShowHidden] = useState(false);
+  const [notesFor, setNotesFor] = useState<string | null>(null);
+  const [author, setAuthor] = useNoteAuthor();
 
   const hiddenSet = useMemo(() => new Set(hidden.map(h => h.slug)), [hidden]);
 
@@ -147,9 +158,14 @@ export default function PartnerHeatMap({ rows, hidden = [], shared = true, onHid
                 <p className="text-sm text-gray-500 bg-white/70 rounded-xl px-3 py-3">No partners here right now.</p>
               ) : (
                 // Two columns on wide screens so a long list stays short.
-                <ul className="grid lg:grid-cols-2 gap-px bg-gray-100 rounded-xl overflow-hidden">
-                  {list.map(r => (
-                    <li key={r.slug} className="flex items-center gap-2 sm:gap-3 px-3 py-2.5 bg-white lg:[&:last-child:nth-child(odd)]:col-span-2">
+                <ul className="grid grid-cols-1 lg:grid-cols-2 gap-px bg-gray-100 rounded-xl overflow-hidden">
+                  {list.map(r => {
+                    const partnerNotes = notes?.bySlug.get(r.slug) || [];
+                    const openActions = partnerNotes.filter(n => n.is_action && !n.done_at);
+                    const isOpen = notesFor === r.slug;
+                    return (
+                    <li key={r.slug} className={`min-w-0 px-3 py-2.5 bg-white ${isOpen ? 'lg:col-span-2' : 'lg:[&:last-child:nth-child(odd)]:col-span-2'}`}>
+                    <div className="flex items-center gap-2 sm:gap-3">
                       <a href={`/partners/${r.slug}`} className="min-w-0 flex-1 group">
                         <span className="flex items-center gap-2 min-w-0">
                           <span className="text-sm font-semibold text-gray-900 truncate group-hover:underline">{r.name}</span>
@@ -158,11 +174,31 @@ export default function PartnerHeatMap({ rows, hidden = [], shared = true, onHid
                         <span className="block text-[11px] text-gray-500 mt-0.5">
                           {lastLeadLabel(r.daysSinceLastLead)} · {r.leadCount} total · {r.mqlCount} MQL · {r.sqlCount} SQL
                         </span>
+                        {openActions[0] && !isOpen && (
+                          <span className="mt-1 flex items-center gap-1 text-[11px] font-medium text-warning-dark min-w-0">
+                            <FlagIcon className="w-3 h-3 shrink-0" />
+                            <span className="truncate">{openActions[0].body}</span>
+                            {openActions.length > 1 && <span className="shrink-0">+{openActions.length - 1}</span>}
+                          </span>
+                        )}
                       </a>
                       <div className="shrink-0 text-right tabular-nums" title="New MQL-or-later leads in the last 14 and 30 days">
                         <span className="block text-sm font-semibold text-gray-900">{r.leads14d}<span className="text-gray-400 font-normal"> / {r.leads30d}</span></span>
                         <span className="block text-[10px] text-gray-400">14d / 30d</span>
                       </div>
+                      {notes && (
+                        <button
+                          type="button"
+                          onClick={() => setNotesFor(isOpen ? null : r.slug)}
+                          className={`shrink-0 inline-flex items-center gap-1 text-[11px] font-medium border rounded-full px-2.5 py-1.5 min-h-[32px] ${openActions.length ? 'text-warning-dark border-warning/60 bg-warning-tint/60' : 'text-gray-500 hover:text-gray-900 border-gray-200 hover:border-gray-400'}`}
+                          aria-expanded={isOpen}
+                          aria-label={`Notes for ${r.name}${openActions.length ? `, ${openActions.length} open ${openActions.length === 1 ? 'action' : 'actions'}` : ''}`}
+                        >
+                          <FlagIcon />
+                          <span className="hidden sm:inline">{openActions.length ? `${openActions.length} to do` : 'Notes'}</span>
+                          {openActions.length > 0 && <span className="sm:hidden tabular-nums">{openActions.length}</span>}
+                        </button>
+                      )}
                       {onHide && (
                         <button
                           type="button"
@@ -174,8 +210,21 @@ export default function PartnerHeatMap({ rows, hidden = [], shared = true, onHid
                           <span className="hidden sm:inline">Hide</span>
                         </button>
                       )}
+                    </div>
+                    {isOpen && notes && (
+                      <PartnerNotesPanel
+                        partnerName={r.name}
+                        notes={partnerNotes}
+                        author={author}
+                        onAuthor={setAuthor}
+                        saved={notes.saved}
+                        onAdd={(body, isAction) => notes.addNote(r.slug, body, isAction, author)}
+                        onDone={(id, done) => notes.setDone(id, done, author)}
+                      />
+                    )}
                     </li>
-                  ))}
+                    );
+                  })}
                 </ul>
               )}
             </section>

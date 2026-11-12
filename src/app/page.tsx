@@ -12,6 +12,7 @@ import ActionList from '@/components/ActionList';
 import PartnerTable, { type PartnerTableRow } from '@/components/PartnerTable';
 import type { PerfRow } from '@/components/PartnerHeatMap';
 import { useHiddenPartners } from '@/lib/use-hidden-partners';
+import { usePartnerNotes, useNoteAuthor } from '@/lib/use-partner-notes';
 
 interface LeadStages {
   MAL: string[];
@@ -66,6 +67,8 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const { hidden, hiddenSlugs, shared, setPartnerHidden } = useHiddenPartners();
+  const partnerNotes = usePartnerNotes();
+  const [noteAuthor] = useNoteAuthor();
   // Per-partner numbers, shared by the to-dos, Partner Health and the table.
   const [perfRows, setPerfRows] = useState<PartnerRow[] | null>(null);
 
@@ -138,7 +141,12 @@ export default function Dashboard() {
         <p className="text-gray-500 mt-1">What needs doing this week, then how every Approved partner is tracking</p>
       </div>
 
-      <ActionList leads={allLeads} partners={perfRows} />
+      <ActionList
+        leads={allLeads}
+        partners={perfRows}
+        notes={partnerNotes.notes}
+        onNoteDone={id => partnerNotes.setDone(id, true, noteAuthor)}
+      />
 
       {/* Hero KPIs — Stacked marketplace card treatment. Big chunky
           display-face count sits on a pastel or accent ground, with a
@@ -169,7 +177,7 @@ export default function Dashboard() {
       </div>
 
       <div className="mb-8">
-        <PartnerHeatMap rows={perfRows} hidden={hidden} shared={shared} onHide={setPartnerHidden} />
+        <PartnerHeatMap rows={perfRows} hidden={hidden} shared={shared} onHide={setPartnerHidden} notes={partnerNotes} />
       </div>
 
       <div className="mb-8">
