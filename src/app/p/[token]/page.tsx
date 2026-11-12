@@ -42,6 +42,8 @@ interface Lead {
   stage: string;
   lastModified: string;
   date?: string;
+  /** When this partner got the lead as an MQL (Stage Log), if known. */
+  mqlDate?: string;
   firstName?: string;
   lastName?: string;
   position?: string;
@@ -476,7 +478,7 @@ export default function SecurePartnerPage({ tokenOverride }: { tokenOverride?: s
               const dir = leadSort.dir === 'asc' ? 1 : -1;
               if (leadSort.col === 'businessName') return (a.businessName || '').localeCompare(b.businessName || '') * dir;
               if (leadSort.col === 'source')       return (a.source || '').localeCompare(b.source || '') * dir;
-              return (a.date || '').localeCompare(b.date || '') * dir;
+              return (a.mqlDate || a.date || '').localeCompare(b.mqlDate || b.date || '') * dir;
             });
 
             return (
@@ -528,7 +530,7 @@ export default function SecurePartnerPage({ tokenOverride }: { tokenOverride?: s
                           <SortableTh col="businessName" cur={leadSort} onClick={toggleSort}>Business</SortableTh>
                           <th className="text-left py-3 px-3 text-gray-500 font-medium">Status</th>
                           <SortableTh col="source" cur={leadSort} onClick={toggleSort}>Source</SortableTh>
-                          <SortableTh col="date" cur={leadSort} onClick={toggleSort}>Date Added</SortableTh>
+                          <SortableTh col="date" cur={leadSort} onClick={toggleSort}><span title="When this lead was passed to you as an MQL, or when it was added if earlier">Date</span></SortableTh>
                           <th className="text-right py-3 px-3 text-gray-500 font-medium">Update</th>
                         </tr>
                       </thead>
@@ -562,7 +564,7 @@ export default function SecurePartnerPage({ tokenOverride }: { tokenOverride?: s
                                   <span className="inline-block bg-gray-100 text-gray-700 text-xs px-2 py-1 rounded-full">{lead.status}</span>
                                 </td>
                                 <td className="py-3 px-3 text-gray-600">{lead.source}</td>
-                                <td className="py-3 px-3 text-gray-600">{lead.date?.split('T')[0] || 'N/A'}</td>
+                                <td className="py-3 px-3 text-gray-600">{(lead.mqlDate || lead.date)?.split('T')[0] || 'N/A'}</td>
                                 <td className="py-3 px-3 text-right">
                                   <button
                                     onClick={e => { e.stopPropagation(); openFeedback({ id: lead.id, businessName: lead.businessName }); }}

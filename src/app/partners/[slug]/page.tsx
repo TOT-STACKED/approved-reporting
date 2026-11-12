@@ -40,6 +40,8 @@ interface Lead {
   stage: string;
   lastModified: string;
   date?: string;
+  /** When this partner got the lead as an MQL (Stage Log), if known. */
+  mqlDate?: string;
   firstName?: string;
   lastName?: string;
   position?: string;
@@ -467,7 +469,7 @@ export default function PartnerPage() {
             const dir = leadSort.dir === 'asc' ? 1 : -1;
             if (leadSort.col === 'businessName') return (a.businessName || '').localeCompare(b.businessName || '') * dir;
             if (leadSort.col === 'source')       return (a.source || '').localeCompare(b.source || '') * dir;
-            return (a.date || '').localeCompare(b.date || '') * dir;
+            return (a.mqlDate || a.date || '').localeCompare(b.mqlDate || b.date || '') * dir;
           });
 
           return (
@@ -516,7 +518,7 @@ export default function PartnerPage() {
                         <SortableTh col="businessName" cur={leadSort} onClick={toggleSort}>Business</SortableTh>
                         <th className="text-left py-3 px-3 text-gray-500 font-medium">Status</th>
                         <SortableTh col="source" cur={leadSort} onClick={toggleSort}>Source</SortableTh>
-                        <SortableTh col="date" cur={leadSort} onClick={toggleSort}>Date Added</SortableTh>
+                        <SortableTh col="date" cur={leadSort} onClick={toggleSort}><span title="When this partner got the lead as an MQL (from the Slack alert), or when the lead was added if there was no alert">Date</span></SortableTh>
                         <th className="text-right py-3 px-3 text-gray-500 font-medium">Update</th>
                       </tr>
                     </thead>
@@ -549,7 +551,7 @@ export default function PartnerPage() {
                                 </span>
                               </td>
                               <td className="py-3 px-3 text-gray-600">{lead.source}</td>
-                              <td className="py-3 px-3 text-gray-600">{lead.date?.split('T')[0] || 'N/A'}</td>
+                              <td className="py-3 px-3 text-gray-600">{(lead.mqlDate || lead.date)?.split('T')[0] || 'N/A'}</td>
                               <td className="py-3 px-3 text-right">
                                 <button
                                   onClick={e => { e.stopPropagation(); openFeedback({ id: lead.id, businessName: lead.businessName }); }}
