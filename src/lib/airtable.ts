@@ -429,6 +429,13 @@ const PARTNER_ALIAS_GROUPS: Record<string, PartnerAliasGroup> = {
     displayName: 'Purchase Warrior',
     slugs: ['purchase-warrior', 'trisaas'],
   },
+  // HSG and Opsyte are one partner (shared #sta-hsg-opsyte channel). Leads are
+  // tagged "Opsyte"; the marketplace has a row for each and both have their
+  // own partner link, so both spellings resolve here.
+  opsyte: {
+    displayName: 'HSG / Opsyte',
+    slugs: ['opsyte', 'hsg'],
+  },
 };
 
 // Reverse index: any member slug -> the group it belongs to. Without this a
