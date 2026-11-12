@@ -7,23 +7,16 @@ export type NavNode =
   | { type: 'group'; label: string; items: NavItem[] };
 
 export const NAV: NavNode[] = [
+  // Performance, Community and Podcast were folded into / removed from the
+  // dashboard on 12 Nov 2026; their old URLs redirect to /.
   { type: 'link', href: '/', label: 'Dashboard' },
-  {
-    type: 'group',
-    label: 'Pipeline',
-    items: [
-      { href: '/leads', label: 'All Leads' },
-      { href: '/performance', label: 'Performance' },
-    ],
-  },
+  { type: 'link', href: '/leads', label: 'All Leads' },
   {
     type: 'group',
     label: 'Insights',
     items: [
       { href: '/tech-check', label: 'Tech Check' },
       { href: '/analytics', label: 'Analytics' },
-      { href: '/community', label: 'Community' },
-      { href: '/podcast', label: 'Podcast' },
     ],
   },
   { type: 'link', href: '/knowledge', label: 'Knowledge' },

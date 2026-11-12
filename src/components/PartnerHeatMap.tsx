@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import type { HiddenPartner } from '@/lib/use-hidden-partners';
 import { GREEN_MIN_LEADS_30D, RED_AFTER_DAYS } from '@/lib/partner-activity';
 
@@ -11,7 +11,7 @@ import { GREEN_MIN_LEADS_30D, RED_AFTER_DAYS } from '@/lib/partner-activity';
 
 type Band = 'green' | 'amber' | 'red';
 
-interface PerfRow {
+export interface PerfRow {
   name: string;
   slug: string;
   tier: string;
@@ -77,23 +77,16 @@ function TierChip({ tier }: { tier: string }) {
 }
 
 interface PartnerHeatMapProps {
+  /** Rows from /api/performance; null while loading. */
+  rows: PerfRow[] | null;
   hidden?: HiddenPartner[];
   shared?: boolean;
   onHide?: (slug: string, name: string | null, hide: boolean) => void;
 }
 
-export default function PartnerHeatMap({ hidden = [], shared = true, onHide }: PartnerHeatMapProps = {}) {
-  const [rows, setRows] = useState<PerfRow[] | null>(null);
-  const [loading, setLoading] = useState(true);
+export default function PartnerHeatMap({ rows, hidden = [], shared = true, onHide }: PartnerHeatMapProps) {
+  const loading = rows == null;
   const [showHidden, setShowHidden] = useState(false);
-
-  useEffect(() => {
-    fetch('/api/performance', { cache: 'no-store' })
-      .then(r => r.json())
-      .then(d => setRows(d.rows || []))
-      .catch(() => setRows([]))
-      .finally(() => setLoading(false));
-  }, []);
 
   const hiddenSet = useMemo(() => new Set(hidden.map(h => h.slug)), [hidden]);
 

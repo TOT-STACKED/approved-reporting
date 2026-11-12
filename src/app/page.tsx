@@ -8,6 +8,9 @@ import LeadStatusGlossary from '@/components/LeadStatusGlossary';
 import { LEAD_STATUS_EXPLAINER } from '@/lib/lead-status';
 import ConversionTimeline from '@/components/ConversionTimeline';
 import NpsDashboard from '@/components/NpsDashboard';
+import ActionList from '@/components/ActionList';
+import PartnerTable, { type PartnerTableRow } from '@/components/PartnerTable';
+import type { PerfRow } from '@/components/PartnerHeatMap';
 import { useHiddenPartners } from '@/lib/use-hidden-partners';
 
 interface LeadStages {
@@ -27,16 +30,50 @@ interface Lead {
   source?: string;
   partners?: string[];
   stages?: LeadStages;
+  owner?: string;
 }
 
+type PartnerRow = PerfRow & PartnerTableRow;
+
+// A section that starts folded. Children only mount when opened, so the
+// heavier panels (NPS, market intelligence) don't load until someone asks.
+function Fold({ id, title, note, children }: { id: string; title: string; note: string; children: React.ReactNode }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <section className="bg-white rounded-2xl border border-gray-200 mb-4" aria-labelledby={`${id}-h`}>
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        className="w-full flex items-center justify-between gap-3 px-4 sm:px-5 py-4 text-left min-h-[56px]"
+        aria-expanded={open}
+        aria-controls={`${id}-body`}
+      >
+        <span>
+          <span id={`${id}-h`} className="block text-base font-bold text-brand-green">{title}</span>
+          <span className="block text-xs text-gray-500 mt-0.5">{note}</span>
+        </span>
+        <svg className={`shrink-0 w-5 h-5 text-gray-400 transition-transform ${open ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+        </svg>
+      </button>
+      {open && <div id={`${id}-body`} className="px-3 sm:px-5 pb-5">{children}</div>}
+    </section>
+  );
+}
 
 export default function Dashboard() {
   const [allLeads, setAllLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const { hidden, shared, setPartnerHidden } = useHiddenPartners();
+  const { hidden, hiddenSlugs, shared, setPartnerHidden } = useHiddenPartners();
+  // Per-partner numbers, shared by the to-dos, Partner Health and the table.
+  const [perfRows, setPerfRows] = useState<PartnerRow[] | null>(null);
 
   useEffect(() => {
+    fetch('/api/performance', { cache: 'no-store' })
+      .then(r => r.json())
+      .then(d => setPerfRows(d.rows || []))
+      .catch(() => setPerfRows([]));
     fetch('/api/leads', { cache: 'no-store' })
       .then(r => r.json())
       .then(leadsData => {
@@ -98,10 +135,10 @@ export default function Dashboard() {
     <div>
       <div className="mb-8">
         <h1 className="font-display text-4xl sm:text-6xl tracking-tight leading-[0.95] text-brand-green">Partner<br/>Dashboard</h1>
-        <p className="text-gray-500 mt-1">Performance snapshot across all approved partners</p>
+        <p className="text-gray-500 mt-1">What needs doing this week, then how every Approved partner is tracking</p>
       </div>
 
-      <AskBox />
+      <ActionList leads={allLeads} partners={perfRows} />
 
       {/* Hero KPIs — Stacked marketplace card treatment. Big chunky
           display-face count sits on a pastel or accent ground, with a
@@ -131,6 +168,17 @@ export default function Dashboard() {
         </div>
       </div>
 
+      <div className="mb-8">
+        <PartnerHeatMap rows={perfRows} hidden={hidden} shared={shared} onHide={setPartnerHidden} />
+      </div>
+
+      <div className="mb-8">
+        {perfRows && <PartnerTable rows={perfRows} hiddenSlugs={hiddenSlugs} />}
+      </div>
+
+      <AskBox />
+
+      <Fold id="leads" title="Leads and pipeline" note="Conversion timeline, pipeline breakdown and the newest MQLs and SQLs">
       <LeadStatusGlossary className="mb-4" />
 
       <div className="mb-4">
@@ -250,7 +298,9 @@ export default function Dashboard() {
           );
         })()}
       </div>
+      </Fold>
 
+      <Fold id="sentiment" title="NPS and market intelligence" note="Operator sentiment and the tools they use">
       {/* Stacks Section */}
       <div className="mb-8">
         <StacksDashboard />
@@ -260,9 +310,7 @@ export default function Dashboard() {
       <div className="mb-8">
         <NpsDashboard />
       </div>
-
-      {/* Partner health — green / amber / red boxes, plus the saved hidden list */}
-      <PartnerHeatMap hidden={hidden} shared={shared} onHide={setPartnerHidden} />
+      </Fold>
     </div>
   );
 }
