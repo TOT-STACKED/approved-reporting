@@ -137,6 +137,11 @@ function normalizePartnerName(name: string): string {
   return name.trim().toLowerCase();
 }
 
+/** A stage tag as a slug: "Planday by Xero" -> "planday-by-xero". */
+function partnerTagSlug(name: string): string {
+  return normalizePartnerName(name).replace(/[^a-z0-9]+/g, '-').replace(/-+$/, '');
+}
+
 export interface Partner {
   name: string;
   slug: string;
@@ -270,25 +275,6 @@ function extractMultiValues(field: any): string[] {
   return field.map((f: any) => (typeof f === 'string' ? f : f.name || '').trim()).filter(Boolean);
 }
 
-// Returns the highest-priority stage a partner appears in for this record's stage fields.
-// Returns null if the partner doesn't appear in any stage field.
-function getPartnerStage(fields: any, partnerName: string): Stage | null {
-  const target = normalizePartnerName(partnerName);
-  let highest: Stage | null = null;
-  let highestIdx = -1;
-  for (const stage of STAGE_ORDER) {
-    const partnersAtStage = extractMultiValues(fields[STAGE_FIELDS[stage]]);
-    if (partnersAtStage.some(p => normalizePartnerName(p) === target)) {
-      const idx = STAGE_ORDER.indexOf(stage);
-      if (idx > highestIdx) {
-        highest = stage;
-        highestIdx = idx;
-      }
-    }
-  }
-  return highest;
-}
-
 // Returns all { partner -> highest stage } pairs for a given record.
 function getRecordPartnerStages(fields: any): Map<string, { name: string; stage: Stage }> {
   const result = new Map<string, { name: string; stage: Stage }>();
@@ -317,44 +303,29 @@ export async function getPartnerList(prefetched?: any[]): Promise<Partner[]> {
     ]
   );
 
-  const partnerMap = new Map<string, { name: string; count: number; statuses: Record<string, number> }>();
-
-  for (const r of records) {
-    const fields = r.fields || {};
-    const partnerStages = getRecordPartnerStages(fields);
-
-    for (const [key, { name, stage }] of partnerStages) {
-      if (!partnerMap.has(key)) {
-        partnerMap.set(key, { name, count: 0, statuses: {} });
-      }
-      const entry = partnerMap.get(key)!;
-      entry.count++;
-      entry.statuses[stage] = (entry.statuses[stage] || 0) + 1;
-    }
-  }
-
-  // Fold alias-group members into one row before returning. Previously each
-  // spelling became its own partner, so Planday, Revvue and Clearcourse each
-  // appeared more than once with their leads divided between the entries.
+  // Count each lead once per partner, at that partner's highest stage, with
+  // every spelling of the partner (alias group) folded together first. A lead
+  // tagged "Planday by Xero" at MAL and "Planday " at SQL is one Planday SQL,
+  // not one MAL plus one SQL.
   const merged = new Map<string, Partner>();
-  for (const [key, data] of partnerMap) {
-    const rawSlug = key.replace(/[^a-z0-9]+/g, '-').replace(/-+$/, '');
-    const slug = canonicalPartnerSlug(rawSlug);
-    const group = PARTNER_ALIAS_GROUPS[slug];
-
-    const existing = merged.get(slug);
-    if (!existing) {
-      merged.set(slug, {
-        name: group ? group.displayName : data.name,
-        slug,
-        leadCount: data.count,
-        statusBreakdown: { ...data.statuses },
-      });
-      continue;
+  for (const r of records) {
+    const perSlug = new Map<string, { name: string; stage: Stage }>();
+    for (const { name, stage } of getRecordPartnerStages(r.fields || {}).values()) {
+      const slug = canonicalPartnerSlug(partnerTagSlug(name));
+      const prev = perSlug.get(slug);
+      if (!prev || STAGE_ORDER.indexOf(stage) > STAGE_ORDER.indexOf(prev.stage)) {
+        perSlug.set(slug, { name, stage });
+      }
     }
-    existing.leadCount += data.count;
-    for (const [stage, n] of Object.entries(data.statuses)) {
-      existing.statusBreakdown[stage] = (existing.statusBreakdown[stage] || 0) + n;
+    for (const [slug, { name, stage }] of perSlug) {
+      let entry = merged.get(slug);
+      if (!entry) {
+        const group = PARTNER_ALIAS_GROUPS[slug];
+        entry = { name: group ? group.displayName : name, slug, leadCount: 0, statusBreakdown: {} };
+        merged.set(slug, entry);
+      }
+      entry.leadCount++;
+      entry.statusBreakdown[stage] = (entry.statusBreakdown[stage] || 0) + 1;
     }
   }
 
@@ -443,6 +414,20 @@ const PARTNER_ALIAS_GROUPS: Record<string, PartnerAliasGroup> = {
   wolverton: {
     displayName: 'Wolverton Solutions',
     slugs: ['wolverton', 'wolverton-solutions'],
+  },
+  // Lead sheet tags them "flock x", the marketplace slug is "flockx". Without
+  // this the Package lookup missed, so an Approved partner read as Promote
+  // and dropped off the Approved-only dashboard (found 12 Nov 2026).
+  flockx: {
+    displayName: 'Flock X',
+    slugs: ['flockx', 'flock-x'],
+  },
+  // Purchase Warrior is tagged "Trisaas" in the lead sheet and in Slack_Data
+  // (whose channel is #sta-purchase-warrior); the marketplace row is
+  // "purchase-warrior". Same company, so one partner.
+  'purchase-warrior': {
+    displayName: 'Purchase Warrior',
+    slugs: ['purchase-warrior', 'trisaas'],
   },
 };
 
@@ -572,28 +557,29 @@ export function buildPartnerDetail(records: any[], slug: string, mqlDates?: MqlD
 
   for (const r of records) {
     const fields = r.fields || {};
-    const stage = getPartnerStage(fields, slug.replace(/-/g, ' '));
 
-    // Try matching by slug — derive partner name from any of the stage fields
-    let matchedName: string | null = null;
+    // Every spelling of this partner on the lead, and the highest stage any
+    // of them is at. Taking only the first spelling found (often the MAL tag)
+    // undercounted leads tagged under two spellings — Planday's SQL read as MAL.
+    let leadStageForPartner: Stage | null = null;
+    const spellings = new Set<string>();
     for (const s of STAGE_ORDER) {
-      const partners = extractMultiValues(fields[STAGE_FIELDS[s]]);
-      const match = partners.find(p => {
-        const partnerSlug = normalizePartnerName(p).replace(/[^a-z0-9]+/g, '-').replace(/-+$/, '');
-        return acceptedSlugs.has(partnerSlug);
-      });
-      if (match) {
-        matchedName = match.trim();
-        break;
+      for (const p of extractMultiValues(fields[STAGE_FIELDS[s]])) {
+        if (!acceptedSlugs.has(partnerTagSlug(p))) continue;
+        spellings.add(p.trim());
+        leadStageForPartner = s; // STAGE_ORDER is ascending, so the last hit is highest
       }
     }
-
-    if (!matchedName) continue;
-
+    if (!leadStageForPartner) continue;
+    const matchedName = Array.from(spellings)[0];
     if (!partnerName) partnerName = matchedName;
 
-    // Compute the lead's current stage for this specific partner
-    const leadStageForPartner = getPartnerStage(fields, matchedName);
+    // Earliest Stage Log MQL date across any spelling on this lead.
+    let mqlDate: string | undefined;
+    for (const sp of spellings) {
+      const d = mqlDates?.get(`${r.id}|${normalizePartnerName(sp)}`);
+      if (d && (!mqlDate || d < mqlDate)) mqlDate = d;
+    }
 
     partnerLeads.push({
       id: r.id,
@@ -610,7 +596,7 @@ export function buildPartnerDetail(records: any[], slug: string, mqlDates?: MqlD
       // user-entered Date field is empty (it's a common data-quality gap
       // and otherwise the dashboard would show "N/A" + flag stale wrongly).
       date: fields[FIELDS.masterView.date] || r.createdTime || '',
-      mqlDate: mqlDates?.get(`${r.id}|${normalizePartnerName(matchedName)}`),
+      mqlDate,
       firstName:     (fields[FIELDS.masterView.firstName]     as string | undefined) || '',
       lastName:      (fields[FIELDS.masterView.lastName]      as string | undefined) || '',
       position:      (fields[FIELDS.masterView.position]      as string | undefined) || '',
@@ -618,7 +604,6 @@ export function buildPartnerDetail(records: any[], slug: string, mqlDates?: MqlD
       contactNumber: (fields[FIELDS.masterView.contactNumber] as string | undefined) || '',
       totNotes:      (fields[FIELDS.masterView.totNotes]      as string | undefined) || '',
     });
-    void stage;
   }
 
   if (partnerLeads.length === 0) return null;
