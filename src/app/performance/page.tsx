@@ -118,7 +118,8 @@ export default function PerformancePage() {
   }, []);
 
   const visible = useMemo(
-    () => rows.filter(r => !hidden.has(r.slug)),
+    // Approved only: the team doesn't source leads for Promote partners.
+    () => rows.filter(r => r.tier === 'approved' && !hidden.has(r.slug)),
     [rows, hidden]
   );
 
@@ -198,7 +199,7 @@ export default function PerformancePage() {
         <div>
           <h1 className="font-display text-4xl sm:text-5xl tracking-tight leading-[0.95] text-brand-green">Partner Performance</h1>
           <p className="text-gray-500 mt-1 text-sm">
-            MQL/SQL pipeline volume, conversion rates and last-lead recency across every active partner.
+            MQL/SQL pipeline volume, conversion rates and last-lead recency across every Approved partner.
             Partners that need attention float to the top — sorted red → amber → green.
           </p>
         </div>
