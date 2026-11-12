@@ -4,6 +4,7 @@ import {
   getMarketingActivities,
   getActivitiesForPartner,
   fetchPartnerLeadRecords,
+  fetchMqlDates,
   buildPartnerDetail,
 } from '@/lib/airtable';
 import { getAllLeads } from '@/lib/leads';
@@ -60,16 +61,17 @@ function daysSince(iso: string | null): number | null {
 
 export async function GET() {
   try {
-    const [records, activities, allLeads] = await Promise.all([
+    const [records, activities, allLeads, mqlDates] = await Promise.all([
       fetchPartnerLeadRecords(),
       getMarketingActivities(),
       getAllLeads(),
+      fetchMqlDates(),
     ]);
     const partners = await getPartnerList(records);
     const now = Date.now();
 
     const rows: PartnerPerformance[] = await Promise.all(partners.map(async p => {
-      const a = partnerActivity(buildPartnerDetail(records, p.slug), now);
+      const a = partnerActivity(buildPartnerDetail(records, p.slug, mqlDates), now);
 
       const partnerActivities = getActivitiesForPartner(activities, p.name);
       const pipelineGbp = partnerActivities.reduce((s, x) => s + (x.pipelineValue || 0), 0);

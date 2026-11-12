@@ -10,6 +10,16 @@ const TABLES = {
   supplierFeedback: 'tblPKK0x9fnhlTN3b',
   weeklySpread: 'tblq7oZa1B5n6wktP',
   marketingActivity: 'tblN0KgGlA3bjPlnd',
+  // One row per partner per stage, dated when their Slack notification went
+  // out. Written by the MQL Slack automation; backfilled from Slack to May 2026.
+  stageLog: 'tblb1R2TrsfPPyVO2',
+};
+
+const STAGE_LOG_FIELDS = {
+  lead: 'fldj5aP3yJbGem9F3',
+  partner: 'fldrsrnBMZlqStsOY',
+  stage: 'fld3dJClJT45PsZmA',
+  date: 'fldICWiyPgLV0m02p',
 };
 
 // Stage fields are MULTI-SELECTS containing partner names. A single lead can
@@ -224,6 +234,9 @@ export interface Lead {
   size: string;
   location: string;
   date: string;
+  /** When this partner got the lead as an MQL (from Stage Log), if known.
+   *  More accurate than `date`, which is when the lead was first added. */
+  mqlDate?: string;
   // Contact info — populated on every lead but exposed by the UI per stage.
   // The partner-facing page shows position only at MQL, full details at SQL+.
   firstName?: string;
@@ -508,8 +521,37 @@ export async function fetchPartnerLeadRecords(): Promise<any[]> {
   );
 }
 
+/** "<lead record id>|<partner tag, lowercased>" -> earliest date that partner
+ *  was notified at MQL. Empty if the Stage Log can't be read, so callers fall
+ *  back to the lead's own Date rather than failing. */
+export type MqlDateMap = Map<string, string>;
+
+export async function fetchMqlDates(): Promise<MqlDateMap> {
+  const map: MqlDateMap = new Map();
+  try {
+    const rows = await fetchAllRecords(TABLES.stageLog, Object.values(STAGE_LOG_FIELDS));
+    for (const r of rows) {
+      const f = r.fields || {};
+      if (extractValue(f[STAGE_LOG_FIELDS.stage]) !== 'MQL') continue;
+      const date = f[STAGE_LOG_FIELDS.date] as string | undefined;
+      const partner = (f[STAGE_LOG_FIELDS.partner] as string | undefined) || '';
+      const leads = (f[STAGE_LOG_FIELDS.lead] as string[] | undefined) || [];
+      if (!date || !partner) continue;
+      for (const leadId of leads) {
+        const key = `${leadId}|${normalizePartnerName(partner)}`;
+        const prev = map.get(key);
+        if (!prev || date < prev) map.set(key, date);
+      }
+    }
+  } catch (e) {
+    console.warn('[stage-log] could not read MQL dates:', e instanceof Error ? e.message : e);
+  }
+  return map;
+}
+
 export async function getPartnerDetail(slug: string): Promise<PartnerDetail | null> {
-  return buildPartnerDetail(await fetchPartnerLeadRecords(), slug);
+  const [records, mqlDates] = await Promise.all([fetchPartnerLeadRecords(), fetchMqlDates()]);
+  return buildPartnerDetail(records, slug, mqlDates);
 }
 
 /**
@@ -518,7 +560,7 @@ export async function getPartnerDetail(slug: string): Promise<PartnerDetail | nu
  * partner's own /p page, the PDF report and the dashboard's Partner Health
  * boxes all go through it, so they can't disagree.
  */
-export function buildPartnerDetail(records: any[], slug: string): PartnerDetail | null {
+export function buildPartnerDetail(records: any[], slug: string, mqlDates?: MqlDateMap): PartnerDetail | null {
 
   // Resolve the requested slug to its accepted partner-name slugs. For a
   // standalone partner (no alias group), this is just the slug itself.
@@ -568,6 +610,7 @@ export function buildPartnerDetail(records: any[], slug: string): PartnerDetail 
       // user-entered Date field is empty (it's a common data-quality gap
       // and otherwise the dashboard would show "N/A" + flag stale wrongly).
       date: fields[FIELDS.masterView.date] || r.createdTime || '',
+      mqlDate: mqlDates?.get(`${r.id}|${normalizePartnerName(matchedName)}`),
       firstName:     (fields[FIELDS.masterView.firstName]     as string | undefined) || '',
       lastName:      (fields[FIELDS.masterView.lastName]      as string | undefined) || '',
       position:      (fields[FIELDS.masterView.position]      as string | undefined) || '',
