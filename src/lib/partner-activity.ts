@@ -10,9 +10,9 @@ import { hasReachedMql, reachedMqlCount } from './lead-status';
 export type HealthBand = 'green' | 'amber' | 'red';
 
 // Thresholds. Green: a steady flow. Amber: still coming in, but thin.
-// Red: nothing new for two weeks or more.
+// Red: no new MQL for four weeks or more (changed from 14 days, 12 Nov 2026).
 export const GREEN_MIN_LEADS_30D = 3;
-export const RED_AFTER_DAYS = 14;
+export const RED_AFTER_DAYS = 28;
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -34,8 +34,8 @@ export interface PartnerActivity {
   band: HealthBand;
 }
 
-export function healthBand(leads14d: number, leads30d: number): HealthBand {
-  if (leads14d === 0) return 'red';
+export function healthBand(daysSinceLastLead: number | null, leads30d: number): HealthBand {
+  if (daysSinceLastLead == null || daysSinceLastLead > RED_AFTER_DAYS) return 'red';
   if (leads30d >= GREEN_MIN_LEADS_30D) return 'green';
   return 'amber';
 }
@@ -61,6 +61,8 @@ export function partnerActivity(detail: PartnerDetail | null, now = Date.now()):
     if (lastTs == null || ts > lastTs) lastTs = ts;
   }
 
+  const daysSinceLastLead = lastTs == null ? null : Math.max(0, Math.floor((now - lastTs) / DAY_MS));
+
   return {
     leadCount: detail?.leadCount ?? 0,
     malCount: n('MAL'),
@@ -72,7 +74,7 @@ export function partnerActivity(detail: PartnerDetail | null, now = Date.now()):
     leads14d,
     leads30d,
     lastLeadAt: lastTs == null ? null : new Date(lastTs).toISOString(),
-    daysSinceLastLead: lastTs == null ? null : Math.max(0, Math.floor((now - lastTs) / DAY_MS)),
-    band: healthBand(leads14d, leads30d),
+    daysSinceLastLead,
+    band: healthBand(daysSinceLastLead, leads30d),
   };
 }

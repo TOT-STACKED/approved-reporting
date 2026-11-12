@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { RED_AFTER_DAYS } from '@/lib/partner-activity';
 
 // "This week's to-dos" — the top of the internal dashboard. Everything here is
 // worked out live from the lead sheet, Partner Health and NPS, so the list is
@@ -118,7 +119,7 @@ export default function ActionList({ leads, partners }: { leads: ActionLead[]; p
     if (red.length) {
       out.push({
         key: 'red',
-        title: `Call ${red.length} Approved ${red.length === 1 ? 'partner' : 'partners'} with no new MQL for 14+ days`,
+        title: `Call ${red.length} Approved ${red.length === 1 ? 'partner' : 'partners'} with no new MQL for ${RED_AFTER_DAYS}+ days`,
         detail: red.slice(0, 2).map(p => `${p.name} (${p.daysSinceLastLead == null ? 'none yet' : ago(p.daysSinceLastLead)})`).join(', ') + (red.length > 2 ? ' first' : ''),
         who: 'partners',
         count: red.length,
