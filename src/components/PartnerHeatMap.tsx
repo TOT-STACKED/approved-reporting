@@ -28,7 +28,7 @@ const BANDS: { key: Band; title: string; rule: string; box: string; head: string
   {
     key: 'green',
     title: 'Active',
-    rule: `${GREEN_MIN_LEADS_30D}+ new leads in 30 days`,
+    rule: `${GREEN_MIN_LEADS_30D}+ new MQLs in 30 days`,
     box: 'bg-positive-tint/60 border-positive/30',
     head: 'text-positive',
     dot: 'bg-positive-bright',
@@ -36,7 +36,7 @@ const BANDS: { key: Band; title: string; rule: string; box: string; head: string
   {
     key: 'amber',
     title: 'Slowing down',
-    rule: `A lead in the last ${RED_AFTER_DAYS} days, fewer than ${GREEN_MIN_LEADS_30D} in 30`,
+    rule: `An MQL in the last ${RED_AFTER_DAYS} days, fewer than ${GREEN_MIN_LEADS_30D} in 30`,
     box: 'bg-warning-tint/60 border-warning/50',
     head: 'text-warning-dark',
     dot: 'bg-warning',
@@ -44,7 +44,7 @@ const BANDS: { key: Band; title: string; rule: string; box: string; head: string
   {
     key: 'red',
     title: 'Needs a call',
-    rule: `No new leads for ${RED_AFTER_DAYS}+ days`,
+    rule: `No new MQLs for ${RED_AFTER_DAYS}+ days`,
     box: 'bg-negative-tint/50 border-negative/30',
     head: 'text-negative-dark',
     dot: 'bg-negative',
@@ -52,12 +52,12 @@ const BANDS: { key: Band; title: string; rule: string; box: string; head: string
 ];
 
 function lastLeadLabel(d: number | null): string {
-  if (d == null) return 'No leads yet';
-  if (d === 0) return 'Last lead today';
-  if (d === 1) return 'Last lead yesterday';
-  if (d < 60) return `Last lead ${d} days ago`;
-  if (d < 365) return `Last lead ${Math.round(d / 30)} months ago`;
-  return `Last lead over a year ago`;
+  if (d == null) return 'No MQLs yet';
+  if (d === 0) return 'Last MQL today';
+  if (d === 1) return 'Last MQL yesterday';
+  if (d < 60) return `Last MQL ${d} days ago`;
+  if (d < 365) return `Last MQL ${Math.round(d / 30)} months ago`;
+  return `Last MQL over a year ago`;
 }
 
 function hiddenOnLabel(iso: string | null): string {
@@ -129,7 +129,7 @@ export default function PartnerHeatMap({ hidden = [], shared = true, onHide }: P
       <div className="mb-3">
         <h2 className="text-lg font-bold text-brand-green">Partner Health</h2>
         <p className="text-xs text-gray-500 mt-0.5">
-          Based on new leads added. The same counts as each partner&apos;s own page.
+          Based on new leads that reached MQL or beyond. Counts match each partner&apos;s own page.
         </p>
       </div>
 
@@ -163,7 +163,7 @@ export default function PartnerHeatMap({ hidden = [], shared = true, onHide }: P
                           {lastLeadLabel(r.daysSinceLastLead)} · {r.leadCount} total · {r.mqlCount} MQL · {r.sqlCount} SQL
                         </span>
                       </a>
-                      <div className="shrink-0 text-right tabular-nums" title="New leads in the last 14 and 30 days">
+                      <div className="shrink-0 text-right tabular-nums" title="New MQL-or-later leads in the last 14 and 30 days">
                         <span className="block text-sm font-semibold text-gray-900">{r.leads14d}<span className="text-gray-400 font-normal"> / {r.leads30d}</span></span>
                         <span className="block text-[10px] text-gray-400">14d / 30d</span>
                       </div>

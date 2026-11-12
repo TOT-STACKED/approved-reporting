@@ -5,7 +5,7 @@
 // agrees with the page it links to.
 
 import type { PartnerDetail } from './airtable';
-import { reachedMqlCount } from './lead-status';
+import { hasReachedMql, reachedMqlCount } from './lead-status';
 
 export type HealthBand = 'green' | 'amber' | 'red';
 
@@ -28,7 +28,7 @@ export interface PartnerActivity {
   lostCount: number;
   leads14d: number;
   leads30d: number;
-  /** Date the newest lead was added (the lead's Date, else when the record was created). */
+  /** Date the newest MQL-or-later lead was added (the lead's Date, else when the record was created). */
   lastLeadAt: string | null;
   daysSinceLastLead: number | null;
   band: HealthBand;
@@ -47,7 +47,12 @@ export function partnerActivity(detail: PartnerDetail | null, now = Date.now()):
   let leads14d = 0;
   let leads30d = 0;
   let lastTs: number | null = null;
+  // Only leads that have reached MQL count towards health. Every new lead is
+  // tagged MAL against ~37 partners at once (Stacked's own prospecting), so
+  // counting MAL made almost everyone green. MQL onwards is what the partner
+  // actually sees as a lead on their own page.
   for (const lead of detail?.leads ?? []) {
+    if (!hasReachedMql(lead.status)) continue;
     const ts = Date.parse(lead.date);
     if (Number.isNaN(ts)) continue;
     const age = now - ts;
