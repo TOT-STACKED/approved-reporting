@@ -3,7 +3,7 @@
 //
 // Lead Owner has drifted over time ("Chris C", "Chris Fletcher", "Chris"...),
 // so each person lists every spelling that is definitely them. Anything that
-// matches nobody (blank, "Both", other names, or an ambiguous "Chris") stays
+// matches nobody (blank, "Both", other names) stays
 // off the board and is shown as a footnote so it can be tidied in Airtable.
 //
 // Headshots: put a square image in public/team/ and set `photo` to its path.
@@ -18,7 +18,8 @@ export interface TeamMember {
 export const TEAM: TeamMember[] = [
   { name: 'Caz', owners: ['caz', 'caroline'] },
   { name: 'Iuliia', owners: ['iuliia', 'iuliia kreik', 'iulia'] },
-  { name: 'Chris F', owners: ['chris f', 'chris fletcher', 'fletch'] },
+  // Plain "Chris" in Lead Owner is Chris Fletcher (confirmed 13 Nov 2026).
+  { name: 'Chris F', owners: ['chris f', 'chris fletcher', 'fletch', 'chris'] },
   { name: 'Chris C', owners: ['chris c', 'chris cartmell'] },
 ];
 
