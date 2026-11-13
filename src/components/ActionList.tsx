@@ -143,7 +143,7 @@ export default function ActionList({ leads, partners, notes, onNoteDone }: Props
       });
     }
 
-    // 1. Approved partners with no new MQL for 14+ days. Most recently quiet
+    // 1. Approved partners with no move (MQL, SQL or Won) for 28+ days. Most recently quiet
     //    first: those are the easiest to get going again.
     const red = (partners || [])
       .filter(p => p.tier === 'approved' && p.band === 'red')
@@ -151,7 +151,7 @@ export default function ActionList({ leads, partners, notes, onNoteDone }: Props
     if (red.length) {
       out.push({
         key: 'red',
-        title: `Call ${red.length} Approved ${red.length === 1 ? 'partner' : 'partners'} with no new MQL for ${RED_AFTER_DAYS}+ days`,
+        title: `Call ${red.length} Approved ${red.length === 1 ? 'partner' : 'partners'} with no moves for ${RED_AFTER_DAYS}+ days`,
         detail: red.slice(0, 2).map(p => `${p.name} (${p.daysSinceLastLead == null ? 'none yet' : ago(p.daysSinceLastLead)})`).join(', ') + (red.length > 2 ? ' first' : ''),
         who: 'partners',
         count: red.length,
@@ -160,7 +160,7 @@ export default function ActionList({ leads, partners, notes, onNoteDone }: Props
           main: p.name,
           sub: `${p.mqlCount} MQL · ${p.sqlCount} SQL all time`,
           href: `/partners/${p.slug}`,
-          right: p.daysSinceLastLead == null ? 'no MQLs yet' : `last MQL ${ago(p.daysSinceLastLead)} ago`,
+          right: p.daysSinceLastLead == null ? 'no moves yet' : `last move ${ago(p.daysSinceLastLead)} ago`,
         })),
       });
     }

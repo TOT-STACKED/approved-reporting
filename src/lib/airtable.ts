@@ -50,6 +50,10 @@ const FIELDS = {
     size: 'fldwUdKgqSG6E2JZ1',
     location: 'fldTwzHji3JbrvHPU',
     date: 'fldRND3uaiduLQouI',
+    // Lead-level stamps the old status automations set. Only used as a fallback
+    // for a partner's SQL / Won date when Stage Log has no row for that step.
+    sqlStamp: 'fldgRl9xPawSjjK4b',
+    wonStamp: 'fld33MIbVZZWU0q5H',
     // Contact fields — gated per stage on the partner-facing /p/[token] page.
     // MQL rows only expose position (Stacked handles MQL outreach).
     // SQL rows expose full contact + notes for the partner to take forward.
@@ -243,6 +247,9 @@ export interface Lead {
    *  MQL or SQL Slack alert), if known. More accurate than `date`, which is
    *  when the lead was first added. */
   mqlDate?: string;
+  /** Every step forward this partner saw on the lead (MQL, SQL, Won, Lost),
+   *  dated when it happened. Drives Partner Health, the league and streaks. */
+  moves?: StageMove[];
   // Contact info — populated on every lead but exposed by the UI per stage.
   // The partner-facing page shows position only at MQL, full details at SQL+.
   firstName?: string;
@@ -514,38 +521,43 @@ export async function fetchPartnerLeadRecords(): Promise<any[]> {
   );
 }
 
-/** "<lead record id>|<partner tag, lowercased>" -> earliest date that partner
- *  was notified about the lead, at MQL or any later stage. Empty if the Stage Log can't be read, so callers fall
- *  back to the lead's own Date rather than failing. */
-export type MqlDateMap = Map<string, string>;
+export type MoveStage = 'MQL' | 'SQL' | 'Closed Won' | 'Closed Lost';
+export interface StageMove { stage: MoveStage; date: string }
 
-export async function fetchMqlDates(): Promise<MqlDateMap> {
-  const map: MqlDateMap = new Map();
+/** "<lead record id>|<partner tag, lowercased>" -> every Stage Log row for that
+ *  partner on that lead (one per Slack alert: MQL, SQL, Won, Lost). Empty if the
+ *  Stage Log can't be read, so callers fall back to the lead's own dates. */
+export type StageEventMap = Map<string, StageMove[]>;
+
+const MOVE_STAGES = new Set<MoveStage>(['MQL', 'SQL', 'Closed Won', 'Closed Lost']);
+
+export async function fetchStageEvents(): Promise<StageEventMap> {
+  const map: StageEventMap = new Map();
   try {
     const rows = await fetchAllRecords(TABLES.stageLog, Object.values(STAGE_LOG_FIELDS));
     for (const r of rows) {
       const f = r.fields || {};
-      // Any stage counts: a lead tagged straight to SQL (no MQL alert) is
-      // dated from its SQL alert. Earliest row wins.
+      const stage = extractValue(f[STAGE_LOG_FIELDS.stage]) as MoveStage;
       const date = f[STAGE_LOG_FIELDS.date] as string | undefined;
       const partner = (f[STAGE_LOG_FIELDS.partner] as string | undefined) || '';
       const leads = (f[STAGE_LOG_FIELDS.lead] as string[] | undefined) || [];
-      if (!date || !partner) continue;
+      if (!date || !partner || !MOVE_STAGES.has(stage)) continue;
       for (const leadId of leads) {
         const key = `${leadId}|${normalizePartnerName(partner)}`;
-        const prev = map.get(key);
-        if (!prev || date < prev) map.set(key, date);
+        const list = map.get(key) || [];
+        list.push({ stage, date });
+        map.set(key, list);
       }
     }
   } catch (e) {
-    console.warn('[stage-log] could not read MQL dates:', e instanceof Error ? e.message : e);
+    console.warn('[stage-log] could not read stage events:', e instanceof Error ? e.message : e);
   }
   return map;
 }
 
 export async function getPartnerDetail(slug: string): Promise<PartnerDetail | null> {
-  const [records, mqlDates] = await Promise.all([fetchPartnerLeadRecords(), fetchMqlDates()]);
-  return buildPartnerDetail(records, slug, mqlDates);
+  const [records, stageEvents] = await Promise.all([fetchPartnerLeadRecords(), fetchStageEvents()]);
+  return buildPartnerDetail(records, slug, stageEvents);
 }
 
 /**
@@ -554,7 +566,7 @@ export async function getPartnerDetail(slug: string): Promise<PartnerDetail | nu
  * partner's own /p page, the PDF report and the dashboard's Partner Health
  * boxes all go through it, so they can't disagree.
  */
-export function buildPartnerDetail(records: any[], slug: string, mqlDates?: MqlDateMap): PartnerDetail | null {
+export function buildPartnerDetail(records: any[], slug: string, stageEvents?: StageEventMap): PartnerDetail | null {
 
   // Resolve the requested slug to its accepted partner-name slugs. For a
   // standalone partner (no alias group), this is just the slug itself.
@@ -583,12 +595,27 @@ export function buildPartnerDetail(records: any[], slug: string, mqlDates?: MqlD
     const matchedName = Array.from(spellings)[0];
     if (!partnerName) partnerName = matchedName;
 
-    // Earliest Stage Log MQL date across any spelling on this lead.
-    let mqlDate: string | undefined;
+    // Every Stage Log step for this partner on this lead, across spellings,
+    // earliest per stage. A lead that went MQL in June and SQL today has two
+    // moves, so moving it up counts as activity today.
+    const byStage = new Map<MoveStage, string>();
     for (const sp of spellings) {
-      const d = mqlDates?.get(`${r.id}|${normalizePartnerName(sp)}`);
-      if (d && (!mqlDate || d < mqlDate)) mqlDate = d;
+      for (const m of stageEvents?.get(`${r.id}|${normalizePartnerName(sp)}`) || []) {
+        const prev = byStage.get(m.stage);
+        if (!prev || m.date < prev) byStage.set(m.stage, m.date);
+      }
     }
+    // No Stage Log row for the step the lead is at now (e.g. the automation
+    // wasn't logging yet): fall back to the lead-level stamp if there is one.
+    const sqlStamp = fields[FIELDS.masterView.sqlStamp] as string | undefined;
+    const wonStamp = fields[FIELDS.masterView.wonStamp] as string | undefined;
+    const atOrPast = (st: Stage) => STAGE_ORDER.indexOf(leadStageForPartner!) >= STAGE_ORDER.indexOf(st);
+    if (atOrPast('SQL') && leadStageForPartner !== 'Closed Lost' && !byStage.has('SQL') && sqlStamp) byStage.set('SQL', sqlStamp);
+    if (leadStageForPartner === 'Closed Won' && !byStage.has('Closed Won') && wonStamp) byStage.set('Closed Won', wonStamp);
+    const moves: StageMove[] = Array.from(byStage, ([stage, date]) => ({ stage, date }))
+      .sort((a, b) => a.date.localeCompare(b.date));
+    // When the partner was first told about the lead (earliest move).
+    const mqlDate = moves[0]?.date;
 
     partnerLeads.push({
       id: r.id,
@@ -606,6 +633,7 @@ export function buildPartnerDetail(records: any[], slug: string, mqlDates?: MqlD
       // and otherwise the dashboard would show "N/A" + flag stale wrongly).
       date: fields[FIELDS.masterView.date] || r.createdTime || '',
       mqlDate,
+      moves,
       firstName:     (fields[FIELDS.masterView.firstName]     as string | undefined) || '',
       lastName:      (fields[FIELDS.masterView.lastName]      as string | undefined) || '',
       position:      (fields[FIELDS.masterView.position]      as string | undefined) || '',

@@ -10,6 +10,7 @@ import ConversionTimeline from '@/components/ConversionTimeline';
 import NpsDashboard from '@/components/NpsDashboard';
 import ActionList from '@/components/ActionList';
 import PartnerTable, { type PartnerTableRow } from '@/components/PartnerTable';
+import PartnerLeague, { type LeagueRow, type FeedItem, type TeamScore } from '@/components/PartnerLeague';
 import type { PerfRow } from '@/components/PartnerHeatMap';
 import { useHiddenPartners } from '@/lib/use-hidden-partners';
 import { usePartnerNotes, useNoteAuthor } from '@/lib/use-partner-notes';
@@ -34,7 +35,7 @@ interface Lead {
   owner?: string;
 }
 
-type PartnerRow = PerfRow & PartnerTableRow;
+type PartnerRow = PerfRow & PartnerTableRow & LeagueRow;
 
 // A section that starts folded. Children only mount when opened, so the
 // heavier panels (NPS, market intelligence) don't load until someone asks.
@@ -71,11 +72,13 @@ export default function Dashboard() {
   const [noteAuthor] = useNoteAuthor();
   // Per-partner numbers, shared by the to-dos, Partner Health and the table.
   const [perfRows, setPerfRows] = useState<PartnerRow[] | null>(null);
+  const [feed, setFeed] = useState<FeedItem[]>([]);
+  const [team, setTeam] = useState<TeamScore[]>([]);
 
   useEffect(() => {
     fetch('/api/performance', { cache: 'no-store' })
       .then(r => r.json())
-      .then(d => setPerfRows(d.rows || []))
+      .then(d => { setPerfRows(d.rows || []); setFeed(d.feed || []); setTeam(d.team || []); })
       .catch(() => setPerfRows([]));
     fetch('/api/leads', { cache: 'no-store' })
       .then(r => r.json())
@@ -175,6 +178,8 @@ export default function Dashboard() {
           <p className="font-mono text-[10px] uppercase tracking-[0.22em] mt-4 opacity-70">Closed Won</p>
         </div>
       </div>
+
+      {perfRows && <PartnerLeague rows={perfRows} feed={feed} team={team} hiddenSlugs={hiddenSlugs} />}
 
       <div className="mb-8">
         <PartnerHeatMap rows={perfRows} hidden={hidden} shared={shared} onHide={setPartnerHidden} notes={partnerNotes} />

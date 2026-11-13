@@ -114,13 +114,13 @@ export default function PartnerTable({ rows, hiddenSlugs }: { rows: PartnerTable
                 <button type="button" onClick={() => sortBy('name')} className="hover:text-gray-900">Partner{arrow('name')}</button>
               </th>
               <th className="py-2.5 px-3 font-medium text-gray-600 text-left">Health</th>
-              {sortable('leads30d', 'New MQLs 14d / 30d')}
+              {sortable('leads30d', 'Moves 14d / 30d')}
               {sortable('mqlCount', 'MQL', LEAD_STATUS_EXPLAINER.MQL)}
               {sortable('sqlCount', 'SQL', LEAD_STATUS_EXPLAINER.SQL)}
               {sortable('wonCount', 'Won')}
               {sortable('leadToSqlPct', 'Lead→SQL')}
               {sortable('sqlToWonPct', 'SQL→Won')}
-              {sortable('daysSinceLastLead', 'Last MQL')}
+              {sortable('daysSinceLastLead', 'Last move')}
               {sortable('daysSinceLastActivity', 'Last activity')}
             </tr>
           </thead>
