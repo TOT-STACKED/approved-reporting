@@ -52,6 +52,8 @@ export interface PartnerPerformance {
   won30d: number;
   streakWeeks: number;
   comeback: boolean;
+  weekly: number[];
+  moves30d: Move[];
 }
 
 /** One move in the "latest moves" feed: an Approved partner's lead stepping forward. */
@@ -138,6 +140,8 @@ export async function GET() {
         won30d: a.won30d,
         streakWeeks: a.streakWeeks,
         comeback: a.comeback,
+        weekly: a.weekly,
+        moves30d: a.moves30d,
       };
     }));
 

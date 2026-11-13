@@ -64,7 +64,13 @@ export interface PartnerActivity {
   comeback: boolean;
   /** Moves in the last 7 days, newest first. */
   recentMoves: Move[];
+  /** Moves in the last 30 days, newest first (max 12), for the league drill-down. */
+  moves30d: Move[];
+  /** League points per week, index 0 = the last 7 days, back WEEKS_OF_HISTORY weeks. */
+  weekly: number[];
 }
+
+export const WEEKS_OF_HISTORY = 24;
 
 export function healthBand(daysSinceLastMove: number | null, moves30d: number): HealthBand {
   if (daysSinceLastMove == null || daysSinceLastMove > RED_AFTER_DAYS) return 'red';
@@ -126,6 +132,12 @@ export function partnerActivity(detail: PartnerDetail | null, now = Date.now()):
     comeback = !before || weekStart - before.ts > RED_AFTER_DAYS * DAY_MS;
   }
 
+  const weekly = Array.from({ length: WEEKS_OF_HISTORY }, () => 0);
+  for (const m of moves) {
+    const w = Math.floor(age(m) / (7 * DAY_MS));
+    if (w >= 0 && w < WEEKS_OF_HISTORY) weekly[w] += POINTS[m.stage];
+  }
+
   return {
     leadCount: detail?.leadCount ?? 0,
     malCount: n('MAL'),
@@ -146,5 +158,7 @@ export function partnerActivity(detail: PartnerDetail | null, now = Date.now()):
     streakWeeks,
     comeback,
     recentMoves: within(7).map(({ ts: _ts, ...m }) => m),
+    moves30d: m30.slice(0, 12).map(({ ts: _ts, ...m }) => m),
+    weekly,
   };
 }
