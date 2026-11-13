@@ -36,6 +36,13 @@ partners never see any of it.
   without paying twice, from the replaced tools' notice deadlines. Current cost per site is each tool's cost split
   evenly across the venue's sites. The maths is in `src/lib/renewals-proposals.ts` and runs in the browser.
   Proposals are saved in `renewals_proposals`, and their PDFs go in the same private bucket under `<org id>/proposals/`.
+- **Operator ratings** (Stacked Intelligence): every Intelligence Review rates each tool 0–10. `src/lib/renewals-ratings.ts`
+  pools those from every `submissions.stack` into one directory of averages per product and category (cached 15 minutes).
+  Only aggregates leave the server, and an average shows only from 3 ratings up. They appear on the dashboard under each
+  tool ("Operators rate it 7.7/10"), on the Compare page ("How operators rate them": the tools a quote would replace, the
+  quoted product, and any product the operator types in), and in Ask Renewals. No leaderboard: operators only see
+  products they use or pick, so Renewals stays neutral. Matching tool names to rated products is in
+  `src/lib/renewals-ratings-shared.ts`.
 
 ## Where things live
 

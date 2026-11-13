@@ -2,6 +2,7 @@
 
 import { useMemo, useRef, useState } from 'react';
 import AskRenewals from './AskRenewals';
+import { matchProduct, type RatingsDirectory } from '@/lib/renewals-ratings-shared';
 import ToolEditor, { applyExtracted, draftFrom, type Draft, type Extracted } from './ToolEditor';
 import {
   RENEWAL_CATEGORY_LABELS,
@@ -37,7 +38,7 @@ function daysLabel(days: number): string {
   return `${days}d`;
 }
 
-export default function RenewalsApp({ orgName, initialTools }: { orgName: string; initialTools: RenewalTool[] }) {
+export default function RenewalsApp({ orgName, initialTools, ratings }: { orgName: string; initialTools: RenewalTool[]; ratings: RatingsDirectory }) {
   const [tools, setTools] = useState(initialTools);
   const [editor, setEditor] = useState<EditorState | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -284,7 +285,16 @@ export default function RenewalsApp({ orgName, initialTools }: { orgName: string
                       <td className="px-4 py-3">
                         <span className="font-medium">{t.name}</span>
                         {t.status === 'cancelling' && <span className="ml-2 text-[10px] uppercase tracking-wide rounded-full bg-surface-2 px-2 py-0.5 text-muted">Cancelling</span>}
-                        {t.supplier && <span className="block text-xs text-muted">{t.supplier}</span>}
+                        {t.supplier && t.supplier.trim().toLowerCase() !== t.name.trim().toLowerCase() && <span className="block text-xs text-muted">{t.supplier}</span>}
+                        {(() => {
+                          // How operators who use it rate it, from Stacked Intelligence.
+                          const r = matchProduct(ratings, t.name, t.supplier, t.category);
+                          return r?.avg != null ? (
+                            <span className="block text-xs text-muted mt-0.5">
+                              Operators rate it <span className="font-mono text-ink">{r.avg.toFixed(1)}</span>/10 <span className="text-dim">({r.n})</span>
+                            </span>
+                          ) : null;
+                        })()}
                       </td>
                       <td className="px-4 py-3 hidden md:table-cell text-muted">{RENEWAL_CATEGORY_LABELS[t.category]}</td>
                       <td className="px-4 py-3 text-right font-mono whitespace-nowrap">

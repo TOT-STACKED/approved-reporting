@@ -22,6 +22,8 @@ import {
   type RenewalCategory,
   type RenewalTool,
 } from '@/lib/renewals-shared';
+import { matchProduct, type RatingsDirectory } from '@/lib/renewals-ratings-shared';
+import ProductRatings, { type RatingPick } from './ProductRatings';
 
 // Lay a supplier's quote over the tools it would replace: run rate, cost per
 // site and the total over the term, side by side, plus when you could switch
@@ -107,10 +109,14 @@ export default function RenewalsCompare({
   tools,
   initialProposals,
   orgSiteCount,
+  ratings,
+  ownRatings,
 }: {
   tools: RenewalTool[];
   initialProposals: Proposal[];
   orgSiteCount: number | null;
+  ratings: RatingsDirectory;
+  ownRatings: Record<string, number>;
 }) {
   const [proposals, setProposals] = useState(initialProposals);
   const [draft, setDraft] = useState<Draft | null>(initialProposals[0] ? draftFrom(initialProposals[0]) : null);
@@ -140,6 +146,31 @@ export default function RenewalsCompare({
       today
     );
   }, [draft, tools, orgSiteCount, today]);
+
+  // Ratings start from what's on screen: the tools a proposal would replace and
+  // the quoted product, or with no proposal open, everything the venue uses.
+  const ratingsKey = draft ? `${draft.id || 'new'}|${draft.replaces.join(',')}` : 'none';
+  const ratingPicks = useMemo(() => {
+    const picks: RatingPick[] = [];
+    const seen = new Set<string>();
+    const push = (pick: RatingPick) => {
+      const k = pick.id || pick.label.toLowerCase();
+      if (!seen.has(k)) { seen.add(k); picks.push(pick); }
+    };
+    const current = draft ? live.filter(t => draft.replaces.includes(t.id)) : live;
+    for (const t of current) {
+      const m = matchProduct(ratings, t.name, t.supplier, t.category);
+      if (m) push({ id: m.id, label: m.name, note: 'You use it' });
+      else if (draft) push({ label: t.name, note: 'You use it' });
+    }
+    if (draft && (draft.name.trim() || draft.supplier.trim())) {
+      const m = matchProduct(ratings, draft.name, draft.supplier, draft.category);
+      push(m ? { id: m.id, label: m.name, note: 'Quoted' } : { label: draft.name.trim() || draft.supplier.trim(), note: 'Quoted' });
+    }
+    return picks.slice(0, 8);
+    // Only recomputed when the proposal or what it replaces changes, not on every keystroke.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ratingsKey, live, ratings]);
 
   function open(p?: Proposal) {
     setDraft(draftFrom(p));
@@ -426,6 +457,10 @@ export default function RenewalsCompare({
           {comparison && <ComparisonPanel c={comparison} hasTools={draft.replaces.length > 0} />}
         </div>
       )}
+
+      <div className="mt-6">
+        <ProductRatings key={ratingsKey} dir={ratings} own={ownRatings} initial={ratingPicks} />
+      </div>
 
       <p className="text-xs text-dim mt-8 max-w-2xl leading-relaxed">
         Proposals are private to your team. Stacked never shares them with suppliers. Current costs per site are your tools&apos; costs split evenly across your sites. Prices read from a proposal are suggestions: check them against the quote.

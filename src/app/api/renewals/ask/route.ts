@@ -3,6 +3,8 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { failed, requireViewer } from '@/lib/renewals-api';
 import { intelligenceFor, listTools } from '@/lib/renewals-db';
 import { askSystemPrompt, ukDate } from '@/lib/renewals-ask';
+import { ratingsDirectorySafe } from '@/lib/renewals-ratings';
+import { matchProduct } from '@/lib/renewals-ratings-shared';
 import {
   RENEWAL_CATEGORY_LABELS,
   deadlineFor,
@@ -61,9 +63,10 @@ export async function POST(request: NextRequest) {
     }
 
     const today = todayISO();
-    const [tools, intel] = await Promise.all([
+    const [tools, intel, ratings] = await Promise.all([
       listTools(viewer.org.id),
       intelligenceFor(viewer.org).catch(() => null),
+      ratingsDirectorySafe(),
     ]);
     const monthly = tools.reduce((s, t) => s + monthlyCost(t), 0);
     const context = JSON.stringify({
@@ -113,8 +116,14 @@ export async function POST(request: NextRequest) {
           owner: t.owner,
           notes: t.notes,
           contractOnFile: t.has_contract,
+          operatorRating: (() => {
+            const r = matchProduct(ratings, t.name, t.supplier, t.category);
+            return r?.avg != null ? { product: r.name, category: r.categoryLabel, average: r.avg, operators: r.n, pctRating9or10: r.topPct } : null;
+          })(),
         };
       }),
+      productRatings: ratings.products.filter(p => p.avg != null).map(p => [p.name, p.categoryLabel, p.avg, p.n]),
+      categoryAverages: ratings.categoryAvg,
     });
 
     const completion = await openai().chat.completions.create({
