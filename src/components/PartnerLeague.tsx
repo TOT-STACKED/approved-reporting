@@ -2,6 +2,7 @@
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { POINTS } from '@/lib/partner-activity';
+import { TEAM, PARTNER_WORK_POINTS } from '@/lib/team';
 
 // The fun bit of the dashboard: who's moving. Every step forward on a lead
 // (passed to the partner as an MQL, moved to SQL, Closed Won) is a "move" and
@@ -51,6 +52,21 @@ export interface TeamScore {
   moves30d: number;
   sql30d: number;
   won30d: number;
+  notes30d?: number;
+  actionsDone30d?: number;
+  partnerPoints30d?: number;
+}
+
+function Avatar({ name, size = 32, ring }: { name: string; size?: number; ring?: string }) {
+  const photo = TEAM.find(m => m.name === name)?.photo;
+  const initials = name.split(/\s+/).map(w => w[0]).join('').slice(0, 2).toUpperCase();
+  return (
+    <span className={`shrink-0 inline-flex items-center justify-center rounded-full overflow-hidden bg-brand-sky text-brand-green font-bold ${ring || ''}`} style={{ width: size, height: size, fontSize: size * 0.38 }}>
+      {photo
+        ? <img src={photo} alt="" width={size} height={size} className="w-full h-full object-cover" />
+        : initials}
+    </span>
+  );
 }
 
 const PERIODS = [
@@ -168,8 +184,8 @@ function WeeklyBars({ weekly, highlight }: { weekly: number[]; highlight: number
 }
 
 export default function PartnerLeague({
-  rows, feed, team, hiddenSlugs,
-}: { rows: LeagueRow[]; feed: FeedItem[]; team: TeamScore[]; hiddenSlugs: string[] }) {
+  rows, feed, team, teamUnmatched = [], hiddenSlugs,
+}: { rows: LeagueRow[]; feed: FeedItem[]; team: TeamScore[]; teamUnmatched?: { owner: string; points: number }[]; hiddenSlugs: string[] }) {
   const [period, setPeriod] = useState<PeriodKey>('month');
   const [showAll, setShowAll] = useState(false);
   const [open, setOpen] = useState<string | null>(null);
@@ -418,20 +434,35 @@ export default function PartnerLeague({
           {/* Team board */}
           <div className="bg-white rounded-2xl border border-gray-200 p-3 sm:p-4">
             <h3 className="text-sm font-bold text-brand-green">Team board</h3>
-            <p className="text-[11px] text-gray-500 mb-2">Points for moves on leads you own, last 30 days.</p>
-            {team.length === 0 ? (
-              <p className="text-sm text-gray-500">No points on the board yet.</p>
-            ) : (
-              <ol className="space-y-1.5">
-                {team.slice(0, 6).map((t, i) => (
+            <p className="text-[11px] text-gray-500 mb-3">
+              Last 30 days. Lead moves on leads you own, plus partner work: {PARTNER_WORK_POINTS.note} pt per note on a partner, {PARTNER_WORK_POINTS.actionDone} per action completed.
+            </p>
+            <ol className="space-y-2.5">
+              {team.map((t, i) => {
+                const leader = i === 0 && t.points30d > 0;
+                return (
                   <li key={t.owner} className="flex items-center gap-2.5">
-                    <span className={`shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-bold ${i < 3 ? MEDAL[i] : 'bg-gray-100 text-gray-500'}`}>{i + 1}</span>
-                    <span className="min-w-0 flex-1 text-sm text-gray-900 truncate">{t.owner}</span>
-                    <span className="shrink-0 text-[11px] text-gray-500 tabular-nums">{t.sql30d} SQL · {t.won30d} won</span>
-                    <span className="shrink-0 w-10 text-right text-sm font-bold text-brand-green tabular-nums"><CountUp value={t.points30d} /></span>
+                    <span className="relative">
+                      <Avatar name={t.owner} size={36} ring={leader ? 'ring-2 ring-[#F5C542] ring-offset-2' : ''} />
+                      {t.points30d > 0 && i < 3 && (
+                        <span className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full text-[9px] font-bold flex items-center justify-center ${MEDAL[i]}`}>{i + 1}</span>
+                      )}
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-sm font-semibold text-gray-900 truncate">{t.owner}</span>
+                      <span className="block text-[11px] text-gray-500 truncate">
+                        {t.sql30d} SQL · {t.won30d} won{(t.notes30d || t.actionsDone30d) ? ` · ${t.notes30d || 0} notes · ${t.actionsDone30d || 0} actions done` : ''}
+                      </span>
+                    </span>
+                    <span className="shrink-0 w-10 text-right text-base font-bold text-brand-green tabular-nums"><CountUp value={t.points30d} /></span>
                   </li>
-                ))}
-              </ol>
+                );
+              })}
+            </ol>
+            {teamUnmatched.length > 0 && (
+              <p className="mt-3 pt-2 border-t border-gray-100 text-[11px] text-gray-400">
+                Not counted (Lead Owner isn&apos;t one of the team, or unclear): {teamUnmatched.map(u => `${u.owner} ${u.points} pts`).join(' · ')}. Fix the owner in Airtable to credit someone.
+              </p>
             )}
           </div>
         </div>

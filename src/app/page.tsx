@@ -74,11 +74,12 @@ export default function Dashboard() {
   const [perfRows, setPerfRows] = useState<PartnerRow[] | null>(null);
   const [feed, setFeed] = useState<FeedItem[]>([]);
   const [team, setTeam] = useState<TeamScore[]>([]);
+  const [teamUnmatched, setTeamUnmatched] = useState<{ owner: string; points: number }[]>([]);
 
   useEffect(() => {
     fetch('/api/performance', { cache: 'no-store' })
       .then(r => r.json())
-      .then(d => { setPerfRows(d.rows || []); setFeed(d.feed || []); setTeam(d.team || []); })
+      .then(d => { setPerfRows(d.rows || []); setFeed(d.feed || []); setTeam(d.team || []); setTeamUnmatched(d.teamUnmatched || []); })
       .catch(() => setPerfRows([]));
     fetch('/api/leads', { cache: 'no-store' })
       .then(r => r.json())
@@ -179,15 +180,15 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {perfRows && <PartnerLeague rows={perfRows} feed={feed} team={team} hiddenSlugs={hiddenSlugs} />}
+      {perfRows && <PartnerLeague rows={perfRows} feed={feed} team={team} teamUnmatched={teamUnmatched} hiddenSlugs={hiddenSlugs} />}
 
       <div className="mb-8">
         <PartnerHeatMap rows={perfRows} hidden={hidden} shared={shared} onHide={setPartnerHidden} notes={partnerNotes} />
       </div>
 
-      <div className="mb-8">
+      <Fold id="partner-table" title="Full partner table" note="Every Approved partner's totals and conversion rates, sortable, with CSV export">
         {perfRows && <PartnerTable rows={perfRows} hiddenSlugs={hiddenSlugs} />}
-      </div>
+      </Fold>
 
       <AskBox />
 
