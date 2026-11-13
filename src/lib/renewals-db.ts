@@ -13,6 +13,7 @@ import {
   isRenewalCategory,
   type RenewalTool,
 } from './renewals-shared';
+import { cleanCategory, cleanLine, type Proposal, type ProposalLine } from './renewals-proposals';
 
 const URL_ = process.env.VENUES_SUPABASE_URL;
 const KEY = process.env.VENUES_SUPABASE_KEY;
@@ -437,6 +438,145 @@ export async function attachContract(orgId: string, toolId: string, path: string
 /** Only accept a contract path the server issued for this org. */
 export function ownsContractPath(orgId: string, path: unknown): path is string {
   return typeof path === 'string' && new RegExp(`^${orgId}/[0-9a-f-]{36}\\.pdf$`).test(path);
+}
+
+// ── Proposals ────────────────────────────────────────────────────────────────
+
+const PROPOSAL_COLUMNS = [
+  'id', 'name', 'supplier', 'category', 'replaces', 'sites', 'term_months', 'start_date',
+  'lines', 'notes', 'file_name', 'file_path', 'created_at', 'updated_at',
+].join(',');
+
+type ProposalRow = Omit<Proposal, 'has_file'> & { file_path: string | null };
+
+function toProposal(r: ProposalRow): Proposal {
+  const { file_path, ...rest_ } = r;
+  return {
+    ...rest_,
+    category: cleanCategory(r.category),
+    replaces: Array.isArray(r.replaces) ? r.replaces : [],
+    lines: Array.isArray(r.lines) ? r.lines.map(cleanLine).filter((l): l is ProposalLine => Boolean(l)) : [],
+    has_file: Boolean(file_path),
+  };
+}
+
+export async function listProposals(orgId: string): Promise<Proposal[]> {
+  const rows = await rest<ProposalRow[]>(
+    `renewals_proposals?org_id=eq.${enc(orgId)}&select=${PROPOSAL_COLUMNS}&order=created_at.desc`
+  );
+  return rows.map(toProposal);
+}
+
+async function getProposalRow(orgId: string, id: string): Promise<ProposalRow | null> {
+  if (!UUID_RE.test(id)) return null;
+  const rows = await rest<ProposalRow[]>(
+    `renewals_proposals?org_id=eq.${enc(orgId)}&id=eq.${enc(id)}&select=${PROPOSAL_COLUMNS}&limit=1`
+  );
+  return rows[0] || null;
+}
+
+const UUID_RE = /^[0-9a-f-]{36}$/;
+
+/**
+ * Validate a proposal from the browser. Tool ids are kept only if they are this
+ * org's own tools, so a proposal can never point at another venue's data.
+ */
+export async function cleanProposalInput(orgId: string, input: Record<string, unknown>): Promise<Record<string, unknown>> {
+  const text = (v: unknown, max = 200) => {
+    if (v == null) return null;
+    const s = String(v).trim().slice(0, max);
+    return s || null;
+  };
+  const int = (v: unknown, min: number, max: number) => {
+    if (v === '' || v == null) return null;
+    const n = Number(v);
+    if (!Number.isFinite(n) || n < min || n > max) throw new ToolInputError('Check the numbers');
+    return Math.round(n);
+  };
+  const name = text(input.name);
+  if (!name) throw new ToolInputError('Give the proposal a name');
+  const startDate = input.start_date;
+  if (startDate && !(typeof startDate === 'string' && DATE_RE.test(startDate))) throw new ToolInputError('Dates must be YYYY-MM-DD');
+
+  const ownIds = new Set((await listTools(orgId)).map(t => t.id));
+  const replaces = Array.isArray(input.replaces)
+    ? [...new Set(input.replaces.filter((id): id is string => typeof id === 'string' && ownIds.has(id)))]
+    : [];
+  const lines = Array.isArray(input.lines)
+    ? input.lines.map(cleanLine).filter((l): l is ProposalLine => Boolean(l)).slice(0, 60)
+    : [];
+
+  return {
+    name,
+    supplier: text(input.supplier),
+    category: cleanCategory(input.category),
+    replaces,
+    sites: int(input.sites, 1, 5000),
+    term_months: int(input.term_months, 1, 240),
+    start_date: startDate || null,
+    lines,
+    notes: text(input.notes, 2000),
+  };
+}
+
+export async function createProposal(orgId: string, fields: Record<string, unknown>, extra: Record<string, unknown> = {}): Promise<Proposal> {
+  const [row] = await rest<ProposalRow[]>(`renewals_proposals?select=${PROPOSAL_COLUMNS}`, {
+    method: 'POST',
+    headers: { Prefer: 'return=representation' },
+    body: JSON.stringify({ ...fields, ...extra, org_id: orgId }),
+  });
+  return toProposal(row);
+}
+
+export async function updateProposal(orgId: string, id: string, fields: Record<string, unknown>): Promise<Proposal | null> {
+  if (!UUID_RE.test(id)) return null;
+  const rows = await rest<ProposalRow[]>(
+    `renewals_proposals?org_id=eq.${enc(orgId)}&id=eq.${enc(id)}&select=${PROPOSAL_COLUMNS}`,
+    {
+      method: 'PATCH',
+      headers: { Prefer: 'return=representation' },
+      body: JSON.stringify({ ...fields, updated_at: new Date().toISOString() }),
+    }
+  );
+  return rows[0] ? toProposal(rows[0]) : null;
+}
+
+export async function deleteProposal(orgId: string, id: string): Promise<void> {
+  const row = await getProposalRow(orgId, id);
+  if (!row) return;
+  if (row.file_path) await removeContract(row.file_path).catch(() => {});
+  await rest(`renewals_proposals?org_id=eq.${enc(orgId)}&id=eq.${enc(id)}`, { method: 'DELETE' });
+}
+
+/** Store a proposal PDF in the private bucket, under the org's proposals folder. */
+export async function uploadProposalFile(orgId: string, bytes: Buffer): Promise<string> {
+  const path = `${orgId}/proposals/${crypto.randomUUID()}.pdf`;
+  const res = await fetch(`${URL_}/storage/v1/object/${BUCKET}/${path}`, {
+    method: 'POST',
+    headers: { apikey: KEY!, Authorization: `Bearer ${KEY}`, 'Content-Type': 'application/pdf' },
+    body: new Uint8Array(bytes),
+  });
+  if (!res.ok) throw new Error(`storage upload ${res.status}: ${(await res.text()).slice(0, 200)}`);
+  return path;
+}
+
+/** Only accept a proposal file path the server issued for this org. */
+export function ownsProposalPath(orgId: string, path: unknown): path is string {
+  return typeof path === 'string' && new RegExp(`^${orgId}/proposals/[0-9a-f-]{36}\\.pdf$`).test(path);
+}
+
+/** A one-minute link to a proposal's PDF, only if the proposal belongs to this org. */
+export async function proposalLink(orgId: string, id: string): Promise<string | null> {
+  const row = await getProposalRow(orgId, id);
+  if (!row?.file_path || !row.file_path.startsWith(`${orgId}/`)) return null;
+  const res = await fetch(`${URL_}/storage/v1/object/sign/${BUCKET}/${row.file_path}`, {
+    method: 'POST',
+    headers: headers(),
+    body: JSON.stringify({ expiresIn: 60 }),
+  });
+  if (!res.ok) return null;
+  const { signedURL } = (await res.json()) as { signedURL?: string };
+  return signedURL ? `${URL_}/storage/v1${signedURL}` : null;
 }
 
 // ── Alerts (cron) ────────────────────────────────────────────────────────────

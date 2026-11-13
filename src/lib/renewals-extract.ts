@@ -1,5 +1,6 @@
 import OpenAI from 'openai';
 import { RENEWAL_CATEGORIES, isRenewalCategory } from './renewals-shared';
+import { LINE_KINDS, cleanLine, type ProposalLine } from './renewals-proposals';
 
 // Pull the renewal-critical facts out of a software contract PDF. The result
 // is only ever a suggestion: the operator sees every field in the edit form
@@ -105,6 +106,76 @@ export async function extractContract(pdf: Buffer, filename: string): Promise<Ex
     notice_days: notice != null && notice >= 0 && notice <= 730 ? Math.round(notice) : null,
     auto_renew: typeof raw.auto_renew === 'boolean' ? raw.auto_renew : null,
     sites: str(raw.sites),
+    notes: str(raw.notes, 600),
+  };
+}
+
+// ── Supplier proposals ───────────────────────────────────────────────────────
+
+export interface ExtractedProposal {
+  name: string | null;
+  supplier: string | null;
+  category: string | null;
+  sites: number | null;
+  term_months: number | null;
+  lines: ProposalLine[];
+  notes: string | null;
+}
+
+const PROPOSAL_PROMPT = `You read quotes and proposals that technology suppliers send UK hospitality operators, and list every price in them so the operator can compare the quote with what they pay today.
+
+Return JSON with exactly these keys. Use null for anything the document does not state — never guess.
+- name: the product or bundle being proposed (e.g. "Tillpoint Restaurant EPOS")
+- supplier: the supplier's company name
+- category: one of ${RENEWAL_CATEGORIES.join(', ')}
+- sites: how many sites or venues the quote covers, as a number
+- term_months: the contract term in months
+- lines: every priced item, as an array of objects with:
+  - label: short description (e.g. "EPOS licence", "Terminal", "Installation")
+  - kind: one of ${LINE_KINDS.join(', ')}. Hardware = terminals, card readers, printers, tablets, screens. Setup = installation, onboarding, training, data migration. Payments = card processing fees or payment platform fees with a fixed price. Support = support or maintenance plans.
+  - amount: the unit price in GBP excluding VAT, as a number. Apply any discount the quote shows.
+  - period: "month", "year" or "one_off". Hardware bought outright and setup fees are "one_off"; leased hardware is "month".
+  - basis: "per_site" if the price applies at each site (per site, per venue, per terminal at every site), "total" if it is one price for the whole customer
+  - quantity: units per site when basis is per_site (e.g. 2 terminals per site), or total units when basis is total. 1 if not stated.
+  Percentage-only fees (e.g. 1.2% per transaction) have no fixed amount: leave them out of lines and mention them in notes.
+- notes: one or two sentences on anything that changes the real cost — transaction fee percentages, price rises, minimum terms, free periods, early-termination fees. No more.`;
+
+export async function extractProposal(pdf: Buffer, filename: string): Promise<ExtractedProposal> {
+  const completion = await openai().chat.completions.create({
+    model: process.env.RENEWALS_EXTRACT_MODEL || 'gpt-4o',
+    temperature: 0,
+    response_format: { type: 'json_object' },
+    messages: [
+      { role: 'system', content: PROPOSAL_PROMPT },
+      {
+        role: 'user',
+        content: [
+          {
+            type: 'file',
+            file: { filename: filename || 'proposal.pdf', file_data: `data:application/pdf;base64,${pdf.toString('base64')}` },
+          },
+          { type: 'text', text: 'List the proposal details as JSON.' },
+        ],
+      },
+    ],
+  });
+
+  let raw: Record<string, unknown> = {};
+  try {
+    raw = JSON.parse(completion.choices[0]?.message?.content || '{}');
+  } catch {
+    raw = {};
+  }
+  const sites = num(raw.sites);
+  const term = num(raw.term_months);
+  const lines = Array.isArray(raw.lines) ? raw.lines.map(cleanLine).filter((l): l is ProposalLine => Boolean(l)).slice(0, 60) : [];
+  return {
+    name: str(raw.name),
+    supplier: str(raw.supplier),
+    category: isRenewalCategory(raw.category) ? raw.category : null,
+    sites: sites && sites >= 1 && sites <= 5000 ? Math.round(sites) : null,
+    term_months: term && term > 0 && term <= 240 ? Math.round(term) : null,
+    lines,
     notes: str(raw.notes, 600),
   };
 }

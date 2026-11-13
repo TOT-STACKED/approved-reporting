@@ -18,7 +18,7 @@ export default function RenewalsHeader({ orgName }: { orgName?: string }) {
   const link = (href: string, label: string) => {
     const active = href === '/renewals' ? pathname === href : pathname?.startsWith(href);
     return (
-      <Link href={href} className={`px-2.5 sm:px-3 py-1.5 rounded-full whitespace-nowrap font-bold ${active ? 'bg-primary-wash text-primary' : 'text-muted hover:text-ink'}`}>
+      <Link href={href} className={`px-1.5 sm:px-3 py-1.5 rounded-full whitespace-nowrap font-bold ${active ? 'bg-primary-wash text-primary' : 'text-muted hover:text-ink'}`}>
         {label}
       </Link>
     );
@@ -27,15 +27,16 @@ export default function RenewalsHeader({ orgName }: { orgName?: string }) {
   return (
     <header className="border-b border-border bg-bg">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-3">
-        <Link href="/renewals" className="flex items-center gap-3 min-w-0">
-          <StackedLogo className="h-6 w-auto" />
+        <Link href="/renewals" className="flex items-center gap-3 shrink-0">
+          <StackedLogo className="h-5 sm:h-6 w-auto" />
           <span className={`font-mono text-xs uppercase tracking-[0.1em] text-muted ${orgName ? 'hidden sm:inline' : ''}`}>Renewals</span>
         </Link>
         {orgName && (
-          <nav className="flex items-center gap-1 text-sm">
+          <nav className="flex items-center sm:gap-1 text-[13px] sm:text-sm">
             {link('/renewals', 'Software')}
+            {link('/renewals/compare', 'Compare')}
             {link('/renewals/team', 'Team')}
-            <button onClick={signOut} className="px-2.5 sm:px-3 py-1.5 text-muted hover:text-ink whitespace-nowrap">Sign out</button>
+            <button onClick={signOut} className="px-1.5 sm:px-3 py-1.5 text-muted hover:text-ink whitespace-nowrap">Sign out</button>
           </nav>
         )}
       </div>

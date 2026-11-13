@@ -28,12 +28,20 @@ partners never see any of it.
   flags gaps and overlaps, and drafts cancellation emails. It never recommends a named supplier.
   Conversations aren't stored.
 - **Team**: anyone on an account can add colleagues for free. Only the owner can remove them.
+- **Compare a proposal** (`/renewals/compare`): an operator uploads a supplier's quote PDF. OpenAI lists every
+  price as a line (software, hardware, setup, payments, support), each per site or for the whole group, monthly,
+  yearly or one-off. The operator checks the lines and ticks which current tools it would replace. The page shows
+  today vs the proposal: monthly run rate, cost per site, up-front cost, total over the term (36 months if the
+  quote doesn't say), payback, the whole stack's run rate before and after, and the date they could switch
+  without paying twice, from the replaced tools' notice deadlines. Current cost per site is each tool's cost split
+  evenly across the venue's sites. The maths is in `src/lib/renewals-proposals.ts` and runs in the browser.
+  Proposals are saved in `renewals_proposals`, and their PDFs go in the same private bucket under `<org id>/proposals/`.
 
 ## Where things live
 
 | What | Where |
 |---|---|
-| Tables | Supabase `kohnakdevwfudzgfjmab`: `renewals_orgs`, `renewals_members`, `renewals_tools`, `renewals_alerts_sent` (migration `supabase/migrations/005_renewals.sql`, already applied) |
+| Tables | Supabase `kohnakdevwfudzgfjmab`: `renewals_orgs`, `renewals_members`, `renewals_tools`, `renewals_alerts_sent` (migration `supabase/migrations/005_renewals.sql`), `renewals_proposals` (migration `013_renewals_proposals.sql`). Both already applied |
 | Contract PDFs | Storage bucket `renewals-contracts` (private, PDF only, 10MB) |
 | Pages | `src/app/renewals`, components in `src/components/renewals` |
 | API | `src/app/api/renewals` |
@@ -60,4 +68,4 @@ partner-domain links then forward to the operator domain, so operators never lan
 ## Removing someone
 
 Delete their `renewals_members` row. To remove a whole venue, delete its `renewals_orgs` row; tools,
-members and alert history cascade. Its PDFs stay in the bucket under `<org id>/` and need deleting there.
+members and alert history cascade. Its PDFs (contracts and proposals) stay in the bucket under `<org id>/` and need deleting there.

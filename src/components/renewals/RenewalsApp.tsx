@@ -155,6 +155,7 @@ export default function RenewalsApp({ orgName, initialTools }: { orgName: string
           <h1 className="font-display uppercase text-3xl sm:text-4xl leading-none truncate">{orgName}</h1>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          <a href="/renewals/compare" className="rounded-full border border-border bg-surface px-4 py-2.5 text-sm">Compare a quote</a>
           <a href="/api/renewals/export" className="rounded-full border border-border bg-surface px-4 py-2.5 text-sm">Export CSV</a>
           <button onClick={openNew} className="rounded-full border border-border bg-surface px-4 py-2.5 text-sm">Add tool</button>
           <button onClick={() => startUpload(null)} disabled={uploading} className="bg-primary hover:bg-primary-hover active:bg-primary-press disabled:opacity-60 text-white rounded-full px-5 py-2.5 text-sm font-semibold">
