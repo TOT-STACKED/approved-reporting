@@ -44,12 +44,12 @@ Return JSON with exactly these keys. Use null for anything the document does not
 - cost_amount: the recurring cost as a number, excluding VAT, in GBP. If priced per site, multiply by the number of sites if stated.
 - cost_period: "month", "year" or "one_off"
 - contract_start: YYYY-MM-DD
-- term_months: the initial or renewal term in months
-- renewal_date: the date the contract next renews or ends, YYYY-MM-DD. Work it out from start date + term if not stated outright.
+- term_months: the length of each RENEWAL period in months, i.e. how long it rolls on for each time it auto-renews. This often differs from the initial or minimum term: a 24-month minimum term that then renews for 12 months at a time is 12. Use the initial term only if the contract says it renews for the same length or doesn't say. Month-to-month after the minimum term is 1.
+- renewal_date: the first date the contract renews or ends, YYYY-MM-DD: the end of the initial or minimum term. Work it out from start date + initial term if not stated outright.
 - notice_days: how many days' notice must be given to cancel before renewal. Convert months to days (1 month = 30 days, 3 months = 90).
 - auto_renew: true if it renews automatically unless cancelled
 - sites: which venues or how many sites it covers, as short text
-- notes: one or two sentences on anything unusual — price rises on renewal, early-termination fees, minimum terms. No more.`;
+- notes: start with "Contract ref: X." if the document gives a contract, order or account number. Then one or two sentences on anything unusual: price rises on renewal, early-termination fees, a minimum term that differs from the renewal term. No more.`;
 
 function num(v: unknown): number | null {
   const n = typeof v === 'string' ? Number(v.replace(/[£,\s]/g, '')) : Number(v);

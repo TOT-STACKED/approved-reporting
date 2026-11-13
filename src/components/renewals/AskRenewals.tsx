@@ -23,7 +23,25 @@ const SUGGESTIONS = [
 
 const URL_RE = /(https?:\/\/[^\s)]+[^\s).,;:!?'"])/g;
 
-/** Answers are plain text; turn any URL in them into a link that opens in a new tab. */
+/**
+ * Answers are meant to be plain text, but the model sometimes slips into
+ * markdown anyway: drop heading marks and show **bold** as bold rather than
+ * as raw asterisks.
+ */
+function Answer({ text }: { text: string }) {
+  const clean = text.replace(/^#{1,6}\s+/gm, '').replace(/__(.+?)__/g, '**$1**');
+  return (
+    <>
+      {clean.split(/\*\*(.+?)\*\*/g).map((part, i) =>
+        i % 2 === 1
+          ? <strong key={i}><Linkified text={part} /></strong>
+          : <Linkified key={i} text={part.replace(/\*\*/g, '')} />
+      )}
+    </>
+  );
+}
+
+/** Turn any URL in plain text into a link that opens in a new tab. */
 function Linkified({ text }: { text: string }) {
   const parts = text.split(URL_RE);
   return (
@@ -130,7 +148,7 @@ export default function AskRenewals() {
                     t.role === 'user' ? 'bg-primary text-white rounded-br-md' : 'bg-surface-2 rounded-bl-md'
                   }`}
                 >
-                  {t.role === 'assistant' ? <Linkified text={t.content} /> : t.content}
+                  {t.role === 'assistant' ? <Answer text={t.content} /> : t.content}
                 </div>
               </div>
             ))}

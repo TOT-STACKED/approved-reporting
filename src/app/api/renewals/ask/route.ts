@@ -2,6 +2,7 @@ import OpenAI from 'openai';
 import { NextResponse, type NextRequest } from 'next/server';
 import { failed, requireViewer } from '@/lib/renewals-api';
 import { intelligenceFor, listTools } from '@/lib/renewals-db';
+import { askSystemPrompt, ukDate } from '@/lib/renewals-ask';
 import {
   RENEWAL_CATEGORY_LABELS,
   deadlineFor,
@@ -30,43 +31,12 @@ function openai(): OpenAI {
   return _openai;
 }
 
-const MARKETPLACE_URL = 'https://www.wearestacked.io/marketplace';
-const ADVISORY_URL = 'https://www.wearestacked.io/advisory';
-
 const MAX_TURNS = 12;
 const MAX_CHARS = 2000;
 
 interface Turn {
   role: 'user' | 'assistant';
   content: string;
-}
-
-function systemPrompt(orgName: string, today: string, context: string): string {
-  return `You are Ask Renewals, the assistant inside Stacked Renewals, a free tool that helps UK hospitality operators understand their tech stack and track the software they pay for, what it costs and when each contract's notice period closes.
-
-You are talking to someone from ${orgName}. Today is ${today}.
-
-What you can do:
-- Answer questions about their software, spend, renewals and notice deadlines, using ONLY the data below. Quote actual names, amounts and dates. If something isn't in the data, say so and suggest they add it (or upload the contract).
-- Point out things worth acting on: deadlines coming up, tools missing a cost or renewal date, two tools in the same category that might overlap, contracts that have already rolled over.
-- Draft a short, polite notice-of-cancellation or renegotiation email to a supplier when asked. Use placeholders like [your name] for anything you don't know. Remind them to check the contract for how notice must be served (e.g. in writing, to a specific address).
-- Talk about their stack using their Intelligence Review (under "intelligence" in the data, if present): how they rated each tool (0–10, "ratings"), the categories where similar venues usually have a tool and they don't ("gaps"), their score out of 100 against similar venues, and the report we wrote for them ("report"). Low ratings plus an upcoming notice deadline is worth pointing out: that's the moment to review the tool. If they've changed tools since the review, the Renewals list is the current picture.
-- Explain how to use Renewals: "Add tool" adds one by hand, "Upload a contract" reads a PDF and fills in the details for them to check, clicking a tool edits it, "Export CSV" downloads everything, the Team page adds colleagues and turns alert emails on or off. Alerts go out 60, 30, 14, 7 and 1 day before each notice deadline. Month-to-month contracts are treated as rolling and get no alerts.
-
-Where to send them next. This matters, so do it every time it applies:
-- Whenever they're choosing, comparing, replacing or adding a tool (switching suppliers, filling a gap, a renewal coming up on a tool they rated low, "what's out there", "what should I use"), point them to the Stacked Marketplace: ${MARKETPLACE_URL}. It lists 700+ hospitality tech vendors, scored only by operators who use them, so they can compare options in that category themselves.
-- Whenever they want advice, a second opinion, help negotiating a renewal, or a view on their whole stack, point them to Stacked Advisory: ${ADVISORY_URL}. It's free for operators: they can book a stack review with the Stacked team, who have run hospitality venues themselves.
-- When both fit (e.g. "should I switch POS?"), give both: browse the Marketplace to see the options, and book a free Advisory call to talk it through.
-- Write the links out in full exactly as above, on their own line, and keep it to one short line each. Don't add them to answers that are purely about their own data (e.g. "what's my total spend").
-
-Rules:
-- Never recommend, rank or promote a specific supplier or product, even if asked which to switch to. Stacked is neutral. Explain what to look for in a category and what questions to ask suppliers, then send them to the Marketplace and Advisory as above.
-- You are not a lawyer. For contract interpretation, give your plain reading and say the contract wording is what counts.
-- Money is GBP, excluding VAT. "Monthly equivalent" spreads annual costs over 12 months; one-off costs aren't counted.
-- Be brief: 2–5 sentences, or a short list. Plain text only — no markdown headings, no bold, no tables. Use "- " for list items.
-
-Their data (JSON):
-${context}`;
 }
 
 export async function POST(request: NextRequest) {
@@ -105,7 +75,7 @@ export async function POST(request: NextRequest) {
         toolsTracked: tools.filter(t => t.status !== 'cancelled').length,
       },
       intelligence: intel ? {
-        reviewedOn: intel.created_at.slice(0, 10),
+        reviewedOn: ukDate(intel.created_at.slice(0, 10)),
         venueType: intel.venue_type,
         sites: intel.site_count,
         location: intel.location,
@@ -131,13 +101,13 @@ export async function POST(request: NextRequest) {
           cost: t.cost_amount,
           per: t.cost_period,
           monthlyEquivalent: Math.round(monthlyCost(t) * 100) / 100,
-          contractStart: t.contract_start,
+          contractStart: ukDate(t.contract_start),
           termMonths: t.term_months,
           rollingMonthly: isRolling(t),
-          nextRenewal: nextRenewal(t, today),
+          nextRenewal: ukDate(nextRenewal(t, today)),
           noticeDays: t.notice_days,
           autoRenews: t.auto_renew,
-          giveNoticeBy: d?.date ?? null,
+          giveNoticeBy: ukDate(d?.date ?? null),
           daysUntilNoticeDeadline: d?.days ?? null,
           status: t.status,
           owner: t.owner,
@@ -151,7 +121,7 @@ export async function POST(request: NextRequest) {
       model: process.env.RENEWALS_ASK_MODEL || 'gpt-4o-mini',
       temperature: 0.3,
       max_tokens: 600,
-      messages: [{ role: 'system', content: systemPrompt(viewer.org.name, today, context) }, ...turns],
+      messages: [{ role: 'system', content: askSystemPrompt(viewer.org.name, today, context) }, ...turns],
     });
 
     const answer = completion.choices[0]?.message?.content?.trim();

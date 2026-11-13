@@ -22,10 +22,14 @@ function esc(s: string): string {
   return s.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!));
 }
 
+function clip(s: string, max: number): string {
+  return s.length <= max ? s : `${s.slice(0, max - 1).trimEnd()}…`;
+}
+
 function shell(body: string): string {
   const base = renewalsBaseUrl();
   return `<!doctype html>
-<html><body style="margin:0;background:${BG};font-family:'DM Sans',-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;color:${INK};">
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head><body style="margin:0;background:${BG};font-family:'DM Sans',-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;color:${INK};">
   <div style="max-width:560px;margin:0 auto;padding:40px 24px;">
     <p style="margin:0 0 28px;"><img src="${LOGO}" alt="Stacked" width="120" style="display:inline-block;vertical-align:middle;border:0;"> <span style="font-size:11px;text-transform:uppercase;letter-spacing:.12em;color:${MUTED};vertical-align:middle;margin-left:8px;">Renewals</span></p>
     ${body}
@@ -93,16 +97,24 @@ export function sendAlert(to: string[], orgName: string, lines: AlertLine[]) {
     ? `${lines[0].tool.name}: ${soonest <= 1 ? 'notice period closes tomorrow' : `${soonest} days left to give notice`}`
     : `${lines.length} contracts need a decision — first notice deadline in ${soonest} day${soonest === 1 ? '' : 's'}`;
 
-  const rows = lines.map(l => `
+  const rows = lines.map(l => {
+    // The contract's notes (price rises, minimum terms, contract ref) get a full-width row of their own under the tool.
+    const note = l.tool.notes?.trim();
+    const line = note ? '' : `border-bottom:1px solid ${BORDER};`;
+    return `
     <tr>
-      <td style="padding:12px 0;border-bottom:1px solid ${BORDER};">
+      <td style="padding:12px 12px ${note ? 6 : 12}px 0;${line}vertical-align:top;">
         <strong>${esc(l.tool.name)}</strong>${l.tool.supplier ? `<br><span style="color:${MUTED};font-size:13px;">${esc(l.tool.supplier)}</span>` : ''}
       </td>
-      <td style="padding:12px 0;border-bottom:1px solid ${BORDER};text-align:right;font-size:14px;">
+      <td style="padding:12px 0 ${note ? 6 : 12}px;${line}text-align:right;font-size:14px;vertical-align:top;white-space:nowrap;">
         Give notice by <strong>${formatDate(l.deadline)}</strong><br>
         <span style="color:${MUTED};font-size:13px;">Renews ${formatDate(l.renewal)}${l.tool.cost_amount != null && l.tool.cost_period !== 'one_off' ? ` · ${formatGBP(l.tool.cost_amount)}/${l.tool.cost_period === 'year' ? 'yr' : 'mo'}` : ''}</span>
       </td>
-    </tr>`).join('');
+    </tr>${note ? `
+    <tr>
+      <td colspan="2" style="padding:0 0 12px;border-bottom:1px solid ${BORDER};font-size:13px;line-height:1.5;color:${INK};">${esc(clip(note, 220))}</td>
+    </tr>` : ''}`;
+  }).join('');
 
   return send(to, subject, shell(`
     <p style="font-size:16px;line-height:1.5;margin:0 0 16px;">These contracts at <strong>${esc(orgName)}</strong> renew automatically unless you give notice. If you want to cancel, switch or renegotiate, now is the time.</p>

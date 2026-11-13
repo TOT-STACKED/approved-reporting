@@ -59,7 +59,8 @@ export default function RenewalsApp({ orgName, initialTools }: { orgName: string
       .sort((a, b) => a.d.days - b.d.days);
     const upcoming = deadlines.filter(x => x.d.days >= 0 && x.d.days <= 90);
     const missed = deadlines.filter(x => x.d.days < 0 && x.d.renewal >= today);
-    const incomplete = live.filter(t => t.cost_amount == null || (!t.renewal_date && t.cost_period !== 'one_off'));
+    // Rolling monthly contracts have no renewal date worth tracking, so they only need a cost.
+    const incomplete = live.filter(t => t.cost_amount == null || (!t.renewal_date && t.cost_period !== 'one_off' && !isRolling(t)));
 
     const byCategory = new Map<RenewalCategory, number>();
     for (const t of live) byCategory.set(t.category, (byCategory.get(t.category) || 0) + monthlyCost(t));
@@ -294,7 +295,7 @@ export default function RenewalsApp({ orgName, initialTools }: { orgName: string
                       <td className="px-4 py-3 hidden sm:table-cell whitespace-nowrap">{renews ? formatDate(renews) : <span className="text-dim">Add</span>}</td>
                       <td className="px-4 py-3 whitespace-nowrap">
                         {d ? (
-                          <span className="flex items-center gap-2">
+                          <span className="flex flex-col items-start gap-1 sm:flex-row sm:items-center sm:gap-2">
                             {formatDate(d.date)}
                             {d.days <= 90 && <span className={`font-mono text-[11px] rounded-full px-2 py-0.5 ${urgency(d.days)}`}>{daysLabel(d.days)}</span>}
                           </span>
