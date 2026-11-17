@@ -2,6 +2,8 @@
 // directly by /api/ask so the AI box never has to HTTP round-trip through a
 // proxy-gated route (which would redirect to the login HTML page).
 
+import { isHiddenFromTeam, tagSlug } from './partner-exclusions';
+
 const BASE_ID = process.env.AIRTABLE_BASE_ID!;
 const API_KEY = process.env.AIRTABLE_API_KEY!;
 
@@ -81,15 +83,25 @@ export async function getAllLeads(): Promise<Lead[]> {
     offset = data.offset;
   } while (offset);
 
-  return allRecords.map((r: any): Lead => {
+  // These leads feed team views and community-wide totals only, so partners
+  // that are removed or on a separate deal are stripped from every stage. A
+  // lead that was tagged only to them drops out entirely rather than sitting
+  // in the totals as an untagged lead.
+  const keep = (field: any) => extractMulti(field).filter(p => !isHiddenFromTeam(tagSlug(p)));
+  const hadOnlyHiddenTags = (f: any) => {
+    const all = Object.values(STAGE_FIELDS).flatMap(id => extractMulti(f[id]));
+    return all.length > 0 && all.every(p => isHiddenFromTeam(tagSlug(p)));
+  };
+
+  return allRecords.filter((r: any) => !hadOnlyHiddenTags(r.fields || {})).map((r: any): Lead => {
     const f = r.fields || {};
 
     const stages: Record<Stage, string[]> = {
-      MAL:          extractMulti(f[STAGE_FIELDS.MAL]),
-      MQL:          extractMulti(f[STAGE_FIELDS.MQL]),
-      SQL:          extractMulti(f[STAGE_FIELDS.SQL]),
-      'Closed Won': extractMulti(f[STAGE_FIELDS['Closed Won']]),
-      'Closed Lost':extractMulti(f[STAGE_FIELDS['Closed Lost']]),
+      MAL:          keep(f[STAGE_FIELDS.MAL]),
+      MQL:          keep(f[STAGE_FIELDS.MQL]),
+      SQL:          keep(f[STAGE_FIELDS.SQL]),
+      'Closed Won': keep(f[STAGE_FIELDS['Closed Won']]),
+      'Closed Lost':keep(f[STAGE_FIELDS['Closed Lost']]),
     };
 
     let currentStage: Stage | '' = '';

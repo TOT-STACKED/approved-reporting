@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { getTokenMap } from '@/lib/partner-auth';
 import { getPartnerDetail, emptyPartnerDetail } from '@/lib/airtable';
 import { getPartnerScoreIntelligence } from '@/lib/stackcollect';
 
@@ -10,13 +11,6 @@ export const dynamic = 'force-dynamic';
 // leads dashboard still paints at its usual speed and this section fills in
 // behind it.
 
-function getTokenMap(): Record<string, string> {
-  try {
-    return JSON.parse(process.env.PARTNER_TOKENS || '{}');
-  } catch {
-    return {};
-  }
-}
 
 export async function GET(
   request: Request,

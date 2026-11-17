@@ -1,3 +1,5 @@
+import { isRemovedPartner, isHiddenFromTeam } from './partner-exclusions';
+
 const BASE_ID = process.env.AIRTABLE_BASE_ID!;
 const API_KEY = process.env.AIRTABLE_API_KEY!;
 const BASE_URL = `https://api.airtable.com/v0/${BASE_ID}`;
@@ -289,6 +291,8 @@ function getRecordPartnerStages(fields: any): Map<string, { name: string; stage:
   for (const stage of STAGE_ORDER) {
     const partners = extractMultiValues(fields[STAGE_FIELDS[stage]]);
     for (const p of partners) {
+      // Removed partners' tags are ignored everywhere (see partner-exclusions).
+      if (isRemovedPartner(canonicalPartnerSlug(partnerTagSlug(p)))) continue;
       const key = normalizePartnerName(p);
       const existing = result.get(key);
       const existingIdx = existing ? STAGE_ORDER.indexOf(existing.stage) : -1;
@@ -326,6 +330,8 @@ export async function getPartnerList(prefetched?: any[]): Promise<Partner[]> {
       }
     }
     for (const [slug, { name, stage }] of perSlug) {
+      // This list feeds only team views; partners on a separate deal stay off it.
+      if (isHiddenFromTeam(slug)) continue;
       let entry = merged.get(slug);
       if (!entry) {
         const group = PARTNER_ALIAS_GROUPS[slug];
@@ -556,6 +562,7 @@ export async function fetchStageEvents(): Promise<StageEventMap> {
 }
 
 export async function getPartnerDetail(slug: string): Promise<PartnerDetail | null> {
+  if (isRemovedPartner(canonicalPartnerSlug(slug))) return null;
   const [records, stageEvents] = await Promise.all([fetchPartnerLeadRecords(), fetchStageEvents()]);
   return buildPartnerDetail(records, slug, stageEvents);
 }

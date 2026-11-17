@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from 'next/server';
+import { getTokenMap } from '@/lib/partner-auth';
 import { FEEDBACK_STATUS_OPTIONS, insertFeedback, postFeedbackToSlack } from '@/lib/feedback';
 import { canSeeLeadDetail } from '@/lib/partner-tier';
 import { tierForSlug } from '@/lib/partner-package';
@@ -9,9 +10,6 @@ import { tierForSlug } from '@/lib/partner-package';
 
 export const dynamic = 'force-dynamic';
 
-function getTokenMap(): Record<string, string> {
-  try { return JSON.parse(process.env.PARTNER_TOKENS || '{}'); } catch { return {}; }
-}
 
 export async function POST(
   request: NextRequest,

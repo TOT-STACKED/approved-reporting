@@ -1,4 +1,5 @@
 import crypto from 'crypto';
+import { isRemovedPartner } from './partner-exclusions';
 
 // Cookie used to remember a partner's authenticated session for /p/<token>.
 // Format: `<base64url(payload)>.<base64url(hmac)>`. Payload is `{slug,exp}`.
@@ -51,18 +52,23 @@ export function verifySessionCookie(cookie: string | undefined | null): { slug: 
     const payload = JSON.parse(b64urlDecode(encoded).toString('utf8'));
     if (typeof payload.slug !== 'string') return null;
     if (typeof payload.exp !== 'number' || payload.exp < Date.now()) return null;
+    if (isRemovedPartner(payload.slug)) return null;
     return { slug: payload.slug };
   } catch {
     return null;
   }
 }
 
+// Links for partners removed from the platform stop resolving here, so every
+// route that reads the token map turns them away.
 export function getTokenMap(): Record<string, string> {
+  let map: Record<string, string>;
   try {
-    return JSON.parse(process.env.PARTNER_TOKENS || '{}');
+    map = JSON.parse(process.env.PARTNER_TOKENS || '{}');
   } catch {
     return {};
   }
+  return Object.fromEntries(Object.entries(map).filter(([, slug]) => !isRemovedPartner(slug)));
 }
 
 export function getPasscodeMap(): Record<string, string> {

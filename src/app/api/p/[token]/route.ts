@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { getTokenMap } from '@/lib/partner-auth';
 import {
   getPartnerDetail,
   emptyPartnerDetail,
@@ -12,13 +13,6 @@ import { getCommunityPipeline } from '@/lib/leads';
 
 export const dynamic = 'force-dynamic';
 
-function getTokenMap(): Record<string, string> {
-  try {
-    return JSON.parse(process.env.PARTNER_TOKENS || '{}');
-  } catch {
-    return {};
-  }
-}
 
 export async function GET(
   request: Request,

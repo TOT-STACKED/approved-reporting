@@ -1,3 +1,4 @@
+import { isRemovedPartner } from './partner-exclusions';
 // Partner Users — the people who can sign in to the Intelligence dashboard.
 //
 // One row per person in the Partner Users table (Stacked website base, the
@@ -100,7 +101,8 @@ async function listAll(): Promise<PartnerUser[]> {
 export async function findUser(identifier: string): Promise<PartnerUser | null> {
   const raw = identifier.trim();
   if (!raw) return null;
-  const users = await listAll();
+  // Partners removed from the platform can't sign in.
+  const users = (await listAll()).filter(u => !isRemovedPartner(u.slug));
 
   if (raw.includes('@')) {
     const email = normaliseEmail(raw);
@@ -113,7 +115,7 @@ export async function findUser(identifier: string): Promise<PartnerUser | null> 
 
 export async function findUserByEmail(email: string): Promise<PartnerUser | null> {
   const target = normaliseEmail(email);
-  const users = await listAll();
+  const users = (await listAll()).filter(u => !isRemovedPartner(u.slug));
   return users.find(u => normaliseEmail(u.email) === target) || null;
 }
 
