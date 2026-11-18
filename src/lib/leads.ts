@@ -3,6 +3,8 @@
 // proxy-gated route (which would redirect to the login HTML page).
 
 import { isHiddenFromTeam, tagSlug } from './partner-exclusions';
+import { fetchStageEvents } from './airtable';
+import { bulkWriteSeconds, lastTouched } from './last-touched';
 
 const BASE_ID = process.env.AIRTABLE_BASE_ID!;
 const API_KEY = process.env.AIRTABLE_API_KEY!;
@@ -93,6 +95,19 @@ export async function getAllLeads(): Promise<Lead[]> {
     return all.length > 0 && all.every(p => isHiddenFromTeam(tagSlug(p)));
   };
 
+  // Latest real move per lead, for leads whose Last Modified came from a bulk
+  // script (see last-touched.ts). Only fetched when there is one.
+  const bulk = bulkWriteSeconds(allRecords.map((r: any) => r.fields?.[FIELDS.lastModified] || ''));
+  const latestMove = new Map<string, string>();
+  if (bulk.size) {
+    for (const [key, moves] of await fetchStageEvents()) {
+      const leadId = key.split('|')[0];
+      for (const m of moves) {
+        if (m.date > (latestMove.get(leadId) || '')) latestMove.set(leadId, m.date);
+      }
+    }
+  }
+
   return allRecords.filter((r: any) => !hadOnlyHiddenTags(r.fields || {})).map((r: any): Lead => {
     const f = r.fields || {};
 
@@ -122,7 +137,7 @@ export async function getAllLeads(): Promise<Lead[]> {
       stages,
       source: extractVal(f[FIELDS.source]),
       owner: extractVal(f[FIELDS.leadOwner]),
-      lastModified: f[FIELDS.lastModified] || '',
+      lastModified: lastTouched(f[FIELDS.lastModified] || '', bulk, [latestMove.get(r.id), f[FIELDS.date], r.createdTime]),
       size: f[FIELDS.size] || '',
       location: f[FIELDS.location] || '',
       // Fall back to Airtable's auto-populated record createdTime when the

@@ -1,4 +1,5 @@
 import { isRemovedPartner, isHiddenFromTeam } from './partner-exclusions';
+import { bulkWriteSeconds, lastTouched } from './last-touched';
 
 const BASE_ID = process.env.AIRTABLE_BASE_ID!;
 const API_KEY = process.env.AIRTABLE_API_KEY!;
@@ -573,6 +574,17 @@ export async function getPartnerDetail(slug: string): Promise<PartnerDetail | nu
  * partner's own /p page, the PDF report and the dashboard's Partner Health
  * boxes all go through it, so they can't disagree.
  */
+// Bulk-write seconds per fetched record set, worked out once rather than per partner.
+const bulkCache = new WeakMap<any[], Set<string>>();
+function bulkSecondsFor(records: any[]): Set<string> {
+  let set = bulkCache.get(records);
+  if (!set) {
+    set = bulkWriteSeconds(records.map(r => (r.fields?.[FIELDS.masterView.lastModified] as string) || ''));
+    bulkCache.set(records, set);
+  }
+  return set;
+}
+
 export function buildPartnerDetail(records: any[], slug: string, stageEvents?: StageEventMap): PartnerDetail | null {
 
   // Resolve the requested slug to its accepted partner-name slugs. For a
@@ -582,6 +594,7 @@ export function buildPartnerDetail(records: any[], slug: string, stageEvents?: S
 
   const partnerLeads: Lead[] = [];
   let partnerName: string | null = null;
+  const bulk = bulkSecondsFor(records);
 
   for (const r of records) {
     const fields = r.fields || {};
@@ -632,7 +645,12 @@ export function buildPartnerDetail(records: any[], slug: string, stageEvents?: S
       source: extractValue(fields[FIELDS.masterView.source]),
       owner: extractValue(fields[FIELDS.masterView.leadOwner]),
       stage: leadStageForPartner || extractValue(fields[FIELDS.masterView.stage]),
-      lastModified: fields[FIELDS.masterView.lastModified] || '',
+      // Ignore Last Modified stamps from bulk scripts (see last-touched.ts).
+      lastModified: lastTouched(
+        fields[FIELDS.masterView.lastModified] || '',
+        bulk,
+        [...moves.map(m => m.date), fields[FIELDS.masterView.date], r.createdTime],
+      ),
       size: fields[FIELDS.masterView.size] || '',
       location: fields[FIELDS.masterView.location] || '',
       // Fall back to Airtable's record-level createdTime when the
