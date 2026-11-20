@@ -1,5 +1,5 @@
 import { isRemovedPartner, isHiddenFromTeam } from './partner-exclusions';
-import { bulkWriteSeconds, lastTouched } from './last-touched';
+import { bulkWriteSeconds, lastTouched, groupByBusiness, type GroupTouch } from './last-touched';
 
 const BASE_ID = process.env.AIRTABLE_BASE_ID!;
 const API_KEY = process.env.AIRTABLE_API_KEY!;
@@ -214,7 +214,10 @@ const SHARED_WITH_OPERATOR = new Set(['sql', 'closed won', 'closed lost']);
  */
 export function redactLeadsForPartner(leads: ClientLead[]): ClientLead[] {
   const visible: ClientLead[] = [];
-  for (const lead of leads) {
+  for (const raw of leads) {
+    // Other records for the same business are a team-only hint; they can name
+    // a business the partner was never tagged on, so they never leave.
+    const { alsoAs: _alsoAs, ...lead } = raw as ClientLead & { alsoAs?: string[] };
     const stage = (lead.stage || lead.status || '').trim().toLowerCase();
     if (stage === 'mal') continue;
     if (SHARED_WITH_OPERATOR.has(stage)) {
@@ -253,6 +256,8 @@ export interface Lead {
   /** Every step forward this partner saw on the lead (MQL, SQL, Won, Lost),
    *  dated when it happened. Drives Partner Health, the league and streaks. */
   moves?: StageMove[];
+  /** Other lead records for the same business (a later enquiry, say). */
+  alsoAs?: string[];
   // Contact info — populated on every lead but exposed by the UI per stage.
   // The partner-facing page shows position only at MQL, full details at SQL+.
   firstName?: string;
@@ -574,15 +579,41 @@ export async function getPartnerDetail(slug: string): Promise<PartnerDetail | nu
  * partner's own /p page, the PDF report and the dashboard's Partner Health
  * boxes all go through it, so they can't disagree.
  */
-// Bulk-write seconds per fetched record set, worked out once rather than per partner.
-const bulkCache = new WeakMap<any[], Set<string>>();
-function bulkSecondsFor(records: any[]): Set<string> {
-  let set = bulkCache.get(records);
-  if (!set) {
-    set = bulkWriteSeconds(records.map(r => (r.fields?.[FIELDS.masterView.lastModified] as string) || ''));
-    bulkCache.set(records, set);
+/** Latest Stage Log move per lead, across every partner. */
+export function latestMoveByLead(stageEvents?: StageEventMap): Map<string, string> {
+  const out = new Map<string, string>();
+  for (const [key, moves] of stageEvents || []) {
+    const leadId = key.split('|')[0];
+    for (const m of moves) if (m.date > (out.get(leadId) || '')) out.set(leadId, m.date);
   }
-  return set;
+  return out;
+}
+
+// When each lead was last really touched: bulk-script stamps ignored, and
+// records for the same business sharing the latest touch (see last-touched.ts).
+// Worked out once per fetched record set, not once per partner.
+const touchCache = new WeakMap<any[], Map<string, GroupTouch>>();
+function touchesFor(records: any[], stageEvents?: StageEventMap): Map<string, GroupTouch> {
+  let map = touchCache.get(records);
+  if (!map) {
+    const bulk = bulkWriteSeconds(records.map(r => (r.fields?.[FIELDS.masterView.lastModified] as string) || ''));
+    const latest = latestMoveByLead(stageEvents);
+    map = groupByBusiness(records.map(r => {
+      const f = r.fields || {};
+      return {
+        id: r.id,
+        name: (f[FIELDS.masterView.businessName] as string) || '',
+        email: (f[FIELDS.masterView.contactEmail] as string) || '',
+        touched: lastTouched(
+          (f[FIELDS.masterView.lastModified] as string) || '',
+          bulk,
+          [latest.get(r.id), f[FIELDS.masterView.date], r.createdTime],
+        ),
+      };
+    }));
+    touchCache.set(records, map);
+  }
+  return map;
 }
 
 export function buildPartnerDetail(records: any[], slug: string, stageEvents?: StageEventMap): PartnerDetail | null {
@@ -594,7 +625,7 @@ export function buildPartnerDetail(records: any[], slug: string, stageEvents?: S
 
   const partnerLeads: Lead[] = [];
   let partnerName: string | null = null;
-  const bulk = bulkSecondsFor(records);
+  const touches = touchesFor(records, stageEvents);
 
   for (const r of records) {
     const fields = r.fields || {};
@@ -645,12 +676,10 @@ export function buildPartnerDetail(records: any[], slug: string, stageEvents?: S
       source: extractValue(fields[FIELDS.masterView.source]),
       owner: extractValue(fields[FIELDS.masterView.leadOwner]),
       stage: leadStageForPartner || extractValue(fields[FIELDS.masterView.stage]),
-      // Ignore Last Modified stamps from bulk scripts (see last-touched.ts).
-      lastModified: lastTouched(
-        fields[FIELDS.masterView.lastModified] || '',
-        bulk,
-        [...moves.map(m => m.date), fields[FIELDS.masterView.date], r.createdTime],
-      ),
+      // Last real touch: bulk-script stamps ignored, and a newer record for
+      // the same business revives this one (see last-touched.ts).
+      lastModified: touches.get(r.id)?.touched ?? (fields[FIELDS.masterView.lastModified] || ''),
+      alsoAs: touches.get(r.id)?.otherNames ?? [],
       size: fields[FIELDS.masterView.size] || '',
       location: fields[FIELDS.masterView.location] || '',
       // Fall back to Airtable's record-level createdTime when the

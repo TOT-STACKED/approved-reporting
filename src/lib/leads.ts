@@ -3,8 +3,8 @@
 // proxy-gated route (which would redirect to the login HTML page).
 
 import { isHiddenFromTeam, tagSlug } from './partner-exclusions';
-import { fetchStageEvents } from './airtable';
-import { bulkWriteSeconds, lastTouched } from './last-touched';
+import { fetchStageEvents, latestMoveByLead } from './airtable';
+import { bulkWriteSeconds, lastTouched, groupByBusiness } from './last-touched';
 
 const BASE_ID = process.env.AIRTABLE_BASE_ID!;
 const API_KEY = process.env.AIRTABLE_API_KEY!;
@@ -30,6 +30,7 @@ const FIELDS = {
   size:         'fldwUdKgqSG6E2JZ1',
   location:     'fldTwzHji3JbrvHPU',
   date:         'fldRND3uaiduLQouI',
+  contactEmail: 'fldRdQUlKtkwn6eHK',
 };
 
 function extractVal(field: any): string {
@@ -54,6 +55,8 @@ export interface Lead {
   source: string;
   owner: string;
   lastModified: string;
+  /** Other lead records for the same business (a later enquiry, say). */
+  alsoAs: string[];
   size: string;
   location: string;
   date: string;
@@ -95,18 +98,21 @@ export async function getAllLeads(): Promise<Lead[]> {
     return all.length > 0 && all.every(p => isHiddenFromTeam(tagSlug(p)));
   };
 
-  // Latest real move per lead, for leads whose Last Modified came from a bulk
-  // script (see last-touched.ts). Only fetched when there is one.
+  // When each lead was last really touched: bulk-script stamps ignored (they
+  // fall back to the latest Stage Log move), and records for the same
+  // business share the latest touch, so a new enquiry revives an old record.
+  // See last-touched.ts.
   const bulk = bulkWriteSeconds(allRecords.map((r: any) => r.fields?.[FIELDS.lastModified] || ''));
-  const latestMove = new Map<string, string>();
-  if (bulk.size) {
-    for (const [key, moves] of await fetchStageEvents()) {
-      const leadId = key.split('|')[0];
-      for (const m of moves) {
-        if (m.date > (latestMove.get(leadId) || '')) latestMove.set(leadId, m.date);
-      }
-    }
-  }
+  const latestMove = bulk.size ? latestMoveByLead(await fetchStageEvents()) : new Map<string, string>();
+  const touches = groupByBusiness(allRecords.map((r: any) => {
+    const f = r.fields || {};
+    return {
+      id: r.id,
+      name: f[FIELDS.businessName] || '',
+      email: f[FIELDS.contactEmail] || '',
+      touched: lastTouched(f[FIELDS.lastModified] || '', bulk, [latestMove.get(r.id), f[FIELDS.date], r.createdTime]),
+    };
+  }));
 
   return allRecords.filter((r: any) => !hadOnlyHiddenTags(r.fields || {})).map((r: any): Lead => {
     const f = r.fields || {};
@@ -137,7 +143,8 @@ export async function getAllLeads(): Promise<Lead[]> {
       stages,
       source: extractVal(f[FIELDS.source]),
       owner: extractVal(f[FIELDS.leadOwner]),
-      lastModified: lastTouched(f[FIELDS.lastModified] || '', bulk, [latestMove.get(r.id), f[FIELDS.date], r.createdTime]),
+      lastModified: touches.get(r.id)?.touched ?? (f[FIELDS.lastModified] || ''),
+      alsoAs: touches.get(r.id)?.otherNames ?? [],
       size: f[FIELDS.size] || '',
       location: f[FIELDS.location] || '',
       // Fall back to Airtable's auto-populated record createdTime when the

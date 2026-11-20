@@ -25,6 +25,8 @@ export interface ActionLead {
   lastModified: string;
   date: string;
   owner?: string;
+  /** Other lead records for the same business. */
+  alsoAs?: string[];
   stages?: Partial<Record<'MAL' | 'MQL' | 'SQL' | 'Closed Won' | 'Closed Lost', string[]>>;
 }
 
@@ -81,7 +83,10 @@ function partnersAt(l: ActionLead, stage: 'MQL' | 'SQL'): string {
 function leadRows(leads: ActionLead[], stage: 'MQL' | 'SQL', now: number) {
   return leads.map(l => {
     const d = daysAgo(l.lastModified, now);
-    const bits = [partnersAt(l, stage), l.owner && l.owner !== 'N/A' ? `owner ${l.owner}` : ''].filter(Boolean);
+    const also = (l.alsoAs || []).length
+      ? `also enquired as ${l.alsoAs!.length === 1 ? 'another record' : `${l.alsoAs!.length} other records`}`
+      : '';
+    const bits = [partnersAt(l, stage), l.owner && l.owner !== 'N/A' ? `owner ${l.owner}` : '', also].filter(Boolean);
     return {
       key: l.id || `${l.businessName}-${l.lastModified}`,
       main: l.businessName || 'Unnamed lead',
