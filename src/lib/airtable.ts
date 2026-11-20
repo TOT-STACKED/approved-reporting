@@ -541,6 +541,10 @@ export interface StageMove { stage: MoveStage; date: string }
  *  Stage Log can't be read, so callers fall back to the lead's own dates. */
 export type StageEventMap = Map<string, StageMove[]>;
 
+/** The same stage alerted again this long after the last one counts as a new move. */
+export const REPEAT_GAP_DAYS = 14;
+const DAY_MS = 24 * 60 * 60 * 1000;
+
 const MOVE_STAGES = new Set<MoveStage>(['MQL', 'SQL', 'Closed Won', 'Closed Lost']);
 
 export async function fetchStageEvents(): Promise<StageEventMap> {
@@ -649,22 +653,32 @@ export function buildPartnerDetail(records: any[], slug: string, stageEvents?: S
     // Every Stage Log step for this partner on this lead, across spellings,
     // earliest per stage. A lead that went MQL in June and SQL today has two
     // moves, so moving it up counts as activity today.
-    const byStage = new Map<MoveStage, string>();
+    // A stage alerted again after a real gap is a new move too: a quiet lead
+    // re-sent to the partner (Time Out went SQL for Leat in September and was
+    // re-sent as a fresh RFP in November). Repeats inside REPEAT_GAP_DAYS are
+    // the same move logged twice (backfill + automation) and are dropped.
+    const events: StageMove[] = [];
     for (const sp of spellings) {
-      for (const m of stageEvents?.get(`${r.id}|${normalizePartnerName(sp)}`) || []) {
-        const prev = byStage.get(m.stage);
-        if (!prev || m.date < prev) byStage.set(m.stage, m.date);
-      }
+      events.push(...(stageEvents?.get(`${r.id}|${normalizePartnerName(sp)}`) || []));
+    }
+    events.sort((a, b) => a.date.localeCompare(b.date));
+    const kept: StageMove[] = [];
+    const lastKept = new Map<MoveStage, number>();
+    for (const m of events) {
+      const ts = Date.parse(m.date);
+      const prev = lastKept.get(m.stage);
+      if (prev != null && ts - prev < REPEAT_GAP_DAYS * DAY_MS) continue;
+      kept.push(m);
+      lastKept.set(m.stage, ts);
     }
     // No Stage Log row for the step the lead is at now (e.g. the automation
     // wasn't logging yet): fall back to the lead-level stamp if there is one.
     const sqlStamp = fields[FIELDS.masterView.sqlStamp] as string | undefined;
     const wonStamp = fields[FIELDS.masterView.wonStamp] as string | undefined;
     const atOrPast = (st: Stage) => STAGE_ORDER.indexOf(leadStageForPartner!) >= STAGE_ORDER.indexOf(st);
-    if (atOrPast('SQL') && leadStageForPartner !== 'Closed Lost' && !byStage.has('SQL') && sqlStamp) byStage.set('SQL', sqlStamp);
-    if (leadStageForPartner === 'Closed Won' && !byStage.has('Closed Won') && wonStamp) byStage.set('Closed Won', wonStamp);
-    const moves: StageMove[] = Array.from(byStage, ([stage, date]) => ({ stage, date }))
-      .sort((a, b) => a.date.localeCompare(b.date));
+    if (atOrPast('SQL') && leadStageForPartner !== 'Closed Lost' && !lastKept.has('SQL') && sqlStamp) kept.push({ stage: 'SQL', date: sqlStamp });
+    if (leadStageForPartner === 'Closed Won' && !lastKept.has('Closed Won') && wonStamp) kept.push({ stage: 'Closed Won', date: wonStamp });
+    const moves: StageMove[] = kept.sort((a, b) => a.date.localeCompare(b.date));
     // When the partner was first told about the lead (earliest move).
     const mqlDate = moves[0]?.date;
 
