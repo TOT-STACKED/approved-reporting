@@ -78,3 +78,4 @@ renders the zero state until one is added.)_
 | Dojo | `dojo` | https://partners.wearestacked.io/p/f873eedc5838a0ec |
 | Rotageek | `rotageek` | https://partners.wearestacked.io/p/39daf7f05a704829 |
 | All Gravy | `all-gravy` | https://partners.wearestacked.io/p/57af50433d182298 |
+| Trifft | `trifft` | https://partners.wearestacked.io/p/7fddf6dc70b17561 |
