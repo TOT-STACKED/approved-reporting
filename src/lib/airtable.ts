@@ -456,6 +456,12 @@ const PARTNER_ALIAS_GROUPS: Record<string, PartnerAliasGroup> = {
     displayName: 'HSG / Opsyte',
     slugs: ['opsyte', 'hsg'],
   },
+  // Leads are tagged "Trifft" (#sta-trifft-loyalty); the marketplace row,
+  // added when they went Approved on 23 Nov 2026, is "trifft-loyalty".
+  trifft: {
+    displayName: 'Trifft',
+    slugs: ['trifft', 'trifft-loyalty'],
+  },
 };
 
 // Reverse index: any member slug -> the group it belongs to. Without this a
