@@ -8,7 +8,6 @@ import { getPartnerStackCollectData } from '@/lib/stackcollect';
 import {
   INK, MUTED, DIM, BORDER, BG, SURFACE_2, PRIMARY, POSITIVE, SERIES, LEAD_STATUS_COLORS,
 } from '@/lib/brand';
-import { reachedMqlCount } from '@/lib/lead-status';
 
 // Median days between lead creation and the lead's last status change.
 // Used as a proxy for stage-transition time on the report.
@@ -65,9 +64,9 @@ export async function POST(request: NextRequest) {
 
     // --- Pipeline KPIs (matches dashboard) ---
     const malCount = partner.statusBreakdown['MAL'] || 0;
-    // Every lead that has reached MQL, including those now at SQL, Won or
-    // Lost — matches the MQL card on the dashboard.
-    const mqlCount = reachedMqlCount(partner.statusBreakdown);
+    // Leads still at MQL (not moved on to SQL, Won or Lost) — matches the
+    // MQL card on the dashboard.
+    const mqlCount = partner.statusBreakdown['MQL'] || 0;
     const sqlCount = partner.statusBreakdown['SQL'] || 0;
     const closedWon =
       (partner.statusBreakdown['Closed Won'] || 0) +
@@ -94,7 +93,7 @@ export async function POST(request: NextRequest) {
       if (partner.leadCount > 0) {
         parts.push(`We currently have ${partner.leadCount} leads in the pipeline for ${partner.name}.`);
         if (mqlCount > 0) {
-          parts.push(`${mqlCount} ${mqlCount === 1 ? 'lead has' : 'leads have'} reached MQL stage.`);
+          parts.push(`${mqlCount} ${mqlCount === 1 ? 'lead is' : 'leads are'} currently at MQL stage.`);
         }
         if (sqlCount > 0) {
           parts.push(`${sqlCount} ${sqlCount === 1 ? 'is' : 'are'} now Sales Qualified, showing strong engagement from prospective operators.`);

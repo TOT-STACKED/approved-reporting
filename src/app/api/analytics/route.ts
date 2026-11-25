@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getPartnerList } from '@/lib/airtable';
 import { getStackCollectStats } from '@/lib/stackcollect';
+import { isAtStageNow, rawStages, type PipelineStage } from '@/lib/lead-status';
 
 export const dynamic = 'force-dynamic';
 
@@ -37,11 +38,6 @@ async function fetchAllLeads() {
   return all;
 }
 
-function hasAnyAtStage(record: any, stageFieldId: string): boolean {
-  const v = record.fields?.[stageFieldId];
-  return Array.isArray(v) && v.length > 0;
-}
-
 export async function GET() {
   try {
     const [partners, stackStats, rawLeads] = await Promise.all([
@@ -54,8 +50,7 @@ export async function GET() {
     // Mirrors the main dashboard logic.
     const statusTotals: Record<string, number> = {};
     for (const stage of Object.keys(STAGE_FIELDS) as (keyof typeof STAGE_FIELDS)[]) {
-      const fieldId = STAGE_FIELDS[stage];
-      statusTotals[stage] = rawLeads.filter(r => hasAnyAtStage(r, fieldId)).length;
+      statusTotals[stage] = rawLeads.filter(r => isAtStageNow(rawStages(r.fields, STAGE_FIELDS), stage as PipelineStage)).length;
     }
 
     const leadStatusData = Object.entries(statusTotals)

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getStackCollectStats, getBusinessSubmissions } from '@/lib/stackcollect';
+import { isAtStageNow, rawStages } from '@/lib/lead-status';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 600; // 10 minutes
@@ -192,7 +193,8 @@ export async function GET() {
     ]);
 
     const malTotal = rawLeads.filter(r => Array.isArray(r.fields?.[STAGE_FIELDS.MAL]) && r.fields[STAGE_FIELDS.MAL].length > 0).length;
-    const mqlTotal = rawLeads.filter(r => Array.isArray(r.fields?.[STAGE_FIELDS.MQL]) && r.fields[STAGE_FIELDS.MQL].length > 0).length;
+    // MQL counts leads still at MQL (Airtable keeps the tag after a lead moves on).
+    const mqlTotal = rawLeads.filter(r => isAtStageNow(rawStages(r.fields, STAGE_FIELDS), 'MQL')).length;
     const sqlTotal = rawLeads.filter(r => Array.isArray(r.fields?.[STAGE_FIELDS.SQL]) && r.fields[STAGE_FIELDS.SQL].length > 0).length;
     const wonTotal = rawLeads.filter(r => Array.isArray(r.fields?.[STAGE_FIELDS['Closed Won']]) && r.fields[STAGE_FIELDS['Closed Won']].length > 0).length;
 

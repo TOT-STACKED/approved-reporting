@@ -11,7 +11,7 @@
 // agrees with the page it links to.
 
 import type { PartnerDetail, MoveStage } from './airtable';
-import { hasReachedMql, reachedMqlCount } from './lead-status';
+import { hasReachedMql } from './lead-status';
 
 export type HealthBand = 'green' | 'amber' | 'red';
 
@@ -141,7 +141,7 @@ export function partnerActivity(detail: PartnerDetail | null, now = Date.now()):
   return {
     leadCount: detail?.leadCount ?? 0,
     malCount: n('MAL'),
-    mqlCount: reachedMqlCount(sb),
+    mqlCount: n('MQL'), // at MQL now, so it doesn't double up with SQL / Won / Lost
     mqlNowCount: n('MQL'),
     sqlCount: n('SQL'),
     wonCount: n('Closed Won'),

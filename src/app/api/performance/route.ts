@@ -8,6 +8,7 @@ import {
   buildPartnerDetail,
 } from '@/lib/airtable';
 import { getAllLeads } from '@/lib/leads';
+import { isAtStageNow } from '@/lib/lead-status';
 import { TEAM, teamMemberFor, PARTNER_WORK_POINTS } from '@/lib/team';
 import { rest, fieldConfigured } from '@/lib/field-db';
 import { tierForSlug } from '@/lib/partner-package';
@@ -153,9 +154,9 @@ export async function GET() {
     }));
 
     // Header totals, counted the way the main dashboard counts them: a lead
-    // is at a stage if any partner is attached to it there.
+    // is at a stage if a partner is there now (not moved on from it).
     const atStage = (s: 'MQL' | 'SQL' | 'Closed Won') =>
-      allLeads.filter(l => (l.stages?.[s]?.length ?? 0) > 0).length;
+      allLeads.filter(l => isAtStageNow(l.stages, s)).length;
     const totals = {
       totalLeads: allLeads.length,
       sqlCount: atStage('SQL'),

@@ -32,3 +32,50 @@ export function reachedMqlCount(breakdown: Record<string, number>): number {
   }
   return n;
 }
+
+// ---------------------------------------------------------------------------
+// Where a lead is NOW.
+//
+// Airtable keeps a partner in the MQL column after the lead moves on to SQL,
+// Won or Lost (the Stage Log and move dates rely on that history). For counts
+// and lists, each partner on a lead only counts at its highest stage, so a
+// lead that went MQL -> SQL is an SQL, not an MQL and an SQL.
+// ---------------------------------------------------------------------------
+
+export const PIPELINE_ORDER = ['MAL', 'MQL', 'SQL', 'Closed Lost', 'Closed Won'] as const;
+export type PipelineStage = typeof PIPELINE_ORDER[number];
+
+const partnerKey = (p: string) => (p || '').trim().toLowerCase();
+
+/** Each partner kept only at its highest stage on this lead. */
+export function stagesNow(stages: Partial<Record<string, string[] | undefined>> | undefined): Record<PipelineStage, string[]> {
+  const highest = new Map<string, { name: string; idx: number }>();
+  PIPELINE_ORDER.forEach((stage, idx) => {
+    for (const p of stages?.[stage] || []) {
+      const k = partnerKey(p);
+      if (!k) continue;
+      const prev = highest.get(k);
+      if (!prev || idx >= prev.idx) highest.set(k, { name: p, idx });
+    }
+  });
+  const out = { MAL: [], MQL: [], SQL: [], 'Closed Lost': [], 'Closed Won': [] } as Record<PipelineStage, string[]>;
+  for (const { name, idx } of highest.values()) out[PIPELINE_ORDER[idx]].push(name);
+  return out;
+}
+
+/** Is any partner on this lead at this stage right now (not moved on)? */
+export function isAtStageNow(stages: Partial<Record<string, string[] | undefined>> | undefined, stage: PipelineStage): boolean {
+  return stagesNow(stages)[stage].length > 0;
+}
+
+/** Stage -> partner names straight from raw Airtable fields (field ids per stage). */
+export function rawStages(fields: any, stageFieldIds: Record<string, string>): Record<string, string[]> {
+  const out: Record<string, string[]> = {};
+  for (const [stage, id] of Object.entries(stageFieldIds)) {
+    const v = fields?.[id];
+    out[stage] = (Array.isArray(v) ? v : v ? [v] : [])
+      .map((x: any) => (typeof x === 'string' ? x : x?.name || ''))
+      .filter(Boolean);
+  }
+  return out;
+}

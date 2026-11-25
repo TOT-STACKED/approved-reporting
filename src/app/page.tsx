@@ -5,7 +5,7 @@ import AskBox from '@/components/AskBox';
 import StacksDashboard from '@/components/StacksDashboard';
 import PartnerHeatMap from '@/components/PartnerHeatMap';
 import LeadStatusGlossary from '@/components/LeadStatusGlossary';
-import { LEAD_STATUS_EXPLAINER } from '@/lib/lead-status';
+import { LEAD_STATUS_EXPLAINER, isAtStageNow } from '@/lib/lead-status';
 import ConversionTimeline from '@/components/ConversionTimeline';
 import NpsDashboard from '@/components/NpsDashboard';
 import ActionList from '@/components/ActionList';
@@ -95,10 +95,11 @@ export default function Dashboard() {
 
   const totalLeads = allLeads.length;
 
-  // Stage counts from the new MAL/MQL/SQL/Closed Won/Closed Lost multi-select fields.
-  // A lead is counted at a stage if any partner is attached to that stage on that lead.
+  // Stage counts from the MAL/MQL/SQL/Closed Won/Closed Lost fields. A lead
+  // counts at a stage if a partner is there NOW: Airtable keeps old stage tags
+  // as a lead moves on, so each partner only counts at its highest stage.
   const countAtStage = (stage: keyof LeadStages) =>
-    allLeads.filter(l => (l.stages?.[stage]?.length ?? 0) > 0).length;
+    allLeads.filter(l => isAtStageNow(l.stages as any, stage)).length;
 
   const malCount = countAtStage('MAL');
   const mqlCount = countAtStage('MQL');
