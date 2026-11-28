@@ -18,8 +18,8 @@ const LINE = '#E4DAC6';
 
 // Pastel tiles from the design system, each with its own ink.
 const SECTIONS = [
-  { title: 'Your leads', body: 'Every lead Stacked sends you, MAL through to Closed Won.', bg: '#90D8F0', ink: '#1F4E6E' },
-  { title: 'Conversion', body: 'How your pipeline is moving, week by week.', bg: '#B0F070', ink: '#204000' },
+  { title: 'Your reporting', body: 'What Stacked is doing for you, all in one place.', bg: '#90D8F0', ink: '#1F4E6E' },
+  { title: 'Progress', body: 'How things are moving, week by week.', bg: '#B0F070', ink: '#204000' },
   { title: 'Operator sentiment', body: 'What venues say about you in Intelligence reviews.', bg: '#FFF0C0', ink: '#6B4A00' },
   { title: 'Market intelligence', body: 'The tech stacks and tools operators are using.', bg: '#D8C0F0', ink: '#301878' },
 ];
@@ -101,7 +101,7 @@ export default function PartnerSignIn() {
             Partner<br />Intelligence
           </h1>
           <p className="text-[15px] sm:text-base leading-relaxed mt-5 max-w-md" style={{ color: `${CREAM}CC` }}>
-            Your live view of what Stacked is doing for you: the leads we send, how they convert and what operators think.
+            Your live view of what Stacked is doing for you, and what operators think of the tools they use.
           </p>
 
           <ul className="grid grid-cols-2 gap-3 mt-8 max-w-lg">

@@ -19,7 +19,7 @@ const LINE = '#E4DAC6';
 
 // Pastel tiles from the design system, each with its own ink.
 const SECTIONS = [
-  { title: 'Lead pipeline', body: 'Every referred lead, MAL through to Closed Won.', bg: '#90D8F0', ink: '#1F4E6E' },
+  { title: 'Partner activity', body: 'What Stacked is doing for each partner.', bg: '#90D8F0', ink: '#1F4E6E' },
   { title: 'Partner performance', body: 'Who is converting and who needs a nudge.', bg: '#B0F070', ink: '#204000' },
   { title: 'NPS feedback', body: 'Operator sentiment, broken down by vendor.', bg: '#FFF0C0', ink: '#6B4A00' },
   { title: 'Community activity', body: 'Marketplace, podcast and event reach.', bg: '#D8C0F0', ink: '#301878' },
@@ -45,7 +45,7 @@ export default async function LoginPage({
             Approved<br />Partner<br />Portal
           </h1>
           <p className="text-[15px] sm:text-base leading-relaxed mt-5 max-w-md" style={{ color: `${CREAM}CC` }}>
-            One place to see what Stacked is doing for every Approved partner: leads, conversion, sentiment and reach.
+            One place to see what Stacked is doing for every Approved partner: activity, sentiment and reach.
           </p>
 
           <ul className="grid grid-cols-2 gap-3 mt-8 max-w-lg">
