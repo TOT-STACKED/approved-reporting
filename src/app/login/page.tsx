@@ -1,27 +1,19 @@
+import StackedLogo from '@/components/renewals/StackedLogo';
+
 type LoginSearch = { next?: string; error?: string };
 
 export const metadata = {
   title: 'Sign in - Stacked Approved Partner Portal',
 };
 
-const PORTAL_SECTIONS = [
-  {
-    title: 'Lead pipeline',
-    body: 'Every lead referred through Stacked, scored and tracked from MAL through MQL, SQL and Closed Won.',
-  },
-  {
-    title: 'Partner performance',
-    body: 'A heat-mapped view of which partners are converting, which need attention, and how each compares on conversion ratios.',
-  },
-  {
-    title: 'NPS feedback',
-    body: 'Net Promoter Score across every touchpoint — intelligence reviews and support chat — broken down by vendor.',
-  },
-  {
-    title: 'Community activity',
-    body: 'Marketplace traffic, podcast and event activity, plus what the operator community is talking about right now.',
-  },
-];
+// Team sign-in for the Approved Partner Portal. Same look as the partner,
+// Renewals and Field sign-ins: night purple page, cream card, Stacked
+// wordmark, Chunko heading, orange call to action.
+const NIGHT = '#2A1D6B';
+const CREAM = '#FAF3E5';
+const INK = '#38278F';
+const SOFT = '#5B4F8C';
+const LINE = '#E4DAC6';
 
 export default async function LoginPage({
   searchParams,
@@ -32,72 +24,50 @@ export default async function LoginPage({
   const safeNext = next.startsWith('/') && !next.startsWith('//') ? next : '/';
 
   return (
-    <div className="min-h-screen bg-brand-cream px-4 py-10 sm:py-16">
-      <div className="max-w-4xl mx-auto">
-        {/* Welcome / brand header */}
-        <div className="flex flex-col items-center text-center mb-10">
-          <img
-            src="/stacked-wordmark.svg"
-            alt="Stacked"
-            className="h-14 w-auto mb-6"
+    <main className="min-h-dvh flex flex-col items-center justify-center px-4 py-8 font-body" style={{ background: NIGHT }}>
+      <div className="w-full max-w-[440px] rounded-[28px] p-6 sm:p-10" style={{ background: CREAM, color: INK }}>
+        <div className="flex items-center gap-3 mb-7">
+          <StackedLogo className="h-6 w-auto" />
+          <span className="font-mono text-xs uppercase tracking-[0.1em]" style={{ color: SOFT }}>Partner Portal</span>
+        </div>
+
+        <h1 className="font-display uppercase text-[28px] sm:text-[32px] leading-[0.95] tracking-[-0.02em] mb-3" style={{ color: INK }}>
+          Team sign in
+        </h1>
+        <p className="text-[15px] leading-relaxed mb-5" style={{ color: SOFT }}>
+          Enter the team password to open the Approved Partner Portal.
+        </p>
+
+        <form method="post" action="/api/auth/login" className="space-y-3">
+          <input type="hidden" name="next" value={safeNext} />
+          <label htmlFor="password" className="sr-only">Team password</label>
+          <input
+            id="password"
+            type="password"
+            name="password"
+            required
+            autoFocus
+            autoComplete="current-password"
+            placeholder="Team password"
+            className="w-full bg-white border rounded-xl px-4 py-3 text-[15px] focus:outline-none focus:ring-2 focus:ring-offset-0"
+            style={{ borderColor: LINE, color: INK, '--tw-ring-color': `${INK}40` } as React.CSSProperties}
           />
-          <h1 className="font-display text-4xl sm:text-5xl text-brand-green leading-[1] tracking-tight">
-            Approved<br/>Partner Portal
-          </h1>
-          <p className="text-sm sm:text-base text-gray-600 mt-4 max-w-xl leading-relaxed">
-            The single hub for measuring what we&apos;re doing for our approved
-            partners — from inbound leads and conversion performance to
-            community sentiment and marketing reach.
-          </p>
-        </div>
-
-        {/* What's inside */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-10">
-          {PORTAL_SECTIONS.map(section => (
-            <div key={section.title} className="bg-white/70 border border-gray-200/70 rounded-xl p-4">
-              <h2 className="text-sm font-semibold text-brand-green mb-1">{section.title}</h2>
-              <p className="text-xs text-gray-600 leading-relaxed">{section.body}</p>
-            </div>
-          ))}
-        </div>
-
-        {/* Sign-in card */}
-        <div className="max-w-sm mx-auto bg-white rounded-2xl shadow-sm border border-gray-200/70 p-8">
-          <h2 className="text-lg font-semibold text-brand-green mb-1">Sign in</h2>
-          <p className="text-sm text-gray-500 mb-6">Enter the team password to continue.</p>
-
           {error ? (
-            <div className="mb-4 rounded-md bg-red-50 border border-red-200 px-3 py-2 text-sm text-red-700">
-              Incorrect password. Try again.
-            </div>
+            <p role="alert" className="text-sm text-negative-dark">Incorrect password. Try again.</p>
           ) : null}
+          <button
+            type="submit"
+            className="w-full rounded-full bg-primary hover:bg-primary-hover active:bg-primary-press text-white px-6 py-3.5 text-[15px] font-bold uppercase tracking-[-0.01em] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
+            style={{ '--tw-ring-color': INK, '--tw-ring-offset-color': CREAM } as React.CSSProperties}
+          >
+            Sign in
+          </button>
+        </form>
 
-          <form method="post" action="/api/auth/login" className="space-y-4">
-            <input type="hidden" name="next" value={safeNext} />
-            <label className="block">
-              <span className="block text-xs font-medium text-gray-700 mb-1.5 uppercase tracking-wide">Password</span>
-              <input
-                type="password"
-                name="password"
-                required
-                autoFocus
-                autoComplete="current-password"
-                className="w-full rounded-md border border-gray-300 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-green focus:border-brand-green"
-              />
-            </label>
-            <button
-              type="submit"
-              className="w-full bg-brand-green hover:bg-brand-green-soft text-white text-sm font-medium py-2.5 rounded-md transition-colors"
-            >
-              Sign in
-            </button>
-          </form>
-        </div>
-
-        <p className="text-xs text-gray-500 mt-6 text-center">
-          Partners with a personal <code className="bg-white/60 px-1 py-0.5 rounded">/p/</code> link don&apos;t need a password.
+        <p className="text-xs leading-relaxed mt-6 pt-5 border-t" style={{ color: SOFT, borderColor: LINE }}>
+          A partner? <a href="/signin" className="underline underline-offset-2" style={{ color: INK }}>Sign in with your work email</a> instead.
         </p>
       </div>
-    </div>
+    </main>
   );
 }
