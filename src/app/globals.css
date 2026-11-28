@@ -1,7 +1,9 @@
 @import "tailwindcss";
 
 /* ---------------------------------------------------------------------------
-   Stacked brand tokens — retuned September 2026 to the Stacked partner
+   Stacked brand tokens — retuned September 2026, and November 2026 to the
+   sign-in pages' palette (cream page, warm line, soft-purple muted text, night
+   purple nav) to the Stacked partner
    dashboard spec, so partner reporting matches wearestacked.io exactly.
 
    Two things happen in this file:
@@ -20,18 +22,18 @@
 --------------------------------------------------------------------------- */
 @theme {
   /* --- Canvas and text ---------------------------------------------------- */
-  --color-bg: #F1F0E9;          /* page — warm off-white, never pure white */
+  --color-bg: #FAF3E5;          /* page — warm off-white, never pure white */
   --color-surface: #FFFFFF;     /* cards */
-  --color-surface-2: #F2EFE6;   /* paper panels */
-  --color-border: #E6E1D2;
+  --color-surface-2: #F3EADB;   /* paper panels */
+  --color-border: #E4DAC6;
   --color-ink: #38278F;         /* default text — dark purple, not black */
   --color-ink-deep: #2A1D6B;
   /* Renewals-only accents (operator website palette); see .renewals-theme below. */
   --color-panel: #D7EFF5;
   --color-night: #111111;
   --color-flame: #FD612B;
-  --color-muted: #5A564F;
-  --color-dim: #827D74;
+  --color-muted: #5B4F8C;
+  --color-dim: #7A6FA6;
 
   /* --- Brand ------------------------------------------------------------- */
   --color-primary: #FF5014;       /* calls to action only, never a chart fill */
@@ -67,8 +69,8 @@
   /* --- Legacy brand-* names, repointed at the spec ----------------------- */
   --color-brand-green: #38278F;        /* the ink/dark-panel purple */
   --color-brand-green-soft: #2A1D6B;
-  --color-brand-cream: #F2EFE6;
-  --color-brand-cream-soft: #F1F0E9;
+  --color-brand-cream: #F3EADB;
+  --color-brand-cream-soft: #FAF3E5;
   --color-brand-orange: #FF5014;
   --color-brand-berry: #38278F;
   --color-brand-pink: #FF90C0;
@@ -97,18 +99,18 @@
   --color-brand-sky: #90D8F0;
 
   /* --- Tailwind neutrals, rebuilt on the warm brand ink ------------------ */
-  --color-gray-50:  #F6F4EC;
-  --color-gray-100: #EDE9DC;
-  --color-gray-200: #E6E1D2;
-  --color-gray-300: #CFC9B8;
-  --color-gray-400: #827D74;
-  --color-gray-500: #5A564F;
-  --color-gray-600: #4A463F;
+  --color-gray-50:  #F7F0E2;
+  --color-gray-100: #EFE6D4;
+  --color-gray-200: #E4DAC6;
+  --color-gray-300: #D3C7B0;
+  --color-gray-400: #7A6FA6;
+  --color-gray-500: #5B4F8C;
+  --color-gray-600: #4A3E80;
   --color-gray-700: #38278F;   /* body copy lands on brand ink */
   --color-gray-800: #38278F;
   --color-gray-900: #38278F;
-  --color-slate-400: #827D74;
-  --color-slate-500: #5A564F;
+  --color-slate-400: #7A6FA6;
+  --color-slate-500: #5B4F8C;
 
   /* --- Positive ---------------------------------------------------------- */
   --color-emerald-50:  #E9F8EE;
@@ -271,13 +273,13 @@ body {
      flame    #FD612B  logo and highlight tags only
 --------------------------------------------------------------------------- */
 .renewals-theme {
-  --color-bg: #F1F0E9;
+  --color-bg: #FAF3E5;
   --color-surface: #FFFFFF;
   --color-surface-2: #F4F4F3;
   --color-border: #E3E0D6;
   --color-ink: #1C1C1C;
   --color-ink-deep: #111111;
-  --color-muted: #5A564F;
+  --color-muted: #5B4F8C;
   --color-dim: #787872;
 
   --color-primary: #4E71F2;

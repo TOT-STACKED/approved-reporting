@@ -75,13 +75,13 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const linkClass = (active: boolean) =>
     `px-3 py-1.5 rounded-md text-sm transition-colors ${
       active
-        ? 'bg-brand-green text-white font-medium'
-        : 'text-gray-600 hover:text-brand-green hover:bg-brand-cream'
+        ? 'bg-[#FAF3E5] text-brand-green font-medium'
+        : 'text-[#FAF3E5]/80 hover:text-white hover:bg-white/10'
     }`;
 
   return (
     <>
-      <nav className="bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/80 border-b border-gray-200/80 px-4 sm:px-6 py-3 sticky top-0 z-30">
+      <nav className="bg-[#2A1D6B] border-b border-white/10 px-4 sm:px-6 py-3 sticky top-0 z-30">
         <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
           <a href="/" className="flex items-center gap-3 group">
             <img
@@ -89,7 +89,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               alt="Stacked"
               className="h-6 sm:h-7 w-auto transition-transform group-hover:-rotate-2"
             />
-            <span className="hidden sm:inline-block font-mono text-[10px] uppercase tracking-[0.18em] text-brand-green/60 border-l border-brand-green/15 pl-3">
+            <span className="hidden sm:inline-block font-mono text-[10px] uppercase tracking-[0.18em] text-[#FAF3E5]/70 border-l border-white/20 pl-3">
               Approved Reporting
             </span>
           </a>
@@ -139,13 +139,13 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             })}
 
             {/* Account menu */}
-            <div className="relative ml-2 pl-3 border-l border-gray-200">
+            <div className="relative ml-2 pl-3 border-l border-white/20">
               <button
                 type="button"
                 onClick={() => setOpenMenu(openMenu === 'account' ? null : 'account')}
                 aria-expanded={openMenu === 'account'}
                 aria-label="Account menu"
-                className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-brand-green px-2 py-1.5 rounded-md hover:bg-brand-cream transition-colors"
+                className="flex items-center gap-1.5 text-sm text-[#FAF3E5]/80 hover:text-white px-2 py-1.5 rounded-md hover:bg-white/10 transition-colors"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
