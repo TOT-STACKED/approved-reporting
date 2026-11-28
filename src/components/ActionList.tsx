@@ -107,9 +107,11 @@ interface Props {
   /** Team notes; open flagged ones become the first to-do. */
   notes?: PartnerNote[] | null;
   onNoteDone?: (id: string) => void;
+  /** Partners the team has hidden on the heat map (e.g. not expecting leads). */
+  hiddenSlugs?: string[];
 }
 
-export default function ActionList({ leads, partners, notes, onNoteDone }: Props) {
+export default function ActionList({ leads, partners, notes, onNoteDone, hiddenSlugs }: Props) {
   const [nps, setNps] = useState<NpsRow[] | null>(null);
   const [open, setOpen] = useState<string | null>(null);
   // Fixed when the page loads, so ages don't shift between re-renders.
@@ -150,8 +152,11 @@ export default function ActionList({ leads, partners, notes, onNoteDone }: Props
 
     // 1. Approved partners with no move (MQL, SQL or Won) for 28+ days. Most recently quiet
     //    first: those are the easiest to get going again.
+    // Partners hidden on the heat map aren't expecting leads from us, so they
+    // stay off this call list too (Cinchio, 28 Nov 2026).
+    const hiddenSet = new Set(hiddenSlugs || []);
     const red = (partners || [])
-      .filter(p => p.tier === 'approved' && p.band === 'red')
+      .filter(p => p.tier === 'approved' && p.band === 'red' && !hiddenSet.has(p.slug))
       .sort((a, b) => (a.daysSinceLastLead ?? Infinity) - (b.daysSinceLastLead ?? Infinity));
     if (red.length) {
       out.push({
@@ -241,7 +246,7 @@ export default function ActionList({ leads, partners, notes, onNoteDone }: Props
     }
 
     return out;
-  }, [leads, partners, nps, notes, now]);
+  }, [leads, partners, nps, notes, now, hiddenSlugs]);
 
   const stillLoading = partners == null || nps == null;
 

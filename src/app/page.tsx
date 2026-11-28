@@ -151,6 +151,7 @@ export default function Dashboard() {
         partners={perfRows}
         notes={partnerNotes.notes}
         onNoteDone={id => partnerNotes.setDone(id, true, noteAuthor)}
+        hiddenSlugs={hiddenSlugs}
       />
 
       {/* Hero KPIs — Stacked marketplace card treatment. Big chunky
