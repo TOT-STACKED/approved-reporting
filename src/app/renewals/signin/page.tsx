@@ -67,6 +67,17 @@ export default function RenewalsSignInPage() {
 
   return (
     <main className="min-h-dvh flex flex-col items-center justify-center px-4 py-8 font-body" style={{ background: NIGHT }}>
+      {/* For anyone who was only looking: straight back to the website. */}
+      <div className="w-full max-w-[440px] mb-4">
+        <a
+          href="https://www.wearestacked.io"
+          className="inline-flex items-center gap-2 text-sm rounded-full px-1 py-1 underline-offset-4 hover:underline focus:outline-none focus-visible:ring-2"
+          style={{ color: CREAM, '--tw-ring-color': SKY } as React.CSSProperties}
+        >
+          <span aria-hidden>←</span> Back to wearestacked.io
+        </a>
+      </div>
+
       <div className="w-full max-w-[440px] rounded-[28px] p-6 sm:p-10" style={{ background: CREAM, color: INK }}>
         <div className="flex items-center gap-3 mb-7">
           <StackedLogo className="h-6 w-auto" />
